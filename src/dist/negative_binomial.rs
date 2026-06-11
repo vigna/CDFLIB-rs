@@ -155,15 +155,32 @@ impl NegativeBinomial {
         let sf = s as f64;
         // Match cdfnbn's which=4 exactly: drive dzror directly on pr when
         // p<=q, else on ompr = 1-pr with the upper-tail residual.
+        // The F90 loop evaluates cumnbn through cumbet, whose endpoint
+        // guards (cdflib.f90:6563-6571) fire before beta_inc, so pr = 0
+        // yields cum = 0 even when r = 0.
         if p <= q {
             let f = |pr: f64| {
-                let (cum, _ccum) = beta_inc(rf, sf + 1.0, pr, 1.0 - pr);
+                let cum = if pr <= 0.0 {
+                    0.0
+                } else if 1.0 - pr <= 0.0 {
+                    1.0
+                } else {
+                    let (cum, _ccum) = beta_inc(rf, sf + 1.0, pr, 1.0 - pr);
+                    cum
+                };
                 cum - p
             };
             Ok(search_bounded_zero(0.0, 1.0, f)?)
         } else {
             let f = |ompr: f64| {
-                let (_cum, ccum) = beta_inc(rf, sf + 1.0, 1.0 - ompr, ompr);
+                let ccum = if 1.0 - ompr <= 0.0 {
+                    1.0
+                } else if ompr <= 0.0 {
+                    0.0
+                } else {
+                    let (_cum, ccum) = beta_inc(rf, sf + 1.0, 1.0 - ompr, ompr);
+                    ccum
+                };
                 ccum - q
             };
             let ompr = search_bounded_zero(0.0, 1.0, f)?;

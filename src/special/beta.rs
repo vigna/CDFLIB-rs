@@ -325,7 +325,7 @@ pub fn beta_pser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
                 (1.0 + gam1(u)) / apb
             };
             let c = (1.0 + gam1(a)) * (1.0 + gam1(b)) / z;
-            result *= c * (b / apb);
+            result = result * c * (b / apb);
         } else if b0 < 8.0 {
             // a < 1, 1 < b < 8
             let mut u = gamma_ln1(a0);
@@ -365,7 +365,7 @@ pub fn beta_pser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
     let tol = eps / a;
     loop {
         n += 1.0;
-        c *= (0.5 + (0.5 - b / n)) * x;
+        c = c * (0.5 + (0.5 - b / n)) * x;
         let w = c / (a + n);
         sum += w;
         if w.abs() <= tol {
@@ -734,7 +734,7 @@ pub fn beta_grat(
     }
 
     let mut r = b * (1.0 + gam1(b)) * (b * z.ln()).exp();
-    r *= (a * lnx).exp() * (0.5 * bm1 * lnx).exp();
+    r = r * (a * lnx).exp() * (0.5 * bm1 * lnx).exp();
     let mut u = algdiv(b, a) + b * nu.ln();
     u = r * (-u).exp();
     if u == 0.0 {
@@ -992,9 +992,6 @@ pub enum BetaIncError {
 /// [`try_beta_inc`]: crate::special::try_beta_inc
 #[inline]
 pub fn beta_inc(a: f64, b: f64, x: f64, y: f64) -> (f64, f64) {
-    if a.is_nan() || b.is_nan() || x.is_nan() || y.is_nan() {
-        return (f64::NAN, f64::NAN);
-    }
     try_beta_inc(a, b, x, y).unwrap_or_else(|e| panic!("beta_inc({a}, {b}, {x}, {y}): {e}"))
 }
 
@@ -1015,6 +1012,7 @@ pub fn beta_inc(a: f64, b: f64, x: f64, y: f64) -> (f64, f64) {
 ///
 /// [`BetaIncError`]: crate::special::BetaIncError
 #[inline]
+#[allow(clippy::manual_range_contains)]
 pub fn try_beta_inc(a: f64, b: f64, x: f64, y: f64) -> Result<(f64, f64), BetaIncError> {
     let eps = f64::EPSILON;
     if a < 0.0 || b < 0.0 {
@@ -1023,14 +1021,15 @@ pub fn try_beta_inc(a: f64, b: f64, x: f64, y: f64) -> Result<(f64, f64), BetaIn
     if a == 0.0 && b == 0.0 {
         return Err(BetaIncError::BothZero);
     }
-    // Mirror CDFLIB's x < 0 || x > 1 form. With NaN inputs, both
-    // comparisons return false, so NaN passes through here and the
-    // x == 0 / y == 0 short-circuits below get a chance to fire,
-    // matching CDFLIB's behavior for e.g. cumt with extreme |t|.
-    if !(0.0..=1.0).contains(&x) {
+    // Mirror CDFLIB's x < 0 || x > 1 form, not RangeInclusive::contains:
+    // with NaN inputs, both comparisons return false, so NaN passes
+    // through here and the x == 0 / y == 0 short-circuits below get a
+    // chance to fire, matching CDFLIB's behavior for e.g. cumt with
+    // extreme |t|.
+    if x < 0.0 || x > 1.0 {
         return Err(BetaIncError::XOutOfRange(x));
     }
-    if !(0.0..=1.0).contains(&y) {
+    if y < 0.0 || y > 1.0 {
         return Err(BetaIncError::YOutOfRange(y));
     }
     let z = x + y - 0.5 - 0.5;
@@ -1054,6 +1053,12 @@ pub fn try_beta_inc(a: f64, b: f64, x: f64, y: f64) -> Result<(f64, f64), BetaIn
     }
     if b == 0.0 {
         return Ok((0.0, 1.0));
+    }
+    // A NaN that survives the short-circuits above would make the series
+    // loops below diverge (their exit tolerances never compare true);
+    // return the natural NaN instead.
+    if a.is_nan() || b.is_nan() || x.is_nan() || y.is_nan() {
+        return Ok((f64::NAN, f64::NAN));
     }
 
     let eps = eps.max(1e-15);

@@ -154,3 +154,30 @@ fn dstrem_matches_reference() {
         assert_close_eps(dstrem(z), expected, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
     }
 }
+
+// The a <= 0, |a| < 15 branch of gamma is libm-free (peel-loop products
+// and one rational evaluation), so the Rust port matches the F90 bit for
+// bit on the committed fixture. The -1.0e-8 row in particular
+// distinguishes the two-step (x + 0.5) + 0.5 rounding from a single
+// x + 1.0 rounding. The |a| >= 15 reflection rows go through libm and
+// are covered at KERNEL_REL_TOL by gamma_matches_reference instead.
+#[test]
+fn gamma_negative_small_matches_reference_exactly() {
+    let mut rows = 0;
+    for row in read_csv("tests/data/gamma.csv") {
+        let [a, expected] = row[..] else {
+            panic!("width");
+        };
+        if a >= 0.0 || a <= -15.0 {
+            continue;
+        }
+        let got = gamma(a);
+        assert_eq!(
+            got.to_bits(),
+            expected.to_bits(),
+            "a = {a}: got {got:e}, expected {expected:e}"
+        );
+        rows += 1;
+    }
+    assert!(rows >= 12, "fixture lost its negative rows ({rows})");
+}

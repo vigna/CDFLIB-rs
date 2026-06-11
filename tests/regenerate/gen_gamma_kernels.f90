@@ -18,6 +18,14 @@ program gen_gamma_kernels
     9.999999999999_rk, 10.0_rk, 10.000000000001_rk /)
   real(kind=rk), parameter :: gamma_special(*) = (/ &
     14.999999999999_rk, 15.0_rk, 15.000000000001_rk /)
+  ! Negative non-integer arguments: the |a| < 15 rows drive the
+  ! fractional-part peel loop and the (x + 0.5) + 0.5 rounding (the
+  ! -1.0e-8 row distinguishes it from a single x + 1.0 rounding); the
+  ! |a| >= 15 rows drive the reflection branch.
+  real(kind=rk), parameter :: gamma_negative(*) = (/ &
+    -1.0e-8_rk, -0.3_rk, -0.5_rk, -0.9_rk, -0.999999_rk, &
+    -1.5_rk, -2.000001_rk, -2.5_rk, -5.5_rk, -9.5_rk, &
+    -13.5_rk, -14.5_rk, -15.5_rk, -20.5_rk, -42.5_rk /)
   real(kind=rk), parameter :: inc_special_a(*) = (/ &
     0.149999999999_rk, 0.15_rk, 0.150000000001_rk, &
     0.374999999999_rk, 0.375_rk, 0.375000000001_rk, &
@@ -62,6 +70,11 @@ program gen_gamma_kernels
   end do
   do i = 1, size(gamma_special)
     a = gamma_special(i)
+    call putval(unit, a, .false.)
+    call putval(unit, gamma_user(a), .true.)
+  end do
+  do i = 1, size(gamma_negative)
+    a = gamma_negative(i)
     call putval(unit, a, .false.)
     call putval(unit, gamma_user(a), .true.)
   end do

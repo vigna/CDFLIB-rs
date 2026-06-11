@@ -375,7 +375,7 @@ mod tests {
     }
 
     #[test]
-    fn search_sd_underdetermined_no_longer_typed_error() {
+    fn search_sd_underdetermined_matches_f90() {
         // p = 1/2 makes z ≈ 0 and x = mean makes the numerator zero, so
         // every sd > 0 satisfies the equation. F90 returns the meaningless
         // value (x - mean) / dinvnr(0.5, 0.5) ≈ 0/tiny ≈ 0; we let that

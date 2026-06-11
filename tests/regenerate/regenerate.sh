@@ -35,7 +35,13 @@ for name in $GENERATORS; do
     fi
     BIN="$BUILD_DIR/gen_${name}"
     echo "compiling $SRC -> $BIN"
-    gfortran -O2 -Wall -Wno-unused-variable -Wno-unused-dummy-argument \
+    # -fdefault-real-8 promotes unsuffixed literals (e.g. the bare 0.15
+    # and 0.1 in gamma_inc_inv) to double precision; -fdefault-double-8
+    # keeps D+00 literals at 8 bytes instead of letting the first flag
+    # push them to 16. Together every constant is IEEE binary64, matching
+    # the Rust port.
+    gfortran -O2 -fdefault-real-8 -fdefault-double-8 \
+        -Wall -Wno-unused-variable -Wno-unused-dummy-argument \
         -J "$BUILD_DIR" \
         -o "$BIN" "$SRC" "$REFS_DIR/cdflib.f90"
     echo "running $BIN"

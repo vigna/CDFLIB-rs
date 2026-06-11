@@ -104,12 +104,14 @@ impl InvrState {
                 // (inclusive) versus fbig < fsmall (strict). The tie
                 // case fsmall == fbig takes the <= branch. qincr above
                 // is strict, used only for search-direction logic below.
+                // F90 does not assign x in these four returns, so x
+                // keeps the last requested evaluation point, big.
                 if self.fsmall <= self.fbig {
                     if self.fsmall > 0.0 {
                         return InvrAction::Failed {
                             qleft: true,
                             qhi: true,
-                            x: self.cfg.small,
+                            x: self.cfg.big,
                         };
                     }
                     if self.fbig < 0.0 {
@@ -124,7 +126,7 @@ impl InvrState {
                         return InvrAction::Failed {
                             qleft: true,
                             qhi: false,
-                            x: self.cfg.small,
+                            x: self.cfg.big,
                         };
                     }
                     if self.fbig > 0.0 {
@@ -264,7 +266,7 @@ mod tests {
             InvrAction::Failed {
                 qleft: true,
                 qhi: true,
-                x: 0.0
+                x: 1.0
             }
         ));
     }
@@ -294,7 +296,7 @@ mod tests {
             InvrAction::Failed {
                 qleft: true,
                 qhi: false,
-                x: 0.0
+                x: 1.0
             }
         ));
     }

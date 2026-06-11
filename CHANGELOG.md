@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.4.3] - 2026-06-11
+
+### Improved
+
+- Lower tolerance margins, closer code, more Fortran 90 tests.
+
 ## [0.4.2] - 2026-05-24
 
 ### Improved

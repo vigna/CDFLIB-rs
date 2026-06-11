@@ -382,12 +382,16 @@ contains
   end subroutine gen_cdfgam
 
   subroutine gen_cdfnbn()
-    real(kind=rk), parameter :: rows(3, 5) = reshape((/ &
+    ! The last two rows have cumulative p > 0.5, so the which = 4 search
+    ! exercises the ompr variable switch of cdfnbn.
+    real(kind=rk), parameter :: rows(3, 7) = reshape((/ &
        5.0_rk, 10.0_rk, 0.5_rk, &
        2.0_rk,  5.0_rk, 0.3_rk, &
       10.0_rk, 20.0_rk, 0.4_rk, &
        0.0_rk,  5.0_rk, 0.5_rk, &
-      20.0_rk, 50.0_rk, 0.6_rk /), (/3, 5/))
+      20.0_rk, 50.0_rk, 0.6_rk, &
+      20.0_rk,  5.0_rk, 0.5_rk, &
+      15.0_rk,  3.0_rk, 0.7_rk /), (/3, 7/))
     integer :: i, fs, fxn, fpr, which, status
     real(kind=rk) :: s, xn, pr, ompr, p, q, bound, ss, xx, pp, qq
 
@@ -397,7 +401,7 @@ contains
     write(fs,  '(a)') '# p, q, xn, pr, s'
     write(fxn, '(a)') '# p, q, s, pr, xn'
     write(fpr, '(a)') '# p, q, s, xn, pr'
-    do i = 1, 5
+    do i = 1, 7
       s = rows(1, i); xn = rows(2, i); pr = rows(3, i)
       ompr = 1.0_rk - pr
       which = 1

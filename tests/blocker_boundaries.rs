@@ -239,3 +239,72 @@ fn continuous_ccdf_nan_returns_nan() {
     assert!(Beta::new(2.0, 5.0).ccdf(f64::NAN).is_nan());
     assert!(StudentsT::new(10.0).ccdf(f64::NAN).is_nan());
 }
+
+// ---- F90 parity at degenerate search_pr inputs ----
+
+#[test]
+fn binomial_search_pr_all_successes_errors_instead_of_panicking() {
+    use cdflib::BinomialError;
+    // s == n pins cumbin to (1, 0) for every pr (cdflib.f90:6636-6645),
+    // so dzror sees no sign change and reports a search failure, as the
+    // F90 does with status -1 mapped through qleft/qhi.
+    assert!(matches!(
+        Binomial::search_pr(0.5, 0.5, 7, 7),
+        Err(BinomialError::Search(_))
+    ));
+}
+
+#[test]
+fn negative_binomial_search_pr_r_zero_converges_like_f90() {
+    // With r = 0 the cumulative is a step from 0 (pr = 0, via cumbet's
+    // endpoint guard, cdflib.f90:6563-6571) to 1 (pr > 0), so the search
+    // converges to the discontinuity at 0 instead of panicking inside
+    // beta_inc.
+    let pr = NegativeBinomial::search_pr(0.5, 0.5, 0, 5).unwrap();
+    assert!(pr.abs() < 1e-7, "pr = {pr}");
+}
+
+#[test]
+fn binomial_zero_trials_rejected() {
+    use cdflib::BinomialError;
+    // cdfbin rejects xn <= 0 with status -5 for every which except 3.
+    assert!(matches!(
+        Binomial::try_new(0, 0.5),
+        Err(BinomialError::TrialsZero)
+    ));
+    assert!(matches!(
+        Binomial::search_pr(0.5, 0.5, 0, 0),
+        Err(BinomialError::TrialsZero)
+    ));
+}
+
+#[test]
+fn students_t_tail_saturates_when_t_squared_overflows() {
+    // For |t| large enough that t*t overflows, cumt's beta_inc arguments
+    // become (0, NaN); the x == 0 short-circuit then yields the exact
+    // 0/1 tails as in the F90 cumbet path.
+    let t10 = StudentsT::new(10.0);
+    assert_eq!(t10.cdf(1e160), 1.0);
+    assert_eq!(t10.ccdf(1e160), 0.0);
+    assert_eq!(t10.cdf(-1e160), 0.0);
+    assert_eq!(t10.ccdf(-1e160), 1.0);
+}
+
+#[test]
+fn binomial_search_pr_all_successes_upper_tail_branch() {
+    use cdflib::BinomialError;
+    // Same degenerate s == n input through the p > q side: the search
+    // runs on ompr and cumbin's guard pins the survival function to 0.
+    assert!(matches!(
+        Binomial::search_pr(0.7, 0.3, 7, 7),
+        Err(BinomialError::Search(_))
+    ));
+}
+
+#[test]
+fn negative_binomial_search_pr_r_zero_upper_tail_branch() {
+    // r = 0 through the p > q side: cumbet's endpoint guards keep the
+    // ompr search away from beta_inc at both endpoints, as in the F90.
+    let pr = NegativeBinomial::search_pr(0.7, 0.3, 0, 5).unwrap();
+    assert!(pr.abs() < 1e-7, "pr = {pr}");
+}

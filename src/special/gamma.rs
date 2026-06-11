@@ -372,7 +372,7 @@ pub fn try_gamma(a: f64) -> Result<f64, GammaDomainError> {
                     x += 1.0;
                     t *= x;
                 }
-                x += 0.5 + 0.5;
+                x = (x + 0.5) + 0.5;
                 t *= x;
                 if t == 0.0 {
                     // a is a non-positive integer (0, -1, -2, …): pole.
@@ -698,8 +698,9 @@ pub fn gamma_log(a: f64) -> f64 {
         }
         return gamma_ln1(t - 1.0) + w.ln();
     }
-    // a >= 10: asymptotic.
-    let t = 1.0 / (a * a);
+    // a >= 10: asymptotic. The F90 computes (1/a)**2, rounding the
+    // reciprocal before squaring; 1/(a*a) differs in the last ulp.
+    let t = (1.0 / a).powi(2);
     let w = (((((C5 * t + C4) * t + C3) * t + C2) * t + C1) * t + C0) / a;
     D + w + (a - 0.5) * (a.ln() - 1.0)
 }
@@ -1945,6 +1946,8 @@ fn label_130(a: f64, p: f64, _q: f64, xn0: f64, x_initial: f64, emin_iop: f64) -
     }
     let mut w = p.ln() + gamma_log(ap1);
     let mut xn = xn0;
+    // The F90 literal 0.15 here carries no D exponent; regenerate.sh
+    // compiles with -fdefault-real-8 so it is double precision.
     if xn <= 0.15 * ap1 {
         // F90 L11348: closed-form refinement via three corrective x = exp(...)
         // updates that match the F90 line by line. F90 starts from the
@@ -2097,6 +2100,9 @@ fn schroder_q(
         }
         let t = (q - qn) / r;
         let w = HALF * (am1 - xn);
+        // The F90 q branch writes these two 0.1 thresholds without a D
+        // exponent; regenerate.sh compiles with -fdefault-real-8 so they
+        // are double precision like the p branch's 0.1D+00.
         let (x, d) = if t.abs() <= 0.1 && (w * t).abs() <= 0.1 {
             let h = t * (1.0 + w * t);
             let x = xn * (1.0 - h);

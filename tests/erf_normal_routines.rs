@@ -67,3 +67,14 @@ fn dinvnr_matches_reference() {
         assert_close_eps(dinvnr(p, q), expected_x, DINVNR_REL_TOL, DINVNR_REL_TOL);
     }
 }
+
+// F90 error_f computes ax * (top / bot) in the |x| <= 0.5 branch and
+// negates only when x < 0.0, so -0.0 yields +0.0; a NaN argument falls
+// through every branch comparison into the saturated 1.0 tail and the
+// final x < 0.0 test is false, so NaN yields exactly 1.0.
+#[test]
+fn error_f_signed_zero_and_nan_follow_f90() {
+    assert_eq!(error_f(0.0).to_bits(), 0.0f64.to_bits());
+    assert_eq!(error_f(-0.0).to_bits(), 0.0f64.to_bits());
+    assert_eq!(error_f(f64::NAN), 1.0);
+}

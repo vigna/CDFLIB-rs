@@ -10,8 +10,8 @@
 //!
 //! Tolerance: both sides drive `dinvr` with CDFLIB's `tol = 1e-8`
 //! (see `src/search/mod.rs`). Converged values therefore agree at the
-//! 1e-8 floor of the algorithm, not to machine precision. We use
-//! `5e-8` here for ~5x margin over that floor.
+//! 1e-8 floor of the algorithm, amplified by ~1/pdf at tail quantiles,
+//! not to machine precision. See `REL` below.
 
 mod common;
 
@@ -23,8 +23,9 @@ use cdflib::{
 use common::{assert_close_eps, read_csv};
 
 // Search converges at 1e-8 relative; tail quantiles inflate that by
-// ~1/pdf, giving ~1e-5 for the most amplifying cases on this grid.
-const REL: f64 = 1e-5;
+// ~1/pdf. Measured max on this grid: 9.8e-7 for the most amplifying
+// cases. 3e-6 leaves ~3x margin.
+const REL: f64 = 3e-6;
 // Some cdf* dispatchers compute parameters that are exactly 0 (e.g.,
 // cdfnor's search_mean recovering mean=0). Rust converges to a denormal
 // near-zero. 1e-14 absorbs that without masking real divergences.

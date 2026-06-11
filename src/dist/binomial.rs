@@ -46,6 +46,10 @@ pub enum BinomialError {
     /// The success probability *pr* fell outside [0 . . 1] (or was non-finite).
     #[error("success probability {0} outside [0..1]")]
     PrOutOfRange(f64),
+    /// The number of trials *n* is zero. Mirrors CDFLIB's `cdfbin`
+    /// status −5 (*xn* ≤ 0).
+    #[error("number of trials is zero")]
+    TrialsZero,
     /// The observed number of successes *s* exceeds the number of trials *n*.
     #[error("number of successes {s} exceeds the number of trials {n}")]
     SuccessesExceedTrials { s: u64, n: u64 },
@@ -86,9 +90,16 @@ impl Binomial {
     /// Returns [`PrOutOfRange`] if *pr* falls outside [0 . . 1] or is
     /// non-finite.
     ///
+    /// Returns [`TrialsZero`] if *n* is zero, mirroring CDFLIB's
+    /// `cdfbin` status −5.
+    ///
+    /// [`TrialsZero`]: BinomialError::TrialsZero
     /// [`PrOutOfRange`]: BinomialError::PrOutOfRange
     #[inline]
     pub fn try_new(n: u64, pr: f64) -> Result<Self, BinomialError> {
+        if n == 0 {
+            return Err(BinomialError::TrialsZero);
+        }
         if !(0.0..=1.0).contains(&pr) || !pr.is_finite() {
             return Err(BinomialError::PrOutOfRange(pr));
         }
@@ -153,6 +164,9 @@ impl Binomial {
     #[inline]
     pub fn search_pr(p: f64, q: f64, n: u64, s: u64) -> Result<f64, BinomialError> {
         check_pq(p, q)?;
+        if n == 0 {
+            return Err(BinomialError::TrialsZero);
+        }
         if s > n {
             return Err(BinomialError::SuccessesExceedTrials { s, n });
         }
@@ -160,15 +174,28 @@ impl Binomial {
         let sf = s as f64;
         // Match cdfbin's which=4 exactly: drive dzror directly on pr when
         // p<=q, else on ompr = 1-pr with the upper-tail residual.
+        // The F90 loop evaluates cumbin, whose s < xn guard
+        // (cdflib.f90:6636-6645) pins the cumulative to (1, 0) when
+        // s >= n, keeping beta_inc away from b = 0 at the pr = 1 endpoint.
         if p <= q {
             let f = |pr: f64| {
-                let (_sf_bin, cdf_bin) = beta_inc(sf + 1.0, nf - sf, pr, 1.0 - pr);
+                let cdf_bin = if s < n {
+                    let (_sf_bin, cdf_bin) = beta_inc(sf + 1.0, nf - sf, pr, 1.0 - pr);
+                    cdf_bin
+                } else {
+                    1.0
+                };
                 cdf_bin - p
             };
             Ok(search_bounded_zero(0.0, 1.0, f)?)
         } else {
             let f = |ompr: f64| {
-                let (sf_bin, _cdf_bin) = beta_inc(sf + 1.0, nf - sf, 1.0 - ompr, ompr);
+                let sf_bin = if s < n {
+                    let (sf_bin, _cdf_bin) = beta_inc(sf + 1.0, nf - sf, 1.0 - ompr, ompr);
+                    sf_bin
+                } else {
+                    0.0
+                };
                 sf_bin - q
             };
             let ompr = search_bounded_zero(0.0, 1.0, f)?;
@@ -269,7 +296,7 @@ impl Binomial {
         let pr = self.pr;
         let p = 1.0 - q;
         // F90 cumbin(s, xn, pr, ompr, cum, ccum) handles s >= xn natively by
-        // setting cum=1, ccum=0 (cdflib.f90:6648-6651); otherwise reduces to
+        // setting cum=1, ccum=0 (cdflib.f90:6636-6645); otherwise reduces to
         // beta_inc, which returns (P, Q) where Rust's binding is (ccum, cum)
         // matching F90 cumbet's argument order.
         let f = |s: f64| {

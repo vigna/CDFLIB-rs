@@ -31,43 +31,43 @@ pub const DEFAULT_ABS_TOL: f64 = 1e-300;
 /// Direct math routines (`error_f`, `cumnor`, `gamma_log`, `gamma`,
 /// `beta_log`, …). Compared against fixtures generated from the
 /// Fortran `cdflib.f90` via `tests/regenerate/gen_*.f90`.
-/// Measured max is about `2.9e-13` on saturated `error_f` / `error_fc`
-/// rows. `5e-13` leaves modest but real headroom without papering over
-/// larger discrepancies.
-pub const KERNEL_REL_TOL: f64 = 5e-13;
+/// Measured max is `1.5e-14` (the gamma reflection row at a = −42.5,
+/// where libm differences amplify to ~65 ulps). `5e-14` leaves ~3.5x
+/// margin.
+pub const KERNEL_REL_TOL: f64 = 5e-14;
 
 /// Iterative or regime-aware routines (`gamma_inc`, `beta_inc`). These
 /// dispatch across multiple computational regimes (power series,
 /// continued fraction, Tricomi–Temme-style asymptotic expansion); the last few
 /// ULPs can shift between Rust and the committed Fortran fixtures in the
-/// deep tails.
-/// Measured max relative difference on non-tiny outputs stays below
-/// `1e-14`, so `5e-14` remains tight for the scale-aware part.
+/// deep tails. Relative error above `5e-14` occurs only on tiny tail
+/// values whose absolute error sits under [`ITERATIVE_KERNEL_ABS_TOL`].
 pub const ITERATIVE_KERNEL_REL_TOL: f64 = 5e-14;
 
-/// Iterative-routine fixtures can still disagree by a few `1e-13` in the
-/// extreme tails even when the Rust answer matches high-precision
-/// arithmetic more closely than the Fortran table does. Use this absolute
-/// floor so near-zero `Q` values do not spuriously fail on relative error
-/// alone.
-pub const ITERATIVE_KERNEL_ABS_TOL: f64 = 5e-13;
+/// Absolute floor for the iterative-routine fixtures, so near-zero `P`/`Q`
+/// tail values do not spuriously fail on relative error alone.
+/// Measured max absolute difference: `5.5e-15`. `2e-14` leaves ~3.7x
+/// margin.
+pub const ITERATIVE_KERNEL_ABS_TOL: f64 = 2e-14;
 
 /// Distribution-layer methods whose CDF chains through an iterative
 /// routine (Beta, ChiSquared, Gamma, StudentsT, FisherSnedecor, plus
 /// the three discrete distributions that reduce to `beta_inc` or
-/// `gamma_inc`). Measured max: 2.3e-13 (Poisson, NegBin). Tolerance
-/// 3e-13 leaves ~1.3x margin, tight but still stable on the committed grid.
+/// `gamma_inc`). Measured max: 1.2e-13 (Poisson, NegBin). Tolerance
+/// 3e-13 leaves ~2.6x margin.
 pub const DISTRIBUTION_REL_TOL: f64 = 3e-13;
 
-/// Distribution fixtures can still miss by about `1e-12` in extreme tails
-/// near 0 or 1 even when the Rust answer agrees with high-precision
-/// arithmetic. Use this absolute floor for the reference-table tests.
-pub const DISTRIBUTION_ABS_TOL: f64 = 1e-12;
+/// Absolute floor for the distribution reference-table tests, carrying
+/// the extreme-tail rows near 0 or 1. Measured max absolute difference:
+/// `1.6e-15`. `1e-14` leaves ~6x margin.
+pub const DISTRIBUTION_ABS_TOL: f64 = 1e-14;
 
-/// `dinvnr` (direct normal inverse) reference-table match.
-/// Measured max: ~1.3e-15 away from the exact-zero row, with absolute error
-/// ~4.4e-16 at the origin. Tolerance 5e-15 leaves comfortable slack.
-pub const DINVNR_REL_TOL: f64 = 5e-15;
+/// `dinvnr` (direct normal inverse) reference-table match, used as both
+/// the relative and the absolute tolerance. The absolute side is the
+/// binding one: measured max absolute difference is `8.9e-16` (relative
+/// error is meaningless on the near-zero rows at p ≈ 0.5, which the
+/// absolute floor carries). `3e-15` leaves ~3.4x margin.
+pub const DINVNR_REL_TOL: f64 = 3e-15;
 
 /// `dinvr`-driven inverses and round-trip tests where the forward CDF
 /// is computed by a direct or iterative routine. The search matches
@@ -86,7 +86,7 @@ pub const CHAINED_INVERSE_REL_TOL: f64 = 5e-7;
 /// Noncentral distributions (`cumchn`). Despite CDFLIB's internal
 /// convergence tolerance of `1e-5`, the Poisson-mixture series achieves
 /// much higher accuracy in practice on the committed fixture grid.
-/// Measured max: 7.5e-15. Tolerance 5e-14 leaves ~6x margin.
+/// Measured max: 2.1e-14. Tolerance 5e-14 leaves ~2.4x margin.
 pub const NONCENTRAL_CHI_REL_TOL: f64 = 5e-14;
 
 /// Noncentral F (`cumfnc`). Internal tolerance `1e-4`, but measured max
@@ -94,6 +94,18 @@ pub const NONCENTRAL_CHI_REL_TOL: f64 = 5e-14;
 /// 2e-10 leaves <2x margin, so this is about as tight as the current
 /// series truncation allows without becoming brittle.
 pub const NONCENTRAL_F_REL_TOL: f64 = 2e-10;
+
+/// Absolute companion to [`NONCENTRAL_F_REL_TOL`]: deep-tail rows
+/// assemble the answer as `0.5 + (0.5 - sum)`, so a one-ulp libm wobble
+/// in `sum` costs ε/2 ≈ 1.1e-16 absolute regardless of how small the
+/// tail value is. 1e-15 covers ~4 ulps of that floor.
+pub const NONCENTRAL_F_ABS_TOL: f64 = 1e-15;
+
+/// Absolute floor for `stvaln`: at p ≈ 0.5 the result is the total
+/// cancellation `sgn * (y + num/den)` of two ~1.17 quantities, so a
+/// one-ulp libm wobble costs ~2.2e-16 absolute however small the result
+/// is. 1e-15 covers ~4 ulps of that floor.
+pub const STVALN_ABS_TOL: f64 = 1e-15;
 
 /// Assert that `got` is close to `expected` using the default tolerances.
 #[track_caller]

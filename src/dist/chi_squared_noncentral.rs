@@ -244,7 +244,7 @@ fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
     let mut i = icent;
     loop {
         let dfd2 = dg(i) / 2.0;
-        adj *= dfd2 / chid2;
+        adj = adj * dfd2 / chid2;
         sumadj += adj;
         let pterm = pcent + sumadj;
         wt *= i as f64 / xnonc;
@@ -271,7 +271,7 @@ fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
         sum += term;
         i += 1;
         let dfd2 = dg(i) / 2.0;
-        adj *= chid2 / dfd2;
+        adj = adj * chid2 / dfd2;
         sumadj += adj;
         iterf += 1;
         let small = sum < 1e-20 || term < eps * sum;

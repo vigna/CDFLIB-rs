@@ -12,7 +12,8 @@ mod common;
 
 use cdflib::{ChiSquaredNoncentral, ContinuousCdf, FisherSnedecorNoncentral};
 use common::{
-    assert_close_eps, read_csv, DEFAULT_ABS_TOL, NONCENTRAL_CHI_REL_TOL, NONCENTRAL_F_REL_TOL,
+    assert_close_eps, read_csv, DEFAULT_ABS_TOL, NONCENTRAL_CHI_REL_TOL, NONCENTRAL_F_ABS_TOL,
+    NONCENTRAL_F_REL_TOL,
 };
 
 #[test]
@@ -48,13 +49,13 @@ fn f_noncentral_matches_cumfnc_reference() {
             d.cdf(fx),
             expected_cdf,
             NONCENTRAL_F_REL_TOL,
-            DEFAULT_ABS_TOL,
+            NONCENTRAL_F_ABS_TOL,
         );
         assert_close_eps(
             d.ccdf(fx),
             expected_sf,
             NONCENTRAL_F_REL_TOL,
-            DEFAULT_ABS_TOL,
+            NONCENTRAL_F_ABS_TOL,
         );
     }
 }

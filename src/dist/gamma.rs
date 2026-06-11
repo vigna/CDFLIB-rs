@@ -165,11 +165,11 @@ impl Gamma {
         }
         // F(x; shape, rate) = P(shape, rate·x) is decreasing in shape
         // for fixed x > 0. Mirror Fortran cdfgam's precision pivot.
-        // Guard each iteration with F90's 1.5 < fx + porq check
+        // Guard each iteration with F90's two-arm check
+        // p <= q and 1.5 < cum, or q < p and 1.5 < ccum
         // (cdflib.f90:5015-5020) so gamma_inc's huge sentinel triggers
         // F90 status 10.
         let xr = x * rate;
-        let porq = p.min(q);
         let mut gamma_inc_err: Option<GammaIncError> = None;
         let f = |shape: f64| {
             if gamma_inc_err.is_some() {
@@ -182,7 +182,7 @@ impl Gamma {
                 }
                 Ok((cum, ccum)) => {
                     let fx = if p <= q { cum - p } else { ccum - q };
-                    if 1.5 < fx + porq {
+                    if (p <= q && 1.5 < cum) || (q < p && 1.5 < ccum) {
                         gamma_inc_err = Some(GammaIncError::Indeterminate { a: shape, x: xr });
                         return 0.0;
                     }

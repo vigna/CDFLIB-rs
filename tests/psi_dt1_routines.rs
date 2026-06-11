@@ -8,7 +8,7 @@ mod common;
 
 use cdflib::special::internal::stvaln;
 use cdflib::special::{dlanor, dt1, psi};
-use common::{assert_close_eps, read_csv, DEFAULT_ABS_TOL, KERNEL_REL_TOL};
+use common::{assert_close_eps, read_csv, DEFAULT_ABS_TOL, KERNEL_REL_TOL, STVALN_ABS_TOL};
 
 #[test]
 fn psi_matches_reference() {
@@ -46,6 +46,6 @@ fn stvaln_matches_reference() {
         let [p, expected] = row[..] else {
             panic!("width");
         };
-        assert_close_eps(stvaln(p), expected, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
+        assert_close_eps(stvaln(p), expected, KERNEL_REL_TOL, STVALN_ABS_TOL);
     }
 }

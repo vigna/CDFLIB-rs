@@ -37,10 +37,15 @@ enum Stage {
 pub(crate) enum ZrorAction {
     /// Caller must evaluate *f*(*x*) and pass the result to the next `step` call.
     NeedEval(f64),
-    /// Successful convergence: a root lies in [`xlo`, `xhi`]. The current
-    /// `search_monotone` driver returns `xlo`; advanced callers wanting
-    /// the full interval can drive `ZrorState` directly.
+    /// Successful convergence: a root lies in [`xlo`, `xhi`]. `x` is the
+    /// F90 reverse-communication variable: the point handed out for the
+    /// last evaluation. The swap at F90 label 80 updates `xlo` but not
+    /// `x`, so the two can differ by up to the convergence tolerance.
+    /// The direct-`dzror` dispatchers (`cdfbet`, `cdfbin`, `cdfnbn`)
+    /// report `x`, while the `dinvr`-embedded path overwrites it with
+    /// `xlo` (cdflib.f90:8233).
     Converged {
+        x: f64,
         xlo: f64,
         #[allow(dead_code)]
         xhi: f64,
@@ -60,6 +65,9 @@ pub(crate) struct ZrorState {
     // working state, names from the CDFLIB source
     xlo: f64,
     xhi: f64,
+    // the reverse-communication variable: last point handed out for
+    // evaluation
+    x: f64,
     a: f64,
     b: f64,
     c: f64,
@@ -82,6 +90,7 @@ impl ZrorState {
             stage: Stage::Start,
             xlo: 0.0,
             xhi: 0.0,
+            x: 0.0,
             a: 0.0,
             b: 0.0,
             c: 0.0,
@@ -109,6 +118,7 @@ impl ZrorState {
                     self.xlo = self.cfg.xlo;
                     self.xhi = self.cfg.xhi;
                     self.b = self.xlo;
+                    self.x = self.xlo;
                     self.stage = Stage::AwaitFb;
                     return ZrorAction::NeedEval(self.b);
                 }
@@ -116,6 +126,7 @@ impl ZrorState {
                     self.fb = fx;
                     self.xlo = self.xhi;
                     self.a = self.xlo;
+                    self.x = self.xlo;
                     self.stage = Stage::AwaitFa;
                     return ZrorAction::NeedEval(self.a);
                 }
@@ -201,6 +212,7 @@ impl ZrorState {
             let qrzero = (self.fc >= 0.0 && self.fb <= 0.0) || (self.fc < 0.0 && self.fb >= 0.0);
             if qrzero {
                 return Some(ZrorAction::Converged {
+                    x: self.x,
                     xlo: self.xlo,
                     xhi: self.xhi,
                 });
@@ -258,6 +270,7 @@ impl ZrorState {
         self.fa = self.fb;
         self.b += w;
         self.xlo = self.b;
+        self.x = self.xlo;
         self.stage = Stage::AwaitFbStep;
         Some(ZrorAction::NeedEval(self.b))
     }
@@ -283,6 +296,7 @@ mod tests {
             stage: Stage::AwaitFbStep,
             xlo: 0.0,
             xhi: 0.0,
+            x: 0.0,
             a: 1.0,
             b: 2.0,
             c: 1.0,
@@ -311,6 +325,7 @@ mod tests {
             stage: Stage::AwaitFbStep,
             xlo: 2.0,
             xhi: 4.0,
+            x: 0.0,
             a: 1.0,
             b: 2.0,
             c: 4.0,
@@ -339,6 +354,7 @@ mod tests {
             stage: Stage::AwaitFbStep,
             xlo: 2.0,
             xhi: 4.0,
+            x: 0.0,
             a: 1.0,
             b: 2.0,
             c: 4.0,
@@ -397,6 +413,7 @@ mod tests {
             stage: Stage::AwaitFbStep,
             xlo: 1.0,
             xhi: 1.0,
+            x: 0.0,
             a: 1.0,
             b: 1.0,
             c: 1.0,
@@ -419,5 +436,45 @@ mod tests {
                 ..
             })
         ));
+    }
+}
+
+#[cfg(test)]
+mod protocol_tests {
+    use super::*;
+
+    // F90 dzror returns with the reverse-communication variable x still
+    // holding the last point it handed out for evaluation; the swap at
+    // label 80 updates xlo but not x. The direct-dzror dispatchers
+    // (cdfbet, cdfbin, cdfnbn) report x, so Converged must carry the
+    // last evaluation point separately from xlo. A step function makes
+    // the |fc| < |fb| swap fire on the converging iteration, so the two
+    // genuinely differ.
+    #[test]
+    fn converged_x_is_last_eval_point_not_xlo_after_final_swap() {
+        let f = |x: f64| if x < 0.7 { -1.0 } else { 2.0 };
+        let mut z = ZrorState::new(ZrorConfig {
+            xlo: 0.0,
+            xhi: 1.0,
+            abstol: 1.0e-10,
+            reltol: 1.0e-8,
+        });
+        let mut fx = 0.0;
+        let mut last = f64::NAN;
+        loop {
+            match z.step(fx) {
+                ZrorAction::NeedEval(x) => {
+                    last = x;
+                    fx = f(x);
+                }
+                ZrorAction::Converged { x, xlo, xhi } => {
+                    assert_eq!(x, last, "x must be the last evaluation point");
+                    assert_ne!(x, xlo, "the final swap must have moved xlo off x");
+                    assert!((xlo - 0.7).abs() < 1e-7 && (xhi - 0.7).abs() < 1e-7);
+                    return;
+                }
+                ZrorAction::Failed { .. } => panic!("no sign change reported"),
+            }
+        }
     }
 }

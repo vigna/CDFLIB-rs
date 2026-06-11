@@ -13,8 +13,9 @@
 //!
 //! The F90 cdf* dispatchers each declare their own local search-setup
 //! constants: `abs_step = rel_step = 0.5`, `stp_mul = 5.0`, `tol = 1e-8`,
-//! `atol = 1e-10`. The values are identical across ten of the eleven
-//! routines; the eleventh, `cdfchn`, uses a tighter `atol = 1e-50`.
+//! `atol = 1e-10`. The values are identical across the nine solver-driven
+//! routines that declare them; `cdfchn` uses a tighter `atol = 1e-50`,
+//! and `cdfnor` needs no solver at all.
 //! Rather than restate the duplicated values in eleven Rust callsites,
 //! this module centralizes them in the [`ABS_STEP`], [`REL_STEP`],
 //! [`STP_MUL`], [`ABS_TOL`], [`REL_TOL`] constants below, and exposes
@@ -173,7 +174,11 @@ pub(crate) fn search_bounded_zero_with_tol(
     loop {
         match state.step(fx) {
             ZrorAction::NeedEval(x) => fx = f(x),
-            ZrorAction::Converged { xlo, .. } => return Ok(xlo),
+            // The F90 direct-dzror dispatchers read the answer from the
+            // reverse-communication variable x, which still holds the
+            // last evaluation point; the swap at label 80 updates xlo
+            // but not x.
+            ZrorAction::Converged { x, .. } => return Ok(x),
             ZrorAction::Failed { qleft, .. } => {
                 return Err(if qleft {
                     SearchError::AnswerBelowLowerBound { bound: cfg.xlo }

@@ -77,14 +77,12 @@ const C: f64 = 0.564189583547756;
 pub fn error_f(x: f64) -> f64 {
     let ax = x.abs();
 
-    if ax <= 0.5 {
+    let mut erf = if ax <= 0.5 {
         let t = x * x;
         let top = ((((A[0] * t + A[1]) * t + A[2]) * t + A[3]) * t) + A[4] + 1.0;
         let bot = ((B[0] * t + B[1]) * t + B[2]) * t + 1.0;
-        return x * (top / bot);
-    }
-
-    if ax <= 4.0 {
+        ax * (top / bot)
+    } else if ax <= 4.0 {
         let top = (((((((P[0] * ax + P[1]) * ax + P[2]) * ax + P[3]) * ax + P[4]) * ax + P[5])
             * ax
             + P[6])
@@ -97,28 +95,22 @@ pub fn error_f(x: f64) -> f64 {
             + Q[7];
         // erf = 1 - exp(-x²) * top/bot ; written as 0.5 + (0.5 - …) for
         // tail-precision-friendly assembly, matching CDFLIB.
-        let mut erf = 0.5 + (0.5 - (-(x * x)).exp() * top / bot);
-        if x < 0.0 {
-            erf = -erf;
-        }
-        return erf;
-    }
-
-    if ax < 5.8 {
+        0.5 + (0.5 - (-(x * x)).exp() * top / bot)
+    } else if ax < 5.8 {
         let x2 = x * x;
         let t = 1.0 / x2;
         let top = (((R[0] * t + R[1]) * t + R[2]) * t + R[3]) * t + R[4];
         let bot = (((S[0] * t + S[1]) * t + S[2]) * t + S[3]) * t + 1.0;
-        let mut erf = (C - top / (x2 * bot)) / ax;
-        erf = 0.5 + (0.5 - (-x2).exp() * erf);
-        if x < 0.0 {
-            erf = -erf;
-        }
-        return erf;
+        let erf = (C - top / (x2 * bot)) / ax;
+        0.5 + (0.5 - (-x2).exp() * erf)
+    } else {
+        // |x| >= 5.8: erf saturates to 1 before the sign fixup.
+        1.0
+    };
+    if x < 0.0 {
+        erf = -erf;
     }
-
-    // |x| ≥ 5.8: erf saturates to ±1.
-    x.signum()
+    erf
 }
 
 /// Returns the complementary error function erfc(*x*) = 1 − erf(*x*).
