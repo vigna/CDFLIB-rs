@@ -83,15 +83,10 @@ fn fisher_snedecor_noncentral_search_dfd_qleft_bound_is_f90_zero_not_small() {
     // cdflib.f90:4796 writes bound = 0.0D+00 for cdffnc which=4 qleft,
     // despite small = 1.0 (cdflib.f90:4777).
     //
-    // Trigger qleft with f = 0.5, dfn = 10, ncp = 0, p = 0.5: the central-F
-    // CDF at f = 0.5, dfn = 10, dfd → ∞ approaches χ²(10)/10 ≤ 0.5 ≈ 0.0083,
-    // and at small dfd it's larger. cum(dfd=1) > 0.5, so f = cum - p is
-    // positive at small. Increasing dfd from 1 reduces cum (concentrates
-    // around 1.0 ≥ 0.5), so f stays positive somewhere along the way then
-    // can cross. Actually: cum here is decreasing in dfd. We need both
-    // endpoints same-signed. With p = 0.99: cum(f=0.5, dfn=10, dfd=1)
-    // is well below 0.99; cum(f=0.5, dfn=10, dfd→∞) approaches ≈ 0.008.
-    // So f = cum - 0.99 is always negative. f is decreasing → qleft.
+    // Trigger qleft with f = 0.5, dfn = 10, ncp = 0, p = 0.99: cum is
+    // decreasing in dfd, from about 0.19 at dfd = 1 to about 0.11, the
+    // χ²(10)/10 limit, as dfd grows, so cum - p is negative at both ends
+    // of the search and decreasing, and dinvr reports qleft.
     let err = FisherSnedecorNoncentral::search_dfd(0.99, 0.5, 10.0, 0.0).unwrap_err();
     assert!(
         matches!(

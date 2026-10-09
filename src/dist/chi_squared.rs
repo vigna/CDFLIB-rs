@@ -55,7 +55,10 @@ pub struct ChiSquared {
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum ChiSquaredError {
     /// The degrees of freedom *df* was not strictly positive (`cdfchi`
-    /// status −5).
+    /// status −5). [`search_df`] also returns it, checked only in Rust,
+    /// when the *df* it computes is 0.
+    ///
+    /// [`search_df`]: crate::ChiSquared::search_df
     #[error("degrees of freedom must be positive, got {0}")]
     DfNotPositive(f64),
     /// The degrees of freedom *df* was not finite (checked only in Rust).
@@ -199,6 +202,11 @@ impl ChiSquared {
     ///
     /// CDFLIB's `cdfchi` with `which = 3`. The caller passes both *p* and
     /// *q* = 1 − *p*; they must sum to 1 within 3ε.
+    ///
+    /// A computed *df* of 0, at the lower end of the search interval, is
+    /// reported as [`DfNotPositive`].
+    ///
+    /// [`DfNotPositive`]: ChiSquaredError::DfNotPositive
     #[inline]
     pub fn search_df(p: f64, q: f64, x: f64) -> Result<f64, ChiSquaredError> {
         check_p(p)?;
@@ -227,7 +235,11 @@ impl ChiSquared {
             }
             .into());
         }
-        Ok(d.x())
+        // Rust only: the F90 returns the answer whatever its value; at the
+        // lower end of the search interval it is not a valid df.
+        let df = d.x();
+        check_df(df)?;
+        Ok(df)
     }
 
     /// CDFLIB's `cdfchi` with `which = 2`: returns *x* given (*p*, *q*),
@@ -357,6 +369,11 @@ impl Continuous for ChiSquared {
         if x < 0.0 {
             return f64::NEG_INFINITY;
         }
+        // The density tends to 0 as x tends to +inf, where the expression
+        // below would be inf - inf, or 0 * inf for df = 2.
+        if x == f64::INFINITY {
+            return f64::NEG_INFINITY;
+        }
         let k = self.df / 2.0;
         // ln f(x) = -(k ln 2 + ln Γ(k)) + (k - 1) ln x - x/2; for k = 1 the
         // term (k - 1) ln x is 0 at x = 0, where it would be 0 · (-inf).
@@ -388,6 +405,11 @@ impl Entropy for ChiSquared {
     #[inline]
     fn entropy(&self) -> f64 {
         let k = self.df / 2.0;
+        // For a subnormal df, k is 0, where ψ has a pole; the entropy tends
+        // to -inf as df tends to 0.
+        if k == 0.0 {
+            return f64::NEG_INFINITY;
+        }
         k + 2.0_f64.ln() + gamma_log(k) + (1.0 - k) * psi(k)
     }
 }

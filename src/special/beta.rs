@@ -94,6 +94,10 @@ pub fn algdiv(a: f64, b: f64) -> f64 {
 ///
 /// *a0* and *b0* should be nonnegative.
 ///
+/// The arguments are ordered with `f64::min` and `f64::max`, which, like
+/// gfortran's `min` and `max` on the reference platform, ignore a NaN
+/// argument: `beta_log(NaN, b)` is `beta_log(b, b)`, as in the F90.
+///
 /// # Example
 ///
 /// ```
@@ -237,6 +241,9 @@ pub fn bcorr(a0: f64, b0: f64) -> f64 {
 
 /// Evaluates the Β function, Β(*a*, *b*) (cdflib.f90:400).
 ///
+/// As with [`beta_log`], a NaN argument is ignored: `beta(NaN, b)` is
+/// `beta(b, b)`, as in the F90.
+///
 /// # Example
 ///
 /// ```
@@ -245,6 +252,8 @@ pub fn bcorr(a0: f64, b0: f64) -> f64 {
 /// let y = beta(3.0, 4.0);
 /// assert!((y - 1.0/60.0).abs() < 1e-14);
 /// ```
+///
+/// [`beta_log`]: crate::special::beta_log
 #[inline]
 pub fn beta(a: f64, b: f64) -> f64 {
     beta_log(a, b).exp()
@@ -1278,6 +1287,13 @@ pub enum BetaIncError {
 /// or expansion computes one of *w* and *w*₁ and derives the other as
 /// 0.5 + (0.5 − ·), as with the (*p*, *q*) pair returned by [`gamma_inc`].
 ///
+/// A NaN argument follows the F90 through its argument checks and special
+/// cases, which may return a value computed from the other arguments;
+/// past them the result is (NaN, NaN). Past the special cases the result
+/// is also (NaN, NaN) when *a* or *b* is infinite, and for the rare finite
+/// arguments on which the F90 never returns, such as
+/// (1 + *ε*, `f64::MAX`, 10⁻³¹⁰, 1).
+///
 /// # Panics
 ///
 /// Panics on a [`BetaIncError`] (a nonzero CDFLIB `ierr`). Use
@@ -1827,14 +1843,16 @@ mod tests {
         assert!((w + w1 - 1.0).abs() < 1e-10);
     }
 
-    // 1e-22 absolute tolerance on a tail probability is well below
-    // miri's soft-float libm precision. Skipped under miri.
+    // The exact F90 bits depend on the host libm, which miri does not
+    // reproduce. Skipped under miri.
     #[cfg(not(miri))]
     #[test]
-    fn beta_inc_extreme_skew_matches_high_precision_reference() {
+    fn beta_inc_extreme_skew_matches_f90() {
+        // The bits are those of the F90 beta_inc, compiled as in
+        // tests/regenerate/regenerate.sh.
         let (w, w1) = beta_inc(0.5, 100.0, 0.15, 0.85);
-        assert!((w - 0.999_999_987_603_646_8).abs() < 1e-15);
-        assert!((w1 - 1.239_635_319_310_601_4e-8).abs() < 1e-22);
+        assert_eq!(w.to_bits(), 0x3FEF_FFFF_F958_4219);
+        assert_eq!(w1.to_bits(), 0x3E4A_9EF7_9CF8_4528);
     }
 
     #[test]

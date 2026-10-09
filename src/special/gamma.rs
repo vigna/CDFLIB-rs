@@ -307,13 +307,17 @@ pub enum GammaDomainError {
     #[error("Γ has a pole at {0}")]
     Pole(f64),
     /// Result would overflow f64: 1/*t* can overflow for tiny |*a*|,
-    /// *a* ≥ 1000, or exp(*w*) in the final assembly would overflow.
+    /// *a* ≥ 1000, or exp(*w*) in the final assembly would overflow for
+    /// positive *a* (beyond about 171.6).
     #[error("Γ({0}) overflows f64")]
     Overflow(f64),
-    /// Argument is too negative (*a* ≤ −1000). CDFLIB's `gamma_user`
-    /// (cdflib.f90:10457-10459) returns its sentinel 0 for every such *a*:
-    /// Γ(*a*) underflows there, except at the negative integers, which are
-    /// poles and get the same sentinel.
+    /// Result would underflow f64: the argument is too negative. CDFLIB's
+    /// `gamma_user` returns its sentinel 0 for every *a* ≤ −1000
+    /// (cdflib.f90:10457-10459), and for negative *a* beyond about −171.6
+    /// when exp(*w*), the magnitude of Γ(−*a*), would overflow in the
+    /// final assembly (cdflib.f90:10499-10501). Γ(*a*) underflows there,
+    /// except at the negative integers, which are poles and get the same
+    /// sentinel for *a* ≤ −1000.
     #[error("Γ({0}) underflows f64")]
     Underflow(f64),
 }
@@ -323,8 +327,8 @@ pub enum GammaDomainError {
 /// # Panics
 ///
 /// Panics on a [`GammaDomainError`] (pole at zero or a negative integer
-/// greater than −1000, overflow, or *a* ≤ −1000). Use [`try_gamma`] for
-/// the fallible form.
+/// greater than −1000, overflow, or underflow for negative *a* beyond
+/// about −171.6). Use [`try_gamma`] for the fallible form.
 ///
 /// # Example
 ///
@@ -498,6 +502,11 @@ pub fn try_gamma(a: f64) -> Result<f64, GammaDomainError> {
         t = g - w;
 
         if 0.99999 * super::exparg(0) < w {
+            // Rust only: exp(w) is the magnitude of Γ(-a) when a < 0, and
+            // then Γ(a) underflows; the sign of a selects the error variant.
+            if a < 0.0 {
+                return Err(GammaDomainError::Underflow(a));
+            }
             return Err(GammaDomainError::Overflow(a));
         }
 
@@ -729,9 +738,12 @@ pub fn try_psi(xx: f64) -> Result<f64, PsiError> {
                     return Err(PsiError::Pole(xx));
                 }
 
-                aug = 4.0 * sgn * (z.cos() / z.sin());
+                // black_box keeps the optimizer from merging sin and cos
+                // into one sincos call, whose last bit can differ from the
+                // separate calls that the F90 makes.
+                aug = 4.0 * sgn * (z.cos() / std::hint::black_box(z).sin());
             } else {
-                aug = 4.0 * sgn * (z.sin() / z.cos());
+                aug = 4.0 * sgn * (z.sin() / std::hint::black_box(z).cos());
             }
         }
 
@@ -979,7 +991,9 @@ pub enum GammaIncError {
 /// Panics on a [`GammaIncError`]: if *a* or *x* is negative, if both are
 /// 0, or when the answer is computationally indeterminate because *a* is
 /// extremely large and *x* is very close to *a*. A NaN argument gives NaN
-/// components, unless the other argument is negative. Use
+/// components, unless the other argument is negative. As in the F90,
+/// *x* = +∞ gives NaN components too, except for *a* = 1/2, where the
+/// result is (1, 0); *a* = +∞ with finite *x* gives (0, 1). Use
 /// [`try_gamma_inc`] for the fallible form.
 ///
 /// # Example
@@ -1294,9 +1308,10 @@ pub fn try_gamma_inc_with_acc(
         }
     }
 
-    // Rust only: when x is NaN, F90 loops forever at label 100, and when
-    // a = x = +inf the label-50 loop never ends (z = rlog(NaN), which F90
-    // leaves unassigned); return NaN instead.
+    // Rust only: when x is NaN, F90 reaches label 100 and loops forever,
+    // unless big <= a, where it first computes z = rlog(NaN), which rlog
+    // leaves unassigned (cdflib.f90:10772), so that its result is
+    // undefined; the same happens when a = x = +inf. Return NaN instead.
     if x.is_nan() || (a == f64::INFINITY && x == f64::INFINITY) {
         return Ok((f64::NAN, f64::NAN));
     }
@@ -1794,11 +1809,13 @@ pub enum GammaIncInvError {
     #[error("no solution: q/a is too large")]
     NoSolution,
     /// *p* + *q* ≠ 1 (`ierr` = −4). Rust also returns it when *p* or *q* is
-    /// NaN, which the F90 test lets through.
+    /// NaN, which the F90 test lets through, or negative, which the F90
+    /// requires but does not check.
     #[error("inconsistent inputs: p + q must equal 1")]
     InconsistentPq,
-    /// 20 iterations were performed. This cannot occur if `x0` ≤ 0
-    /// (`ierr` = −6).
+    /// 20 iterations were performed (`ierr` = −6). The F90 documentation
+    /// says that this cannot occur if `x0` ≤ 0, but it does, for example
+    /// when the solution is subnormal.
     #[error("iteration did not converge in 20 steps; last value: {partial}")]
     NotConverged {
         /// The most recent value obtained for *x*.
@@ -1810,10 +1827,11 @@ pub enum GammaIncInvError {
     IterationFailed,
     /// A value for *x* has been obtained, but the routine is not certain
     /// of its accuracy. Iteration cannot be performed in this case. If
-    /// `x0` ≤ 0, this can occur only when *p* or *q* is approximately 0.
-    /// If `x0` is positive then this can occur when *a* is exceedingly
-    /// close to *x* and *a* is extremely large (say *a* ≥ 10²⁰) (`ierr` =
-    /// −8).
+    /// `x0` is positive then this can occur when *a* is exceedingly close
+    /// to *x* and *a* is extremely large (say *a* ≥ 10²⁰) (`ierr` = −8).
+    /// The F90 documentation says that if `x0` ≤ 0 this can occur only
+    /// when *p* or *q* is approximately 0, but it also occurs, for
+    /// example, when the solution is subnormal.
     #[error("solution obtained but accuracy cannot be certified; value: {value}")]
     UncertainAccuracy {
         /// The value obtained for *x*; [`f64::MAX`] where the F90 routine
@@ -1845,7 +1863,7 @@ pub enum GammaIncInvError {
 /// # Panics
 ///
 /// Panics on a [`GammaIncInvError`], exactly where [`try_gamma_inc_inv`]
-/// returns one; a NaN *p* or *q* is reported as
+/// returns one; a NaN or negative *p* or *q* is reported as
 /// [`InconsistentPq`](GammaIncInvError::InconsistentPq). Use
 /// [`try_gamma_inc_inv`] for the fallible form.
 ///
@@ -1930,6 +1948,12 @@ pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<(f64, u32), 
     // the F90 then returns a meaningless x, a negative ierr, or never
     // returns.
     if t.is_nan() {
+        return Err(GammaIncInvError::InconsistentPq);
+    }
+    // Rust only: the F90 requires nonnegative p and q but does not check
+    // it; a negative p or q gives a meaningless x, or the F90 never
+    // returns.
+    if p < 0.0 || q < 0.0 {
         return Err(GammaIncInvError::InconsistentPq);
     }
 
@@ -2510,8 +2534,8 @@ mod tests {
     #[test]
     fn dstrem_large_z_matches_bernoulli_lead() {
         // For large z, dstrem(z) ≈ 1/(12 z) − 1/(360 z³) + … .
-        // At z = 100 the next term is ~3·10⁻⁸ relative, so the
-        // leading-term match is ~4·10⁻⁵.
+        // At z = 100 the next term is about 3.3·10⁻⁶ of the leading one,
+        // so the leading-term match is about 3.3·10⁻⁶.
         let r = dstrem(100.0);
         let lead = 1.0 / 1200.0;
         assert!((r - lead).abs() / lead < 1e-4, "r = {r}, leading = {lead}");
@@ -2521,8 +2545,8 @@ mod tests {
     fn dstrem_small_z_matches_explicit_difference() {
         // For z ≤ 6, dstrem uses gamma_log(z) − Sterling(z) directly.
         // At z = 5: lnΓ(5) = ln 24 = 3.178053830347946...,
-        // Sterling(5) ≈ ½ ln(2π) + 4.5·ln 5 − 5 = 3.161549...,
-        // so dstrem(5) ≈ 0.0165...
+        // Sterling(5) ≈ ½ ln(2π) + 4.5·ln 5 − 5 = 3.161409...,
+        // so dstrem(5) ≈ 0.016645...
         let r = dstrem(5.0);
         let sterl = 0.91893853320467274178 + 4.5 * 5.0_f64.ln() - 5.0;
         let expected = gamma_log(5.0) - sterl;
@@ -3006,14 +3030,11 @@ mod tests {
 
     #[test]
     fn gamma_at_negative_mid_range() {
-        // Γ(-3.5) = -8√π/15 via reflection identity.
-        // Γ(n+0.5) = (2n)! √π / (4^n n!). For n=3: 6! / (4^3 3!) = 720/384 = 15/8.
-        // So Γ(3.5) = (15/8)√π. And Γ(-3.5) = (-1)^4 π / (sin(3.5π) Γ(4.5))
-        // ... easier: numerical check vs known-stable computation.
+        // Γ(-3.5) = 16√π/105 ≈ 0.2701. Check it against the reflection
+        // formula Γ(z)Γ(1 - z) = π/sin(πz), which gives
+        // Γ(-3.5) = π / (sin(-3.5π) Γ(4.5)).
         let g = gamma(-3.5);
         assert!(g.is_finite());
-        // The reflection formula: Γ(z)Γ(1-z) = π/sin(πz)
-        // → Γ(-3.5) = π / (sin(-3.5π) Γ(4.5))
         let g_45 = gamma(4.5);
         let expected = std::f64::consts::PI / ((-3.5_f64 * std::f64::consts::PI).sin() * g_45);
         assert!((g - expected).abs() / expected.abs() < 1e-10);

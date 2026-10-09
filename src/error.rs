@@ -32,6 +32,6 @@ pub enum SearchError {
     /// The initial guess *start* fell outside the range
     /// [*small* . . *big*]. Mirrors CDFLIB's `dinvr` fatal-error abort
     /// at cdflib.f90:8258-8263.
-    #[error("start {start} fell outside [{small}, {big}]")]
+    #[error("start {start} fell outside [{small}..{big}]")]
     StartOutOfRange { start: f64, small: f64, big: f64 },
 }

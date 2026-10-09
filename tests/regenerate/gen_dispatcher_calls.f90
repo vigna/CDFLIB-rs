@@ -4,7 +4,8 @@
 ! arguments before the call, status and bound, and the arguments after
 ! the call. The rows cover every value of which, both sides of p <= q,
 ! invalid arguments for each negative status, P + Q /= 1, and searches
-! that fail at either bound.
+! that fail at either bound or meet the error value of gamma_inc (status
+! 10).
 !
 ! Conventions that let the Rust API, which derives complements, receive
 ! exactly the arguments the F90 received: a q of -99 means q = 1 - p and
@@ -76,7 +77,7 @@ contains
 
   subroutine log_cdfbet()
     ! which, p, q, x, y, a, b
-    real(kind=rk), parameter :: r(7, 34) = reshape((/ &
+    real(kind=rk), parameter :: r(7, 38) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 0.3_rk, auto, 2.0_rk, 5.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.999_rk, auto, 0.5_rk, 0.5_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, auto, 2.0_rk, 5.0_rk, &
@@ -110,7 +111,11 @@ contains
       4.0_rk, 0.5_rk, auto, 0.5_rk, auto, -2.0_rk, 0.0_rk, &
       4.0_rk, -0.5_rk, auto, 0.5_rk, auto, 2.0_rk, 0.0_rk, &
       4.0_rk, 0.5_rk, 0.6_rk, 0.5_rk, auto, 2.0_rk, 0.0_rk, &
-      4.0_rk, 0.5_rk, auto, 1.5_rk, auto, 2.0_rk, 0.0_rk /), (/ 7, 34 /))
+      4.0_rk, 0.5_rk, auto, 1.5_rk, auto, 2.0_rk, 0.0_rk, &
+      3.0_rk, 0.5_rk, auto, 0.0_rk, auto, 0.0_rk, 2.0_rk, &
+      3.0_rk, 0.5_rk, auto, 1.0_rk, auto, 0.0_rk, 2.0_rk, &
+      4.0_rk, 0.5_rk, auto, 0.0_rk, auto, 2.0_rk, 0.0_rk, &
+      4.0_rk, 0.5_rk, auto, 1.0_rk, auto, 2.0_rk, 0.0_rk /), (/ 7, 38 /))
     real(kind=rk) :: v(6), a(6), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdfbet_calls.csv', status='replace', action='write')
@@ -131,7 +136,7 @@ contains
 
   subroutine log_cdfbin()
     ! which, p, q, s, xn, pr, ompr
-    real(kind=rk), parameter :: r(7, 35) = reshape((/ &
+    real(kind=rk), parameter :: r(7, 37) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 3.0_rk, 10.0_rk, 0.3_rk, auto, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, 10.0_rk, 0.3_rk, auto, &
       1.0_rk, 0.0_rk, 0.0_rk, 10.0_rk, 10.0_rk, 0.3_rk, auto, &
@@ -166,7 +171,9 @@ contains
       2.0_rk, 0.5_rk, -0.5_rk, 0.0_rk, 10.0_rk, 0.3_rk, auto, &
       2.0_rk, 0.5_rk, 1.5_rk, 0.0_rk, 10.0_rk, 0.3_rk, auto, &
       3.0_rk, 0.5_rk, auto, -1.0_rk, 0.0_rk, 0.3_rk, auto, &
-      4.0_rk, 0.8_rk, auto, 10.0_rk, 10.0_rk, 0.0_rk, auto /), (/ 7, 35 /))
+      4.0_rk, 0.8_rk, auto, 10.0_rk, 10.0_rk, 0.0_rk, auto, &
+      3.0_rk, 0.5_rk, auto, 3.0_rk, 0.0_rk, 0.0_rk, auto, &
+      3.0_rk, 0.01_rk, auto, 3.0_rk, 0.0_rk, 1.0e-300_rk, auto /), (/ 7, 37 /))
     real(kind=rk) :: v(6), a(6), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdfbin_calls.csv', status='replace', action='write')
@@ -187,7 +194,7 @@ contains
 
   subroutine log_cdfchi()
     ! which, p, q, x, df
-    real(kind=rk), parameter :: r(5, 22) = reshape((/ &
+    real(kind=rk), parameter :: r(5, 26) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 3.84_rk, 1.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, 5.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 1000.0_rk, 5.0_rk, &
@@ -209,7 +216,11 @@ contains
       3.0_rk, 0.5_rk, 0.4_rk, 3.0_rk, 0.0_rk, &
       3.0_rk, 1.5_rk, auto, 3.0_rk, 0.0_rk, &
       2.0_rk, 0.5_rk, auto, 0.0_rk, 1.0e10_rk , &
-      3.0_rk, 0.5_rk, 1.5_rk, 3.0_rk, 0.0_rk /), (/ 5, 22 /))
+      3.0_rk, 0.5_rk, 1.5_rk, 3.0_rk, 0.0_rk, &
+      2.0_rk, 0.5_rk, auto, 0.0_rk, 1.0e300_rk, &
+      2.0_rk, 0.5_rk, auto, 0.0_rk, 1.0e305_rk, &
+      3.0_rk, 0.5_rk, auto, 1.0e300_rk, 0.0_rk, &
+      3.0_rk, 0.5_rk, auto, 1.42108547152020022e29_rk, 0.0_rk /), (/ 5, 26 /))
     real(kind=rk) :: v(4), a(4), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdfchi_calls.csv', status='replace', action='write')
@@ -229,7 +240,7 @@ contains
 
   subroutine log_cdfchn()
     ! which, p, q, x, df, pnonc
-    real(kind=rk), parameter :: r(6, 26) = reshape((/ &
+    real(kind=rk), parameter :: r(6, 27) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 15.0_rk, 5.0_rk, 10.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 3.0_rk, 4.0_rk, 0.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, 4.0_rk, 2.0_rk, &
@@ -255,7 +266,8 @@ contains
       4.0_rk, 1.5_rk, 0.0_rk, 15.0_rk, 5.0_rk, 0.0_rk , &
       4.0_rk, 1.0e-30_rk, 0.0_rk, 15.0_rk, 5.0_rk, 0.0_rk, &
       3.0_rk, 1.0e-30_rk, 0.0_rk, 15.0_rk, 0.0_rk, 10.0_rk , &
-      4.0_rk, 1.0e-10_rk, 0.0_rk, 9000.0_rk, 5.0_rk, 0.0_rk /), (/ 6, 26 /))
+      4.0_rk, 1.0e-10_rk, 0.0_rk, 9000.0_rk, 5.0_rk, 0.0_rk, &
+      2.0_rk, 0.9999999_rk, 0.0_rk, 0.0_rk, 5.0_rk, 2.0_rk /), (/ 6, 27 /))
     real(kind=rk) :: v(5), a(5), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdfchn_calls.csv', status='replace', action='write')
@@ -274,7 +286,7 @@ contains
 
   subroutine log_cdff()
     ! which, p, q, f, dfn, dfd
-    real(kind=rk), parameter :: r(6, 32) = reshape((/ &
+    real(kind=rk), parameter :: r(6, 33) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 3.33_rk, 5.0_rk, 10.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.01_rk, 5.0_rk, 10.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, 5.0_rk, 10.0_rk, &
@@ -306,7 +318,8 @@ contains
       3.0_rk, 1.0e-10_rk, auto, 3.33_rk, 0.0_rk, 10.0_rk, &
       3.0_rk, 0.9999999999_rk, auto, 3.33_rk, 0.0_rk, 10.0_rk, &
       4.0_rk, 1.0e-10_rk, auto, 3.33_rk, 5.0_rk, 0.0_rk, &
-      4.0_rk, 0.9999999999_rk, auto, 3.33_rk, 5.0_rk, 0.0_rk /), (/ 6, 32 /))
+      4.0_rk, 0.9999999999_rk, auto, 3.33_rk, 5.0_rk, 0.0_rk, &
+      2.0_rk, 0.75_rk, auto, 0.0_rk, 1.0e-10_rk, 1.0e-10_rk /), (/ 6, 33 /))
     real(kind=rk) :: v(5), a(5), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdff_calls.csv', status='replace', action='write')
@@ -326,7 +339,7 @@ contains
 
   subroutine log_cdffnc()
     ! which, p, q, f, dfn, dfd, pnonc
-    real(kind=rk), parameter :: r(7, 31) = reshape((/ &
+    real(kind=rk), parameter :: r(7, 32) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 4.0_rk, 5.0_rk, 10.0_rk, 2.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 4.0_rk, 5.0_rk, 10.0_rk, 0.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, 5.0_rk, 10.0_rk, 2.0_rk, &
@@ -357,7 +370,8 @@ contains
       5.0_rk, 1.0e-30_rk, 0.0_rk, 4.0_rk, 5.0_rk, 10.0_rk, 0.0_rk, &
       4.0_rk, 1.0e-30_rk, 0.0_rk, 4.0_rk, 5.0_rk, 0.0_rk, 2.0_rk , &
       5.0_rk, 1.0e-10_rk, 0.0_rk, 1000.0_rk, 5.0_rk, 10.0_rk, 0.0_rk, &
-      3.0_rk, 0.9999999_rk, 0.0_rk, 4.0_rk, 0.0_rk, 10.0_rk, 2.0_rk /), (/ 7, 31 /))
+      3.0_rk, 0.9999999_rk, 0.0_rk, 4.0_rk, 0.0_rk, 10.0_rk, 2.0_rk, &
+      2.0_rk, 0.999999_rk, 0.0_rk, 0.0_rk, 5.0_rk, 10.0_rk, 2.0_rk /), (/ 7, 32 /))
     real(kind=rk) :: v(6), a(6), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdffnc_calls.csv', status='replace', action='write')
@@ -376,7 +390,7 @@ contains
 
   subroutine log_cdfgam()
     ! which, p, q, x, shape, scale
-    real(kind=rk), parameter :: r(6, 29) = reshape((/ &
+    real(kind=rk), parameter :: r(6, 30) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 2.0_rk, 2.0_rk, 1.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, 2.0_rk, 1.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 2.0_rk, 0.0_rk, 1.0_rk, &
@@ -405,7 +419,8 @@ contains
       4.0_rk, 1.0e-10_rk, auto, 5.0_rk, 1.0e-3_rk, 0.0_rk , &
       2.0_rk, 1.5_rk, auto, 0.0_rk, 2.0_rk, 3.0_rk, &
       2.0_rk, 0.5_rk, -0.5_rk, 0.0_rk, 2.0_rk, 3.0_rk, &
-      2.0_rk, 0.5_rk, 1.5_rk, 0.0_rk, 2.0_rk, 3.0_rk /), (/ 6, 29 /))
+      2.0_rk, 0.5_rk, 1.5_rk, 0.0_rk, 2.0_rk, 3.0_rk, &
+      3.0_rk, 0.5_rk, auto, 1.0e300_rk, 0.0_rk, 1.0_rk /), (/ 6, 30 /))
     real(kind=rk) :: v(5), a(5), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdfgam_calls.csv', status='replace', action='write')
@@ -425,7 +440,7 @@ contains
 
   subroutine log_cdfnbn()
     ! which, p, q, f, s, pr, ompr
-    real(kind=rk), parameter :: r(7, 31) = reshape((/ &
+    real(kind=rk), parameter :: r(7, 33) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 3.0_rk, 5.0_rk, 0.5_rk, auto, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, 5.0_rk, 0.5_rk, auto, &
       1.0_rk, 0.0_rk, 0.0_rk, 3.0_rk, 5.0_rk, 1.0_rk, auto, &
@@ -456,7 +471,9 @@ contains
       2.0_rk, 0.5_rk, -0.5_rk, 0.0_rk, 5.0_rk, 0.5_rk, auto, &
       2.0_rk, 0.5_rk, 1.5_rk, 0.0_rk, 5.0_rk, 0.5_rk, auto, &
       3.0_rk, 0.5_rk, auto, -1.0_rk, 0.0_rk, 0.5_rk, auto, &
-      2.0_rk, 0.5_rk, auto, 0.0_rk, -1.0_rk, 0.5_rk, auto /), (/ 7, 31 /))
+      2.0_rk, 0.5_rk, auto, 0.0_rk, -1.0_rk, 0.5_rk, auto, &
+      2.0_rk, 0.5_rk, auto, 0.0_rk, 5.0_rk, 1.0e-300_rk, auto, &
+      3.0_rk, 0.5_rk, auto, 3.0_rk, 0.0_rk, 1.0_rk, auto /), (/ 7, 33 /))
     real(kind=rk) :: v(6), a(6), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdfnbn_calls.csv', status='replace', action='write')
@@ -519,7 +536,7 @@ contains
 
   subroutine log_cdfpoi()
     ! which, p, q, s, xlam
-    real(kind=rk), parameter :: r(5, 22) = reshape((/ &
+    real(kind=rk), parameter :: r(5, 23) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 2.0_rk, 3.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 285.0_rk, 200.0_rk, &
@@ -541,7 +558,8 @@ contains
       3.0_rk, 0.5_rk, 0.4_rk, 3.0_rk, 0.0_rk , &
       3.0_rk, 1.5_rk, auto, 3.0_rk, 0.0_rk, &
       3.0_rk, 0.5_rk, 1.5_rk, 3.0_rk, 0.0_rk, &
-      3.0_rk, 0.5_rk, auto, -1.0_rk, 0.0_rk /), (/ 5, 22 /))
+      3.0_rk, 0.5_rk, auto, -1.0_rk, 0.0_rk, &
+      2.0_rk, 0.5_rk, auto, 0.0_rk, 1.0e305_rk /), (/ 5, 23 /))
     real(kind=rk) :: v(4), a(4), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdfpoi_calls.csv', status='replace', action='write')

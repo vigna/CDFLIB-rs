@@ -68,6 +68,9 @@ const S: [f64; 4] = [
 /// Since some compilers already supply a routine named `erf`, CDFLIB gives
 /// this routine the distinct name `error_f` (cdflib.f90:9294).
 ///
+/// As in the F90, a NaN argument fails every range test and reaches the
+/// saturated tail, so `error_f(NaN)` is 1.
+///
 /// Reference: Armido DiDinato, Alfred Morris, Algorithm 708: Significant
 /// Digit Computation of the Incomplete Beta Function Ratios, ACM Transactions
 /// on Mathematical Software, Volume 18, 1993, pages 360-373.
@@ -145,6 +148,8 @@ pub fn error_f(x: f64) -> f64 {
 /// assert!((y - 0.00467773).abs() < 1e-8);
 /// ```
 ///
+/// A NaN argument gives NaN, as in the F90.
+///
 /// [`error_f`]: crate::special::error_f
 #[inline]
 pub fn error_fc(x: f64) -> f64 {
@@ -155,7 +160,8 @@ pub fn error_fc(x: f64) -> f64 {
 ///
 /// This is CDFLIB's `error_fc(ind, x)` (cdflib.f90:9450) with *ind* ≠ 0:
 /// the value returned has been multiplied by exp(*x*²). It stays finite for
-/// large positive *x*, where erfc(*x*) itself underflows.
+/// large positive *x*, where erfc(*x*) itself underflows. A NaN argument
+/// gives NaN, and −∞ gives +∞, as in the F90.
 ///
 /// Reference: Armido DiDinato, Alfred Morris, Algorithm 708: Significant
 /// Digit Computation of the Incomplete Beta Function Ratios, ACM Transactions

@@ -1,8 +1,7 @@
 use crate::error::SearchError;
 use crate::search::dstinv;
-use crate::special::{dt1, gamma_log, pow2, psi};
+use crate::special::{beta_log, dt1, pow2, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
-use std::f64::consts::PI;
 use thiserror::Error;
 
 use super::beta::cumbet;
@@ -74,9 +73,13 @@ pub enum StudentsTError {
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
     /// The search for the answer failed (`cdft` status 1 or 2); see
-    /// [`SearchError`].
+    /// [`SearchError`]. The quantile methods also return
+    /// [`StartOutOfRange`] when the starting value given by `dt1` falls
+    /// outside the search interval, or is NaN, as for a tiny *df*, where
+    /// CDFLIB stops with a fatal error.
     ///
     /// [`SearchError`]: crate::error::SearchError
+    /// [`StartOutOfRange`]: crate::error::SearchError::StartOutOfRange
     #[error(transparent)]
     Search(#[from] SearchError),
 }
@@ -292,10 +295,10 @@ impl Continuous for StudentsT {
     #[inline]
     fn ln_pdf(&self, t: f64) -> f64 {
         let df = self.df;
-        gamma_log((df + 1.0) / 2.0)
-            - gamma_log(df / 2.0)
-            - 0.5 * (PI * df).ln()
-            - ((df + 1.0) / 2.0) * (1.0 + t * t / df).ln()
+        // ln f(t) = -ln(√df · Β(df/2, 1/2)) - (df + 1)/2 · ln(1 + t²/df).
+        // For large df, beta_log and ln_1p keep the precision that
+        // ln Γ((df + 1)/2) - ln Γ(df/2) and ln(1 + t²/df) would lose.
+        -0.5 * df.ln() - beta_log(0.5 * df, 0.5) - 0.5 * (df + 1.0) * (t * t / df).ln_1p()
     }
 }
 
@@ -331,9 +334,13 @@ impl Entropy for StudentsT {
     #[inline]
     fn entropy(&self) -> f64 {
         let df = self.df;
+        // For a subnormal df, df/2 is 0, where ψ has a pole; the entropy
+        // tends to +inf as df tends to 0.
+        if df / 2.0 == 0.0 {
+            return f64::INFINITY;
+        }
         // H = (df+1)/2 · [ψ((df+1)/2) - ψ(df/2)] + ln(√df · Β(df/2, 1/2))
         // = (df+1)/2 · [ψ((df+1)/2) - ψ(df/2)] + 0.5·ln(df) + ln Β(df/2, 1/2)
-        use crate::special::beta_log;
         0.5 * (df + 1.0) * (psi((df + 1.0) / 2.0) - psi(df / 2.0))
             + 0.5 * df.ln()
             + beta_log(df / 2.0, 0.5)

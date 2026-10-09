@@ -37,9 +37,14 @@ pub trait ContinuousCdf {
     ///
     /// Implementations compute this independently of [`cdf`] rather than as
     /// `1 − cdf(x)`, so the small tail keeps its precision deep into the
-    /// tails where the subtraction would lose digits to cancellation.
+    /// tails where the subtraction would lose digits to cancellation. The
+    /// exceptions are [`ChiSquaredNoncentral`] and
+    /// [`FisherSnedecorNoncentral`], for which CDFLIB computes
+    /// `1 − cdf(x)`.
     ///
     /// [`cdf`]: ContinuousCdf::cdf
+    /// [`ChiSquaredNoncentral`]: crate::ChiSquaredNoncentral
+    /// [`FisherSnedecorNoncentral`]: crate::FisherSnedecorNoncentral
     fn ccdf(&self, x: f64) -> f64;
 
     /// Returns the smallest *x* such that [cdf]\(*x*\) ≥ *p*, for *p* ∈ [0 . . 1].
@@ -81,10 +86,11 @@ pub trait DiscreteCdf {
     /// [cdf]: DiscreteCdf::cdf
     fn ccdf(&self, x: u64) -> f64;
 
-    /// Returns the smallest integer *x* such that [cdf]\(*x*\) ≥ *p*.
-    /// At *p* = 0 returns 0; at *p* = 1 returns the supremum of support
-    /// (the upper bound for distributions with finite support, [`u64::MAX`]
-    /// for the unbounded ones).
+    /// Returns the smallest integer *x* such that [cdf]\(*x*\) ≥ *p*, or
+    /// the largest admissible *x* if there is none. At *p* = 0 returns 0;
+    /// at *p* = 1 returns the largest admissible *x*: the number of trials
+    /// for the binomial distribution, and [`u64::MAX`] for the unbounded
+    /// ones, also when the parameters reduce the support to {0}.
     ///
     /// [cdf]: DiscreteCdf::cdf
     fn inverse_cdf(&self, p: f64) -> Result<u64, Self::Error>;
@@ -92,7 +98,10 @@ pub trait DiscreteCdf {
 
 /// Probability density function (and its log) for a continuous distribution.
 ///
-/// Implemented only when the density admits a closed-form expression.
+/// Implemented only when the density admits a closed-form expression. The
+/// terms of such an expression can cancel when the parameters are very
+/// large: the χ² density, for example, has a relative error of about
+/// 10⁻⁵ at *df* = 10¹⁰.
 pub trait Continuous {
     /// Returns the density *f*(*x*) of the distribution at *x*.
     fn pdf(&self, x: f64) -> f64;
@@ -138,7 +147,9 @@ pub trait Variance {
 /// Differential entropy (for continuous distributions) or Shannon
 /// entropy (for discrete distributions), in nats.
 ///
-/// Implemented only when the entropy admits a closed-form expression.
+/// Implemented only when the entropy admits a closed-form expression. The
+/// terms of such an expression cancel when the parameters are very large,
+/// and the result loses its accuracy beyond about 10⁹.
 pub trait Entropy {
     /// Returns the entropy of the distribution in nats.
     fn entropy(&self) -> f64;

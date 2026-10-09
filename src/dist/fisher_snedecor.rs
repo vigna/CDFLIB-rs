@@ -416,6 +416,11 @@ impl Continuous for FisherSnedecor {
         if x < 0.0 {
             return f64::NEG_INFINITY;
         }
+        // The density tends to 0 as x tends to +inf, where the expression
+        // below would be inf - inf, or 0 * inf for dfn = 2.
+        if x == f64::INFINITY {
+            return f64::NEG_INFINITY;
+        }
         let dfn = self.dfn;
         let dfd = self.dfd;
         // f(x) = (dfn/dfd)^(dfn/2) · x^(dfn/2-1) · (1 + dfn·x/dfd)^(-(dfn+dfd)/2) / Β(dfn/2, dfd/2)

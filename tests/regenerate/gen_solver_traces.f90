@@ -12,7 +12,7 @@
 ! <xhi> <abstol> <reltol>"; the dinvr step parameters are 0.5, 0.5 and 5,
 ! as in every cdf* routine.
 !
-! Companion Rust test: the solver_traces unit test in src/search/mod.rs,
+! Companion Rust test: solver_traces_match_f90 in src/search/mod.rs,
 ! which replays the recorded fx values and checks every requested x and
 ! the outcome bit for bit.
 

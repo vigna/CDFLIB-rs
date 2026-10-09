@@ -32,7 +32,7 @@ fn chi_squared_inverse_ccdf_round_trip() {
 }
 
 #[test]
-fn chi_squared_solve_df_round_trip() {
+fn chi_squared_search_df_round_trip() {
     for &(p_target, x) in &[(0.95, 3.84), (0.99, 6.63), (0.5, 2.0)] {
         let df = ChiSquared::search_df(p_target, 1.0 - p_target, x).unwrap();
         let p_back = ChiSquared::new(df).cdf(x);
@@ -52,7 +52,7 @@ fn gamma_inverse_cdf_round_trip() {
 }
 
 #[test]
-fn gamma_solve_round_trip() {
+fn gamma_search_round_trip() {
     let shape = Gamma::search_shape(0.95, 0.05, 5.0, 2.0).unwrap();
     let back = Gamma::new(shape, 2.0).cdf(5.0);
     assert_close_eps(back, 0.95, INVERSE_REL_TOL, INVERSE_REL_TOL);

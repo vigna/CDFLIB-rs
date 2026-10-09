@@ -300,15 +300,13 @@ impl ContinuousCdf for Normal {
     /// CDFLIB's `cdfnor` with `which = 1`.
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
-        // Rust only: exact endpoints, where cumnor gives NaN.
-        if x == f64::NEG_INFINITY {
-            return 0.0;
-        }
-        if x == f64::INFINITY {
-            return 1.0;
-        }
         // cdflib.f90:5850-5853
         let z = (x - self.mean) / self.sd;
+        // Rust only: exact endpoints where z * 16 overflows in cumnor
+        // (cdflib.f90:7774), which then gives NaN; this includes x = ±inf.
+        if (z * 16.0).is_infinite() {
+            return if z < 0.0 { 0.0 } else { 1.0 };
+        }
         let (cum, _ccum) = cumnor(z);
         cum
     }
@@ -317,15 +315,13 @@ impl ContinuousCdf for Normal {
     /// as 1 − cdf(*x*), which preserves precision in the right tail.
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
-        // Rust only: exact endpoints, where cumnor gives NaN.
-        if x == f64::NEG_INFINITY {
-            return 1.0;
-        }
-        if x == f64::INFINITY {
-            return 0.0;
-        }
         // cdflib.f90:5850-5853
         let z = (x - self.mean) / self.sd;
+        // Rust only: exact endpoints where z * 16 overflows in cumnor
+        // (cdflib.f90:7774), which then gives NaN; this includes x = ±inf.
+        if (z * 16.0).is_infinite() {
+            return if z < 0.0 { 1.0 } else { 0.0 };
+        }
         let (_cum, ccum) = cumnor(z);
         ccum
     }
@@ -384,10 +380,11 @@ impl Variance for Normal {
 }
 
 impl Entropy for Normal {
-    /// Differential entropy: ½ ln(2π e *σ*²).
+    /// Differential entropy: ½ ln(2π e *σ*²), computed as ½ ln(2π e) +
+    /// ln *σ* so that *σ*² cannot overflow or underflow.
     #[inline]
     fn entropy(&self) -> f64 {
-        0.5 * (2.0 * PI * E * self.sd * self.sd).ln()
+        0.5 * (2.0 * PI * E).ln() + self.sd.ln()
     }
 }
 

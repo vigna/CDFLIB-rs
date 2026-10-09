@@ -41,13 +41,6 @@ program gen_beta_distributions
     t = -8.0_rk
     do while (t <= 8.0_rk + 1.0e-12_rk)
       call cumt(t, df, cum, ccum)
-      ! cumt's cumbet reduction loses about 2% relative accuracy in the
-      ! tiny tail at df=100, |t| in {6.25, 6.5}. Skip those rows so this
-      ! table continues to test the port against meaningful reference data.
-      if (df == 100.0_rk .and. (abs(t) == 6.25_rk .or. abs(t) == 6.5_rk)) then
-        t = t + 0.25_rk
-        cycle
-      end if
       call putval(unit, df, .false.)
       call putval(unit, t, .false.)
       call putval(unit, cum, .false.)

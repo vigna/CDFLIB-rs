@@ -66,11 +66,17 @@ pub struct NegativeBinomial {
 pub enum NegativeBinomialError {
     /// The success probability *pr* fell outside (0 . . 1] (`cdfnbn` status
     /// −6); NaN is also rejected. Rust also excludes *pr* = 0, which would
-    /// never produce a success.
+    /// never produce a success, and [`search_pr`] returns it when the *pr*
+    /// it computes is 0.
+    ///
+    /// [`search_pr`]: crate::NegativeBinomial::search_pr
     #[error("success probability {0} outside (0..1]")]
     PrOutOfRange(f64),
     /// The target number of successes *r* was zero (checked only in Rust;
-    /// `cdfnbn` status −5 rejects only *s* < 0).
+    /// `cdfnbn` status −5 rejects only *s* < 0). [`search_r`] also returns
+    /// it when the *r* it computes is 0.
+    ///
+    /// [`search_r`]: crate::NegativeBinomial::search_r
     #[error("`r` must be positive")]
     RNotPositive,
     /// The probability *p* fell outside [0 . . 1] (`cdfnbn` status −2); NaN is
@@ -188,6 +194,11 @@ impl NegativeBinomial {
     /// CDFLIB's `cdfnbn` with `which = 3`, with *ompr* = 1 − *pr*. The
     /// caller passes both *p* and *q* = 1 − *p*; they must sum to 1 within
     /// 3ε.
+    ///
+    /// A computed *r* of 0, at the lower end of the search interval, is
+    /// reported as [`RNotPositive`].
+    ///
+    /// [`RNotPositive`]: NegativeBinomialError::RNotPositive
     #[inline]
     pub fn search_r(p: f64, q: f64, pr: f64, s: u64) -> Result<f64, NegativeBinomialError> {
         check_p(p)?;
@@ -216,7 +227,14 @@ impl NegativeBinomial {
             }
             .into());
         }
-        Ok(d.x())
+        // Rust only: the F90 returns the answer whatever its value; at the
+        // lower end of the search interval there are no successes to wait
+        // for.
+        let r = d.x();
+        if r == 0.0 {
+            return Err(NegativeBinomialError::RNotPositive);
+        }
+        Ok(r)
     }
 
     /// Returns the success probability *pr* satisfying Pr[*F* ≤ *s*] = *p*
@@ -225,6 +243,11 @@ impl NegativeBinomial {
     /// CDFLIB's `cdfnbn` with `which = 4`. The caller passes both *p* and
     /// *q* = 1 − *p*; they must sum to 1 within 3ε. When *p* > *q* the
     /// search runs on *ompr* = 1 − *pr* and returns *pr* = 1 − *ompr*.
+    ///
+    /// A computed *pr* of 0, at the lower end of the search interval, is
+    /// reported as [`PrOutOfRange`].
+    ///
+    /// [`PrOutOfRange`]: NegativeBinomialError::PrOutOfRange
     #[inline]
     pub fn search_pr(p: f64, q: f64, r: u64, s: u64) -> Result<f64, NegativeBinomialError> {
         check_p(p)?;
@@ -268,6 +291,9 @@ impl NegativeBinomial {
             }
             .into());
         }
+        // Rust only: the F90 returns the answer whatever its value; pr = 0,
+        // at the lower end of the search interval, is not valid.
+        check_pr(pr)?;
         Ok(pr)
     }
 

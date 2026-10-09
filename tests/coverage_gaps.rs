@@ -67,9 +67,10 @@ fn gamma_negative_argument_and_overflow_paths() {
     assert_eq!(try_gamma(-2.0), Err(GammaDomainError::Pole(-2.0)));
     assert_eq!(try_gamma(-5.0), Err(GammaDomainError::Pole(-5.0)));
 
-    // Reflection-branch overflow: w exceeds 0.99999 * exparg(0) for a far
-    // enough negative non-integer.
-    assert_eq!(try_gamma(-200.7), Err(GammaDomainError::Overflow(-200.7)));
+    // Reflection-branch underflow: w, the logarithm of the magnitude of
+    // Γ(-a), exceeds 0.99999 * exparg(0) for a far enough negative
+    // non-integer, so Γ(a) underflows.
+    assert_eq!(try_gamma(-200.7), Err(GammaDomainError::Underflow(-200.7)));
 
     // Large positive overflow: a ≥ 15 and 0.99999 * exparg(0) < w.
     assert_eq!(try_gamma(200.0), Err(GammaDomainError::Overflow(200.0)));
@@ -97,7 +98,7 @@ fn psi_reflection_and_overflow_branches() {
     assert!(p462.is_finite());
 
     // Singularity at a negative integer: z = 0 inside the m+m == n
-    // branch. psi(-2.0) hits this exactly (Pole variant.
+    // branch. psi(-2.0) hits this exactly (Pole variant).
     assert_eq!(try_psi(-2.0), Err(PsiError::Pole(-2.0)));
     assert_eq!(try_psi(-3.0), Err(PsiError::Pole(-3.0)));
 
@@ -355,7 +356,7 @@ fn negative_binomial_inverse_cdf_high_quantile() {
 }
 
 #[test]
-fn fisher_snedecor_noncentral_pdf_basic() {
+fn fisher_snedecor_noncentral_cdf_basic() {
     // The forward sum of cumfnc. Its aup - 1 + b == 0 branch is
     // unreachable, since dfn and dfd are at least 1 (see
     // tests/regenerate/unreachable.txt); exercise the surrounding code

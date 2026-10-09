@@ -34,7 +34,8 @@ GENERATORS="
 for name in $GENERATORS; do
     SRC="tests/regenerate/gen_${name}.f90"
     if [ ! -f "$SRC" ]; then
-        continue
+        echo "missing generator $SRC" >&2
+        exit 1
     fi
     BIN="$BUILD_DIR/gen_${name}"
     echo "compiling $SRC -> $BIN"
@@ -45,8 +46,10 @@ for name in $GENERATORS; do
     # the Rust port. -ffp-contract=off forbids fused multiply-adds, which
     # the Rust port never uses, so that the generated values are the
     # IEEE binary64 results of the F90 expressions as written.
+    # -Werror=underflow rejects subnormal literals, which gfortran flushes
+    # to zero.
     gfortran -O2 -fdefault-real-8 -fdefault-double-8 -ffp-contract=off \
-        -Wall -Wno-unused-variable -Wno-unused-dummy-argument \
+        -Wall -Wno-unused-variable -Wno-unused-dummy-argument -Werror=underflow \
         -J "$BUILD_DIR" \
         -o "$BIN" "$SRC" "$REFS_DIR/cdflib.f90"
     echo "running $BIN"

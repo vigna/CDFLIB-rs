@@ -66,6 +66,10 @@ pub struct Gamma {
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum GammaError {
     /// The shape parameter *α* was not strictly positive (`cdfgam` status −5).
+    /// [`search_shape`] also returns it, checked only in Rust, when the
+    /// shape it computes is 0.
+    ///
+    /// [`search_shape`]: crate::Gamma::search_shape
     #[error("shape must be positive, got {0}")]
     ShapeNotPositive(f64),
     /// The rate parameter *β* (CDFLIB's SCALE) was not strictly positive
@@ -264,6 +268,11 @@ impl Gamma {
     ///
     /// CDFLIB's `cdfgam` with `which = 3`. The caller passes both *p* and
     /// *q* = 1 − *p*; they must sum to 1 within 3ε.
+    ///
+    /// A computed shape of 0, at the lower end of the search interval, is
+    /// reported as [`ShapeNotPositive`].
+    ///
+    /// [`ShapeNotPositive`]: GammaError::ShapeNotPositive
     #[inline]
     pub fn search_shape(p: f64, q: f64, x: f64, rate: f64) -> Result<f64, GammaError> {
         check_p(p)?;
@@ -296,7 +305,11 @@ impl Gamma {
             }
             .into());
         }
-        Ok(d.x())
+        // Rust only: the F90 returns the answer whatever its value; at the
+        // lower end of the search interval it is not a valid shape.
+        let shape = d.x();
+        check_shape(shape)?;
+        Ok(shape)
     }
 
     /// Returns the rate parameter *β* (CDFLIB's SCALE) satisfying
@@ -385,16 +398,17 @@ impl ContinuousCdf for Gamma {
     /// shape > 6.6 · 10²⁸ and *β*·*x* within a few ulps of the shape.
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
-        // Rust only: exact endpoint at +inf, where cumgam gives NaN.
-        if x == f64::INFINITY {
-            return 1.0;
-        }
         // Rust only: no status -4 for x < 0 (cdflib.f90:5043-5054); cumgam
         // returns (0, 1) there.
         // cdflib.f90:5102-5110. F90 sets status 10 for the error value of
         // gamma_inc by testing porq, which is not set when which = 1.
-        // Rust only: panic on the GammaIncError of cumgam.
         let xscale = x * self.rate;
+        // Rust only: exact endpoint where xscale is +inf, for which cumgam
+        // gives NaN; this includes x = +inf.
+        if xscale == f64::INFINITY {
+            return 1.0;
+        }
+        // Rust only: panic on the GammaIncError of cumgam.
         match cumgam(xscale, self.shape) {
             Ok((cum, _ccum)) => cum,
             Err(e) => panic!("cumgam({xscale}, {}): {e}", self.shape),
@@ -409,16 +423,17 @@ impl ContinuousCdf for Gamma {
     /// shape > 6.6 · 10²⁸ and *β*·*x* within a few ulps of the shape.
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
-        // Rust only: exact endpoint at +inf, where cumgam gives NaN.
-        if x == f64::INFINITY {
-            return 0.0;
-        }
         // Rust only: no status -4 for x < 0 (cdflib.f90:5043-5054); cumgam
         // returns (0, 1) there.
         // cdflib.f90:5102-5110. F90 sets status 10 for the error value of
         // gamma_inc by testing porq, which is not set when which = 1.
-        // Rust only: panic on the GammaIncError of cumgam.
         let xscale = x * self.rate;
+        // Rust only: exact endpoint where xscale is +inf, for which cumgam
+        // gives NaN; this includes x = +inf.
+        if xscale == f64::INFINITY {
+            return 0.0;
+        }
+        // Rust only: panic on the GammaIncError of cumgam.
         match cumgam(xscale, self.shape) {
             Ok((_cum, ccum)) => ccum,
             Err(e) => panic!("cumgam({xscale}, {}): {e}", self.shape),
@@ -453,6 +468,11 @@ impl Continuous for Gamma {
     #[inline]
     fn ln_pdf(&self, x: f64) -> f64 {
         if x < 0.0 {
+            return f64::NEG_INFINITY;
+        }
+        // The density tends to 0 as x tends to +inf, where the expression
+        // below would be inf - inf, or 0 * inf for shape = 1.
+        if x == f64::INFINITY {
             return f64::NEG_INFINITY;
         }
         // ln f = shape·ln(rate) - ln Γ(shape) + (shape-1) ln x - rate·x; for

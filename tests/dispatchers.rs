@@ -39,7 +39,7 @@ fn cdfbet_x_matches_beta_inverse_cdf() {
 }
 
 #[test]
-fn cdfbet_a_matches_beta_solve_a() {
+fn cdfbet_a_matches_beta_search_a() {
     for row in read_csv("tests/data/cdfbet_a.csv") {
         let [p, q, x, b, a_ref] = row[..] else {
             panic!("width")
@@ -50,7 +50,7 @@ fn cdfbet_a_matches_beta_solve_a() {
 }
 
 #[test]
-fn cdfbet_b_matches_beta_solve_b() {
+fn cdfbet_b_matches_beta_search_b() {
     for row in read_csv("tests/data/cdfbet_b.csv") {
         let [p, q, x, a, b_ref] = row[..] else {
             panic!("width")
@@ -80,7 +80,7 @@ fn cdfbin_s_matches_binomial_inverse_ccdf() {
 }
 
 #[test]
-fn cdfbin_xn_matches_binomial_solve_trials() {
+fn cdfbin_xn_matches_binomial_search_trials() {
     for row in read_csv("tests/data/cdfbin_xn.csv") {
         let [p, q, s, pr, xn_ref] = row[..] else {
             panic!("width")
@@ -91,7 +91,7 @@ fn cdfbin_xn_matches_binomial_solve_trials() {
 }
 
 #[test]
-fn cdfbin_pr_matches_binomial_solve_pr() {
+fn cdfbin_pr_matches_binomial_search_pr() {
     for row in read_csv("tests/data/cdfbin_pr.csv") {
         let [p, q, s, xn, pr_ref] = row[..] else {
             panic!("width")
@@ -121,7 +121,7 @@ fn cdfchi_x_matches_chi_squared_inverse_cdf() {
 }
 
 #[test]
-fn cdfchi_df_matches_chi_squared_solve_df() {
+fn cdfchi_df_matches_chi_squared_search_df() {
     for row in read_csv("tests/data/cdfchi_df.csv") {
         let [p, q, x, df_ref] = row[..] else {
             panic!("width")
@@ -145,7 +145,7 @@ fn cdfchn_x_matches_chi_squared_noncentral_inverse_cdf() {
 }
 
 #[test]
-fn cdfchn_df_matches_chi_squared_noncentral_solve_df() {
+fn cdfchn_df_matches_chi_squared_noncentral_search_df() {
     for row in read_csv("tests/data/cdfchn_df.csv") {
         let [p, _q, x, pnonc, df_ref] = row[..] else {
             panic!("width")
@@ -156,7 +156,7 @@ fn cdfchn_df_matches_chi_squared_noncentral_solve_df() {
 }
 
 #[test]
-fn cdfchn_pnonc_matches_chi_squared_noncentral_solve_ncp() {
+fn cdfchn_pnonc_matches_chi_squared_noncentral_search_ncp() {
     for row in read_csv("tests/data/cdfchn_pnonc.csv") {
         let [p, _q, x, df, ncp_ref] = row[..] else {
             panic!("width")
@@ -186,7 +186,7 @@ fn cdff_f_matches_fisher_snedecor_inverse_cdf() {
 }
 
 #[test]
-fn cdff_dfn_matches_fisher_snedecor_solve_dfn() {
+fn cdff_dfn_matches_fisher_snedecor_search_dfn() {
     for row in read_csv("tests/data/cdff_dfn.csv") {
         let [p, q, f, dfd, dfn_ref] = row[..] else {
             panic!("width")
@@ -197,7 +197,7 @@ fn cdff_dfn_matches_fisher_snedecor_solve_dfn() {
 }
 
 #[test]
-fn cdff_dfd_matches_fisher_snedecor_solve_dfd() {
+fn cdff_dfd_matches_fisher_snedecor_search_dfd() {
     for row in read_csv("tests/data/cdff_dfd.csv") {
         let [p, q, f, dfn, dfd_ref] = row[..] else {
             panic!("width")
@@ -223,7 +223,7 @@ fn cdffnc_f_matches_fisher_snedecor_noncentral_inverse_cdf() {
 }
 
 #[test]
-fn cdffnc_dfn_matches_fisher_snedecor_noncentral_solve_dfn() {
+fn cdffnc_dfn_matches_fisher_snedecor_noncentral_search_dfn() {
     for row in read_csv("tests/data/cdffnc_dfn.csv") {
         let [p, _q, f, dfd, phonc, dfn_ref] = row[..] else {
             panic!("width")
@@ -234,7 +234,7 @@ fn cdffnc_dfn_matches_fisher_snedecor_noncentral_solve_dfn() {
 }
 
 #[test]
-fn cdffnc_dfd_matches_fisher_snedecor_noncentral_solve_dfd() {
+fn cdffnc_dfd_matches_fisher_snedecor_noncentral_search_dfd() {
     for row in read_csv("tests/data/cdffnc_dfd.csv") {
         let [p, _q, f, dfn, phonc, dfd_ref] = row[..] else {
             panic!("width")
@@ -245,7 +245,7 @@ fn cdffnc_dfd_matches_fisher_snedecor_noncentral_solve_dfd() {
 }
 
 #[test]
-fn cdffnc_phonc_matches_fisher_snedecor_noncentral_solve_ncp() {
+fn cdffnc_pnonc_matches_fisher_snedecor_noncentral_search_ncp() {
     for row in read_csv("tests/data/cdffnc_phonc.csv") {
         let [p, _q, f, dfn, dfd, ncp_ref] = row[..] else {
             panic!("width")
@@ -259,7 +259,7 @@ fn cdffnc_phonc_matches_fisher_snedecor_noncentral_solve_ncp() {
 
 // CDFLIB's cdfgam names its second parameter scale, but the code
 // computes P(shape, x * scale), so it's mathematically the rate.
-// This crate calls the parameter rate (see src/distribution/gamma.rs);
+// This crate calls the parameter rate (see src/dist/gamma.rs);
 // we pass the CSV's scale column directly to Gamma::new as rate.
 
 #[test]
@@ -280,7 +280,7 @@ fn cdfgam_x_matches_gamma_inverse_cdf() {
 }
 
 #[test]
-fn cdfgam_shape_matches_gamma_solve_shape() {
+fn cdfgam_shape_matches_gamma_search_shape() {
     for row in read_csv("tests/data/cdfgam_shape.csv") {
         let [p, q, x, rate, shape_ref] = row[..] else {
             panic!("width")
@@ -291,7 +291,7 @@ fn cdfgam_shape_matches_gamma_solve_shape() {
 }
 
 #[test]
-fn cdfgam_scale_matches_gamma_solve_rate() {
+fn cdfgam_scale_matches_gamma_search_rate() {
     for row in read_csv("tests/data/cdfgam_scale.csv") {
         let [p, q, x, shape, rate_ref] = row[..] else {
             panic!("width")
@@ -321,7 +321,7 @@ fn cdfnbn_s_matches_negative_binomial_inverse_ccdf() {
 }
 
 #[test]
-fn cdfnbn_xn_matches_negative_binomial_solve_r() {
+fn cdfnbn_xn_matches_negative_binomial_search_r() {
     for row in read_csv("tests/data/cdfnbn_xn.csv") {
         let [p, q, s, pr, xn_ref] = row[..] else {
             panic!("width")
@@ -332,7 +332,7 @@ fn cdfnbn_xn_matches_negative_binomial_solve_r() {
 }
 
 #[test]
-fn cdfnbn_pr_matches_negative_binomial_solve_pr() {
+fn cdfnbn_pr_matches_negative_binomial_search_pr() {
     for row in read_csv("tests/data/cdfnbn_pr.csv") {
         let [p, q, s, xn, pr_ref] = row[..] else {
             panic!("width")
@@ -362,7 +362,7 @@ fn cdfnor_x_matches_normal_inverse_cdf() {
 }
 
 #[test]
-fn cdfnor_mean_matches_normal_solve_mean() {
+fn cdfnor_mean_matches_normal_search_mean() {
     for row in read_csv("tests/data/cdfnor_mean.csv") {
         let [p, q, x, sd, mean_ref] = row[..] else {
             panic!("width")
@@ -373,7 +373,7 @@ fn cdfnor_mean_matches_normal_solve_mean() {
 }
 
 #[test]
-fn cdfnor_sd_matches_normal_solve_sd() {
+fn cdfnor_sd_matches_normal_search_sd() {
     for row in read_csv("tests/data/cdfnor_sd.csv") {
         let [p, q, x, mean, sd_ref] = row[..] else {
             panic!("width")
@@ -405,7 +405,7 @@ fn cdfpoi_s_matches_poisson_inverse_ccdf() {
 }
 
 #[test]
-fn cdfpoi_xlam_matches_poisson_solve_lambda() {
+fn cdfpoi_xlam_matches_poisson_search_lambda() {
     for row in read_csv("tests/data/cdfpoi_xlam.csv") {
         let [p, q, s, xlam_ref] = row[..] else {
             panic!("width")
@@ -435,7 +435,7 @@ fn cdft_t_matches_students_t_inverse_cdf() {
 }
 
 #[test]
-fn cdft_df_matches_students_t_solve_df() {
+fn cdft_df_matches_students_t_search_df() {
     for row in read_csv("tests/data/cdft_df.csv") {
         let [p, q, t, df_ref] = row[..] else {
             panic!("width")

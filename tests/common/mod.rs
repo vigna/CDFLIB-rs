@@ -139,7 +139,7 @@ pub fn assert_close_eps(got: f64, expected: f64, rel_tol: f64, abs_tol: f64) {
 /// Lines beginning with `#` are treated as comments/header and skipped.
 /// Empty lines are skipped. Every remaining line must be a list of
 /// comma-separated `f64` values, all rows the same length. Returns one
-/// `Vec<f64>` per data row.
+/// `Vec<f64>` per data row, and panics if there is none.
 ///
 /// Paths are resolved relative to `CARGO_MANIFEST_DIR` so tests can refer
 /// to fixtures by repository-relative paths like `"tests/data/erf.csv"`.
@@ -182,5 +182,10 @@ pub fn read_csv(rel_path: &str) -> Vec<Vec<f64>> {
         }
         rows.push(row);
     }
+    assert!(
+        !rows.is_empty(),
+        "fixture {} has no data rows",
+        path.display()
+    );
     rows
 }

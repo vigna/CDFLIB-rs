@@ -248,6 +248,12 @@ pub(crate) fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
         if i == i32::MAX {
             panic!("cumfnc: integer overflow for pnonc = {pnonc}");
         }
+        // Rust only: once sum1 is NaN neither exit test below can succeed,
+        // and the F90 loop never ends; this happens when dfn or dfd is so
+        // large that the terms lose all their digits.
+        if sum1.is_nan() {
+            panic!("cumfnc: the sum is NaN for dfn = {dfn}, dfd = {dfd}, pnonc = {pnonc}");
+        }
         xmult = xmult * (xnonc / i as f64);
         i = i + 1;
         aup = aup + 1.0;
@@ -475,6 +481,12 @@ impl FisherSnedecorNoncentral {
     /// Pr[*X* ≤ *f*] = *p*, searched for in [0 . . 10⁴].
     ///
     /// CDFLIB's `cdffnc` with `which = 5`.
+    ///
+    /// # Panics
+    ///
+    /// Panics as [`cdf`] does.
+    ///
+    /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
     pub fn search_ncp(
         p: f64,
@@ -514,11 +526,18 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
 
     /// CDFLIB's `cdffnc` with `which = 1`.
     ///
+    /// The series stops when a term is less than 10⁻⁴ times the sum, and
+    /// for very large degrees of freedom (*dfd* beyond about 10¹⁴, for
+    /// example) its terms lose their digits, so that, as in the F90, the
+    /// result can fall outside [0 . . 1].
+    ///
     /// # Panics
     ///
     /// Panics if *λ*/2 ≥ 2³¹ − 1, or if the forward sum of `cumfnc` runs
     /// past index 2³¹ − 1, where CDFLIB's default integers overflow; the
-    /// latter needs *λ*/2 within a few hundred thousand of 2³¹.
+    /// latter needs *λ*/2 within a few hundred thousand of 2³¹. Panics
+    /// also when the degrees of freedom are so large that the sum of the
+    /// series is NaN, where the F90 never returns.
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
         // Rust only: exact endpoint at +inf, where cumfnc truncates its sum short of 1.
@@ -533,11 +552,16 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
 
     /// CDFLIB's `cdffnc` with `which = 1`.
     ///
+    /// Unlike the central distributions, CDFLIB computes this as
+    /// 1 − [`cdf`], from a series that stops when a term is less than
+    /// 10⁻⁴ times the sum, so the result has no relative precision in the
+    /// right tail.
+    ///
     /// # Panics
     ///
-    /// Panics if *λ*/2 ≥ 2³¹ − 1, or if the forward sum of `cumfnc` runs
-    /// past index 2³¹ − 1, where CDFLIB's default integers overflow; the
-    /// latter needs *λ*/2 within a few hundred thousand of 2³¹.
+    /// Panics as [`cdf`] does.
+    ///
+    /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
         // Rust only: exact endpoint at +inf, where cumfnc truncates its sum short of 1.

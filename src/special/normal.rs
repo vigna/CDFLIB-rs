@@ -25,6 +25,10 @@ use super::gamma::alnrel;
 ///
 /// This is CDFLIB's `cumnor` (cdflib.f90:7582).
 ///
+/// As in the F90, the result is (NaN, NaN) when 16·|*x*| overflows
+/// (|*x*| > `f64::MAX` / 16, including *x* = ±∞), and when *x* is NaN.
+/// The distributions return the exact limits there.
+///
 /// References: William Cody, Rational Chebyshev approximations for the error
 /// function, Mathematics of Computation, 1969, pages 631-637. William Cody,
 /// Algorithm 715: SPECFUN - A Portable Fortran Package of Special Function
@@ -196,6 +200,10 @@ pub fn cumnor(arg: f64) -> (f64, f64) {
 ///
 /// This is CDFLIB's `dinvnr` (cdflib.f90:8041).
 ///
+/// As in the F90, the result is NaN when *p* or *q* is 0, where the
+/// answer is ∓∞, and when both are NaN; the distributions handle these
+/// endpoints separately.
+///
 /// Reference: William Kennedy, James Gentle, Statistical Computing, Marcel
 /// Dekker, NY, 1980.
 ///
@@ -251,6 +259,9 @@ pub fn dinvnr(p: f64, q: f64) -> f64 {
 /// deviate is sought. This is the starting value of [`dinvnr`].
 ///
 /// This is CDFLIB's `stvaln` (cdflib.f90:14233).
+///
+/// As in the F90, the result is NaN when *p* is 0 or 1, and when *p* is
+/// NaN.
 ///
 /// Reference: William Kennedy, James Gentle, Statistical Computing, Marcel
 /// Dekker, NY, 1980, page 95.

@@ -61,6 +61,16 @@ contains
       ! Skip values too close to non-positive integers (poles).
       if (abs(x - nint(x)) < 0.001_rk) x = x - 0.0625_rk
     end do
+    ! Arguments below 0.5 that are not multiples of 1/16, for which the
+    ! reflection formula takes the sine and cosine of arbitrary arguments.
+    x = 0.4999_rk
+    do while (x >= -10.0_rk)
+      if (abs(x - nint(x)) >= 0.001_rk) then
+        call putval(unit, x, .false.)
+        call putval(unit, psi(x), .true.)
+      end if
+      x = x - 0.0137_rk
+    end do
 
     close(unit)
   end subroutine gen_psi

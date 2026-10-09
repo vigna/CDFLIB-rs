@@ -61,28 +61,13 @@ fn gamma_inc_digits6_matches_reference() {
 
 #[test]
 fn gamma_inc_digits3_matches_reference() {
-    // At the shallowest truncation, Rust and F90 share the same arithmetic
-    // but the loose convergence tolerance (acc = 5e-4 → tol ≈ 2.5e-4 in the
-    // Taylor and continued-fraction loops) lets one or two extra iterations
-    // separate the two implementations on rows where the final iterate
-    // straddles the tolerance. Empirically the worst row sits at
-    // ~1.2e-5 absolute, which is one order tighter than the regime spec
-    // (1 unit of the 3rd significant digit, ~1e-3). We assert the spec.
     for row in read_csv("tests/data/gamma_inc_d3.csv") {
         let [a, x, expected_p, expected_q] = row[..] else {
             panic!("width");
         };
         let (p, q) = gamma_inc_with_acc(a, x, GammaIncAcc::Digits3);
-        let dp = (p - expected_p).abs();
-        let dq = (q - expected_q).abs();
-        assert!(
-            dp <= 1.0e-3,
-            "Digits3 vs F90 ind=2 disagrees at a={a}, x={x}: |{p} - {expected_p}| = {dp}",
-        );
-        assert!(
-            dq <= 1.0e-3,
-            "Digits3 q disagrees at a={a}, x={x}: |{q} - {expected_q}| = {dq}",
-        );
+        assert_exact(p, expected_p, &row);
+        assert_exact(q, expected_q, &row);
     }
 }
 
@@ -111,11 +96,12 @@ fn gamma_inc_accuracy_envelopes() {
 #[test]
 fn gamma_inc_inv_matches_reference() {
     for row in read_csv("tests/data/gamma_inc_inv.csv") {
-        let [a, p, q, expected_x, _ierr] = row[..] else {
+        let [a, p, q, expected_x, expected_ierr] = row[..] else {
             panic!("width");
         };
-        let (x, _) = gamma_inc_inv(a, -1.0, p, q);
+        let (x, ierr) = gamma_inc_inv(a, -1.0, p, q);
         assert_exact(x, expected_x, &row);
+        assert_eq!(f64::from(ierr), expected_ierr, "{row:?}");
     }
 }
 

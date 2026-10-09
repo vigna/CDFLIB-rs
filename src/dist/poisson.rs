@@ -68,7 +68,8 @@ pub enum PoissonError {
     /// a degenerate distribution concentrated at 0, is accepted.
     #[error("lambda must be ≥ 0, got {0}")]
     LambdaNegative(f64),
-    /// The rate parameter *λ* was not finite (checked only in Rust).
+    /// The rate parameter *λ* was not finite, or so large that 2*λ*, the χ²
+    /// argument of `cumpoi`, is not finite (checked only in Rust).
     #[error("lambda must be finite, got {0}")]
     LambdaNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdfpoi` status −2); NaN is
@@ -136,13 +137,14 @@ fn check_q(q: f64) -> Result<(), PoissonError> {
     Ok(())
 }
 
-// cdflib.f90:6065-6076 (status -5). Rust also rejects a non-finite xlam.
+// cdflib.f90:6065-6076 (status -5). Rust also rejects an xlam for which
+// chi = 2 * xlam in cumpoi is not finite, which gives NaN there.
 #[inline]
 fn check_xlam(xlam: f64) -> Result<(), PoissonError> {
     if xlam < 0.0 {
         return Err(PoissonError::LambdaNegative(xlam));
     }
-    if !xlam.is_finite() {
+    if !(2.0 * xlam).is_finite() {
         return Err(PoissonError::LambdaNotFinite(xlam));
     }
     Ok(())

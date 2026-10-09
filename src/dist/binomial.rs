@@ -67,6 +67,10 @@ pub enum BinomialError {
     #[error("success probability {0} outside [0..1]")]
     PrOutOfRange(f64),
     /// The number of trials *n* is zero (`cdfbin` status −5, *xn* ≤ 0).
+    /// [`search_trials`] also returns it, checked only in Rust, when the
+    /// *n* it computes is 0.
+    ///
+    /// [`search_trials`]: crate::Binomial::search_trials
     #[error("number of trials is zero")]
     TrialsZero,
     /// The number of successes *s* exceeds the number of trials *n*
@@ -205,6 +209,11 @@ impl Binomial {
     /// CDFLIB's `cdfbin` with `which = 3`, with *ompr* = 1 − *pr*. The
     /// caller passes both *p* and *q* = 1 − *p*; they must sum to 1 within
     /// 3ε.
+    ///
+    /// A computed *n* of 0, at the lower end of the search interval, is
+    /// reported as [`TrialsZero`].
+    ///
+    /// [`TrialsZero`]: BinomialError::TrialsZero
     #[inline]
     pub fn search_trials(p: f64, q: f64, pr: f64, s: u64) -> Result<f64, BinomialError> {
         check_p(p)?;
@@ -232,7 +241,13 @@ impl Binomial {
             }
             .into());
         }
-        Ok(d.x())
+        // Rust only: the F90 returns the answer whatever its value; at the
+        // lower end of the search interval there are no trials.
+        let xn = d.x();
+        if xn == 0.0 {
+            return Err(BinomialError::TrialsZero);
+        }
+        Ok(xn)
     }
 
     /// Returns the success probability *pr* satisfying Pr[*S* ≤ *s*] = *p*

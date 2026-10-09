@@ -14,7 +14,7 @@
 //! directly can find each routine under its CDFLIB name, but they are not part
 //! of the user-facing statistical API.
 //!
-//! The two-output (cum, ccum) convention from CDFLIB is preserved on the
+//! The two-output (*cum*, *ccum*) convention from CDFLIB is preserved on the
 //! routines that drive distribution tail accuracy: [`cumnor`], [`gamma_inc`],
 //! and [`beta_inc`]. Returning both tail probabilities directly is essential to
 //! the library's tail accuracy.

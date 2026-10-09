@@ -55,12 +55,20 @@ pub struct Beta {
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum BetaError {
     /// The shape parameter *a* was not strictly positive (`cdfbet` status −6).
+    /// [`search_a`] also returns it, checked only in Rust, when the *a* it
+    /// computes is 0.
+    ///
+    /// [`search_a`]: crate::Beta::search_a
     #[error("shape parameter `a` must be positive, got {0}")]
     ANotPositive(f64),
     /// The shape parameter *a* was not finite (checked only in Rust).
     #[error("shape parameter `a` must be finite, got {0}")]
     ANotFinite(f64),
     /// The shape parameter *b* was not strictly positive (`cdfbet` status −7).
+    /// [`search_b`] also returns it, checked only in Rust, when the *b* it
+    /// computes is 0.
+    ///
+    /// [`search_b`]: crate::Beta::search_b
     #[error("shape parameter `b` must be positive, got {0}")]
     BNotPositive(f64),
     /// The shape parameter *b* was not finite (checked only in Rust).
@@ -217,6 +225,11 @@ impl Beta {
     /// CDFLIB's `cdfbet` with `which = 3`, with *y* = 1 − *x*. The caller
     /// passes both *p* and *q* = 1 − *p*, so that a small value of either
     /// keeps its precision; they must sum to 1 within 3ε.
+    ///
+    /// A computed *a* of 0, at the lower end of the search interval, is
+    /// reported as [`ANotPositive`].
+    ///
+    /// [`ANotPositive`]: BetaError::ANotPositive
     #[inline]
     pub fn search_a(p: f64, q: f64, x: f64, b: f64) -> Result<f64, BetaError> {
         check_p(p)?;
@@ -245,7 +258,11 @@ impl Beta {
             }
             .into());
         }
-        Ok(d.x())
+        // Rust only: the F90 returns the answer whatever its value; at the
+        // lower end of the search interval it is not a valid a.
+        let a = d.x();
+        check_a(a)?;
+        Ok(a)
     }
 
     /// Returns the shape parameter *b* satisfying Pr[*X* ≤ *x*] = *p*,
@@ -254,6 +271,11 @@ impl Beta {
     /// CDFLIB's `cdfbet` with `which = 4`, with *y* = 1 − *x*. The caller
     /// passes both *p* and *q* = 1 − *p*, so that a small value of either
     /// keeps its precision; they must sum to 1 within 3ε.
+    ///
+    /// A computed *b* of 0, at the lower end of the search interval, is
+    /// reported as [`BNotPositive`].
+    ///
+    /// [`BNotPositive`]: BetaError::BNotPositive
     #[inline]
     pub fn search_b(p: f64, q: f64, x: f64, a: f64) -> Result<f64, BetaError> {
         check_p(p)?;
@@ -282,7 +304,11 @@ impl Beta {
             }
             .into());
         }
-        Ok(d.x())
+        // Rust only: the F90 returns the answer whatever its value; at the
+        // lower end of the search interval it is not a valid b.
+        let b = d.x();
+        check_b(b)?;
+        Ok(b)
     }
 
     /// CDFLIB's `cdfbet` with `which = 2`: returns (*x*, *y*) given (*p*,

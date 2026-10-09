@@ -61,7 +61,10 @@ pub struct ChiSquaredNoncentral {
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum ChiSquaredNoncentralError {
     /// The degrees of freedom *df* was not strictly positive (`cdfchn`
-    /// status −5).
+    /// status −5). [`search_df`] also returns it, checked only in Rust,
+    /// when the *df* it computes is 0.
+    ///
+    /// [`search_df`]: crate::ChiSquaredNoncentral::search_df
     #[error("degrees of freedom must be positive, got {0}")]
     DfNotPositive(f64),
     /// The degrees of freedom *df* was not finite (checked only in Rust).
@@ -325,11 +328,17 @@ impl ChiSquaredNoncentral {
     /// Returns the degrees of freedom *df* satisfying Pr[*X* ≤ *x*] = *p*,
     /// searched for in [0 . . 10³⁰⁰].
     ///
-    /// CDFLIB's `cdfchn` with `which = 3`.
+    /// CDFLIB's `cdfchn` with `which = 3`. A computed *df* of 0, at the
+    /// lower end of the search interval, is reported as [`DfNotPositive`].
     ///
     /// # Panics
     ///
-    /// Panics as [`cdf`](ContinuousCdf::cdf) does.
+    /// Panics as [`cdf`] does. Since the search evaluates its upper bound
+    /// 10³⁰⁰, this happens in particular when *x* is within a few ulps of
+    /// 10³⁰⁰.
+    ///
+    /// [`cdf`]: ContinuousCdf::cdf
+    /// [`DfNotPositive`]: ChiSquaredNoncentralError::DfNotPositive
     #[inline]
     pub fn search_df(p: f64, x: f64, ncp: f64) -> Result<f64, ChiSquaredNoncentralError> {
         check_p(p)?;
@@ -353,7 +362,11 @@ impl ChiSquaredNoncentral {
             }
             .into());
         }
-        Ok(d.x())
+        // Rust only: the F90 returns the answer whatever its value; at the
+        // lower end of the search interval it is not a valid df.
+        let df = d.x();
+        check_df(df)?;
+        Ok(df)
     }
 
     /// Returns the noncentrality parameter *λ* satisfying
@@ -397,6 +410,10 @@ impl ContinuousCdf for ChiSquaredNoncentral {
 
     /// CDFLIB's `cdfchn` with `which = 1`.
     ///
+    /// The series stops when a term is less than 10⁻⁵ times the sum, and
+    /// for very large *df* (beyond about 10¹⁵) its terms lose their digits,
+    /// so that, as in the F90, the result can fall outside [0 . . 1].
+    ///
     /// # Panics
     ///
     /// Panics where `gamma_inc` fails inside `cumchn`, which needs *df*
@@ -417,12 +434,16 @@ impl ContinuousCdf for ChiSquaredNoncentral {
 
     /// CDFLIB's `cdfchn` with `which = 1`.
     ///
+    /// Unlike the central distributions, CDFLIB computes this as
+    /// 1 − [`cdf`], from a series that stops when a term is less than
+    /// 10⁻⁵ times the sum, so the result has no relative precision in the
+    /// right tail.
+    ///
     /// # Panics
     ///
-    /// Panics where `gamma_inc` fails inside `cumchn`, which needs *df*
-    /// beyond about 1.3 · 10²⁹ and *x* within a few ulps of it. It may also
-    /// panic for *λ*/2 ≥ 2³¹ − 1001, where CDFLIB's default integers can
-    /// overflow.
+    /// Panics as [`cdf`] does.
+    ///
+    /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
         // Rust only: exact endpoint at +inf, where cumchn gives NaN.
@@ -439,7 +460,11 @@ impl ContinuousCdf for ChiSquaredNoncentral {
     ///
     /// # Panics
     ///
-    /// Panics as [`cdf`](ContinuousCdf::cdf) does.
+    /// Panics as [`cdf`] does. Since the search evaluates its upper bound
+    /// 10³⁰⁰, this happens in particular when *df* is within a few ulps of
+    /// 10³⁰⁰.
+    ///
+    /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, ChiSquaredNoncentralError> {
         check_p(p)?;

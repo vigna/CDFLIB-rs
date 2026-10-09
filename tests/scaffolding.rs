@@ -51,22 +51,27 @@ fn assert_close_fails_on_infinity_mismatch() {
 // --- read_csv -------------------------------------------------------------
 
 #[test]
-#[cfg_attr(miri, ignore)] // miri disables filesystem access by default
 fn read_csv_parses_a_simple_table() {
-    // Write a temporary fixture then read it back.
-    let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let path = std::path::Path::new(manifest_dir).join("tests/data/_self_test.csv");
-    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    // Write a temporary fixture in the target directory, then read it back
+    // by its absolute path, which read_csv does not join to the manifest
+    // directory.
+    let path = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("read_csv_simple.csv");
     std::fs::write(
         &path,
         "# header line\n1.0, 2.0, 3.0\n# comment in the middle\n4.5,5.5,6.5\n\n",
     )
     .unwrap();
 
-    let rows = read_csv("tests/data/_self_test.csv");
+    let rows = read_csv(path.to_str().unwrap());
     assert_eq!(rows, vec![vec![1.0, 2.0, 3.0], vec![4.5, 5.5, 6.5]]);
+}
 
-    let _ = std::fs::remove_file(&path);
+#[test]
+#[should_panic(expected = "no data rows")]
+fn read_csv_rejects_a_table_without_rows() {
+    let path = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("read_csv_empty.csv");
+    std::fs::write(&path, "# header line\n\n").unwrap();
+    read_csv(path.to_str().unwrap());
 }
 
 // --- error / trait shape sanity ------------------------------------------

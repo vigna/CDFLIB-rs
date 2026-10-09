@@ -14,6 +14,10 @@ use super::normal::dinvnr;
 ///
 /// This is CDFLIB's `dt1` (cdflib.f90:8735).
 ///
+/// As in the F90, the result is NaN when *p* or *q* is 0, as for
+/// [`dinvnr`], and it is ±∞, possibly with the wrong sign, when *df* is
+/// so small that the polynomial terms overflow.
+///
 /// # Example
 ///
 /// ```
@@ -25,6 +29,8 @@ use super::normal::dinvnr;
 /// let t = dt1(0.975, 0.025, 10.0);
 /// assert!((t - 2.228138851).abs() < 5e-3);
 /// ```
+///
+/// [`dinvnr`]: crate::special::dinvnr
 #[inline]
 #[allow(clippy::needless_late_init)]
 pub fn dt1(p: f64, q: f64, df: f64) -> f64 {

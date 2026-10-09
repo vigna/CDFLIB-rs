@@ -586,8 +586,11 @@ contains
   ! of 1/t, 1000 <= |a|, negative a with 15 <= |a|, s == 0, and overflow
   ! of exp(w). A zero result is the F90 error value.
   subroutine gen_gamma_edge()
+    ! The smallest subnormal, which a literal cannot give: gfortran flushes
+    ! subnormal literals to zero.
+    real(kind=rk), parameter :: sub = tiny(1.0_rk) * epsilon(1.0_rk)
     real(kind=rk), parameter :: av(24) = (/ -15.95_rk, -20.95_rk, 0.0_rk, -1.0_rk, -2.0_rk, -14.0_rk, &
-      1.0e-308_rk, -1.0e-308_rk, 1.0e-31_rk, 4.0e-324_rk, -4.0e-324_rk, &
+      1.0e-308_rk, -1.0e-308_rk, 1.0e-31_rk, sub, -sub, &
       -15.0_rk, -20.0_rk, -20.5_rk, -100.25_rk, -170.5_rk, -999.5_rk, &
       1000.0_rk, -1000.0_rk, 1.0e10_rk, 171.6_rk, 172.0_rk, -0.95_rk, &
       -15.05_rk /)
@@ -622,10 +625,13 @@ contains
   ! at label 180, the indeterminate results at labels 270, 330 and 410,
   ! and label 410 without the error. The last column is 1 when ans = 2.
   subroutine gen_gamma_inc_edge()
+    ! The smallest subnormal, which a literal cannot give: gfortran flushes
+    ! subnormal literals to zero.
+    real(kind=rk), parameter :: sub = tiny(1.0_rk) * epsilon(1.0_rk)
     real(kind=rk), parameter :: ax(2, 24) = reshape((/ &
       -1.0_rk, 1.0_rk,        1.0_rk, -1.0_rk,        0.0_rk, 0.0_rk, &
       1.0_rk, 0.0_rk,         0.0_rk, 1.0_rk,         0.3_rk, 1000.0_rk, &
-      100.0_rk, 4.9e-324_rk,  10.0_rk, 1.0e-300_rk,   10.0_rk, 1.0e4_rk, &
+      100.0_rk, sub,          10.0_rk, 1.0e-300_rk,   10.0_rk, 1.0e4_rk, &
       0.01_rk, 0.1_rk,        1.0e-10_rk, 1.0_rk,     1.0e-10_rk, 0.9_rk, &
       1.0e-6_rk, 1.0_rk,      1.0e30_rk, 1.0e30_rk,   1.0e40_rk, 1.0e40_rk, &
       1.0e6_rk, 1.0e3_rk,     1.0e6_rk, 1.0e9_rk,     2.5_rk, 1.0e-300_rk, &
@@ -692,7 +698,7 @@ contains
   ! early return. When ierr = -2, -4, -3, -7 the F90 x is not meaningful;
   ! the CSV writes it anyway.
   subroutine gen_gamma_inc_inv_edge()
-    real(kind=rk), parameter :: rows(4, 30) = reshape((/ &
+    real(kind=rk), parameter :: rows(4, 29) = reshape((/ &
       ! a, x0, p, q
       0.0_rk, -1.0_rk, 0.5_rk, 0.5_rk, &
       -1.0_rk, -1.0_rk, 0.5_rk, 0.5_rk, &
@@ -701,7 +707,6 @@ contains
       2.0_rk, -1.0_rk, 0.0_rk, 1.0_rk, &
       1.0_rk, -1.0_rk, 0.05_rk, 0.95_rk, &
       1.0_rk, -1.0_rk, 0.5_rk, 0.5_rk, &
-      0.5_rk, -1.0_rk, 1.0_rk, 4.9e-324_rk, &
       1.0e-300_rk, -1.0_rk, 1.0e-10_rk, 0.9999999999_rk, &
       1.0e-6_rk, -1.0_rk, 0.9_rk, 0.1_rk, &
       0.01_rk, -1.0_rk, 0.99_rk, 0.01_rk, &
@@ -723,7 +728,7 @@ contains
       1.0e20_rk, 1.0e20_rk, 0.3_rk, 0.7_rk, &
       0.5_rk, 1.0e-200_rk, 1.0e-300_rk, 1.0_rk, &
       3.0_rk, 50.0_rk, 0.3_rk, 0.7_rk, &
-      3.0_rk, 1.0e-5_rk, 0.7_rk, 0.3_rk /), (/ 4, 30 /))
+      3.0_rk, 1.0e-5_rk, 0.7_rk, 0.3_rk /), (/ 4, 29 /))
     real(kind=rk), parameter :: sa(7) = (/ 0.5_rk, 2.0_rk, 5.0_rk, 50.0_rk, &
       1000.0_rk, 1.0e21_rk, 0.05_rk /)
     real(kind=rk), parameter :: sx(11) = (/ 1.0e-300_rk, 1.0e-10_rk, 1.0e-3_rk, &

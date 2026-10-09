@@ -48,15 +48,6 @@ program gen_beta_kernels
         ierr = 0
         call beta_inc(a, b, x, y, w, w1, ierr)
         if (ierr == 0) then
-          ! beta_inc's F90 transliteration loses several digits for a
-          ! handful of extreme rows. Skip those so this fixture remains a
-          ! meaningful regression table instead of encoding known-bad data.
-          if ((b == 0.5_rk .and. x == 0.999999999999_rk) .or. &
-              (a == 0.5_rk .and. b == 100.0_rk .and. abs(x - 0.15_rk) < 1.0e-15_rk) .or. &
-              (a == 100.0_rk .and. b == 0.5_rk .and. abs(x - 0.85_rk) < 1.0e-15_rk)) then
-            x = x + 0.05_rk
-            cycle
-          end if
           call putval(unit, a, .false.)
           call putval(unit, b, .false.)
           call putval(unit, x, .false.)
@@ -73,7 +64,6 @@ program gen_beta_kernels
         ierr = 0
         call beta_inc(a, b, x, y, w, w1, ierr)
         if (ierr == 0) then
-          if (b == 0.5_rk .and. x == 0.999999999999_rk) cycle
           call putval(unit, a, .false.)
           call putval(unit, b, .false.)
           call putval(unit, x, .false.)

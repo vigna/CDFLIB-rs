@@ -48,10 +48,6 @@ program gen_discrete_distributions
     do s_int = 0, s_max
       s = real(s_int, rk)
       call cumpoi(s, lam, cum, ccum)
-      ! cumpoi loses about 1e-10 absolute accuracy in the extreme right
-      ! tail for lambda = 200 and s = 285:296. Skip those rows so the
-      ! committed fixture does not encode known-bad reference output.
-      if (lam == 200.0_rk .and. 285 <= s_int .and. s_int <= 296) cycle
       call putval(unit, lam, .false.)
       call putint(unit, s_int, .false.)
       call putval(unit, cum, .false.)

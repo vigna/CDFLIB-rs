@@ -6,8 +6,9 @@
 #
 # The generators run in a temporary directory, so the committed CSVs are
 # not touched. The script prints every executable line that no generator
-# reaches and that unreachable.txt does not list, and exits with status 1
-# if there is any. Lines that only print messages are not counted.
+# reaches and that unreachable.txt does not list, and every listed line
+# that a generator does reach, and exits with status 1 if there is any.
+# Lines that only print messages are not counted.
 
 set -eu
 
@@ -48,9 +49,29 @@ grep -v '^#' "$REGEN/unreachable.txt" | awk '{
 
 awk 'FILENAME == ARGV[1] { listed[$1] = 1; next } !($1 in listed)' listed.txt uncovered.txt > missing.txt
 
+# Lines that some generator executes: a positive count in any listing
+# (gcov appends * to the count of a line some of whose blocks did not run).
+awk -F: '
+    { cnt = $1; gsub(/ /, "", cnt); sub(/\*$/, "", cnt) }
+    cnt ~ /^[0-9]+$/ && cnt + 0 > 0 { print $2 + 0 }
+' cdflib.f90.gcov | sort -un > executed.txt
+
+# Listed lines that a generator executes after all.
+awk 'FILENAME == ARGV[1] { executed[$1] = 1; next } ($1 in executed)' executed.txt listed.txt > stale.txt
+
+status=0
 if [ -s missing.txt ]; then
     echo "Lines of cdflib.f90 that no generator executes:"
     cat missing.txt
+    status=1
+fi
+if [ -s stale.txt ]; then
+    echo "Lines listed in unreachable.txt that a generator executes:"
+    cat stale.txt
+    status=1
+fi
+if [ $status -ne 0 ]; then
     exit 1
 fi
-echo "Every executable line of cdflib.f90 is reached by a generator or listed in unreachable.txt."
+echo "Every executable line of cdflib.f90 is reached by a generator or listed in"
+echo "unreachable.txt, and no listed line is reached."

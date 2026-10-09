@@ -12,9 +12,12 @@
 //!
 //! Rows the API cannot express are skipped: a pair (*p*, *q*) that is not
 //! exactly complementary passed to a method that derives one from the other,
-//! a negative count passed to a `u64` argument, an *x* outside the support
-//! passed to `cdf` (which returns 0 or 1 instead of an error), and the
-//! Rust-only rejections of a zero *r* or *pr* in `NegativeBinomial`.
+//! a negative count passed to a `u64` argument, a number of successes above
+//! the number of trials passed to the binomial `cdf` (which returns 1
+//! instead of an error), and the Rust-only rejections of a zero *r* or *pr*
+//! in `NegativeBinomial`. Where the F90 returns a parameter of 0 with status
+//! 0, at the lower end of a search interval, the Rust returns the error of
+//! the constructor for that parameter instead.
 
 mod common;
 
@@ -241,6 +244,26 @@ fn check<E: F90Status + Debug>(got: Result<f64, E>, c: &Call, expected: f64) {
     }
 }
 
+/// Checks a search for a parameter that must be positive: where the F90
+/// returns 0 with status 0, at the lower end of the search interval, the
+/// Rust reports the error that `zero` accepts instead.
+#[track_caller]
+fn check_positive<E: F90Status + Debug>(
+    got: Result<f64, E>,
+    c: &Call,
+    expected: f64,
+    zero: impl Fn(&E) -> bool,
+) {
+    if c.status == 0 && expected == 0.0 {
+        match got {
+            Err(e) if zero(&e) => {}
+            r => panic!("{:?}: expected the error for 0, got {r:?}", c.row),
+        }
+    } else {
+        check(got, c, expected);
+    }
+}
+
 /// Checks a constructor error against the F90 status.
 #[track_caller]
 fn check_new<T: Debug, E: F90Status + Debug>(got: Result<T, E>, c: &Call) {
@@ -298,6 +321,7 @@ fn cdfbet_calls() {
         match c.which {
             1 => match d {
                 Ok(d) => {
+                    assert_eq!(c.status, 0, "{:?}", c.row);
                     assert_exact(d.cdf(x), c.after[0], &c.row);
                     assert_exact(d.ccdf(x), c.after[1], &c.row);
                 }
@@ -312,13 +336,17 @@ fn cdfbet_calls() {
                 }
                 Err(e) => check_new(Err::<Beta, _>(e), &c),
             },
-            3 => check(Beta::search_a(p, q, x, b), &c, c.after[4]),
-            4 => check(Beta::search_b(p, q, x, a), &c, c.after[5]),
+            3 => check_positive(Beta::search_a(p, q, x, b), &c, c.after[4], |e| {
+                *e == BetaError::ANotPositive(0.0)
+            }),
+            4 => check_positive(Beta::search_b(p, q, x, a), &c, c.after[5], |e| {
+                *e == BetaError::BNotPositive(0.0)
+            }),
             _ => unreachable!(),
         }
         n += 1;
     }
-    assert!(n >= 25, "{n}");
+    assert_eq!(n, 37);
 }
 
 #[test]
@@ -363,7 +391,9 @@ fn cdfbin_calls() {
             }
             3 => {
                 let Some(s) = count(s) else { continue };
-                check(Binomial::search_trials(p, q, pr, s), &c, c.after[3]);
+                check_positive(Binomial::search_trials(p, q, pr, s), &c, c.after[3], |e| {
+                    *e == BinomialError::TrialsZero
+                });
             }
             4 => {
                 let (Some(s), Some(xn)) = (count(s), count(xn)) else {
@@ -375,7 +405,7 @@ fn cdfbin_calls() {
         }
         n += 1;
     }
-    assert!(n >= 25, "{n}");
+    assert_eq!(n, 35);
 }
 
 #[test]
@@ -389,6 +419,7 @@ fn cdfchi_calls() {
         match c.which {
             1 => match d {
                 Ok(d) => {
+                    assert_eq!(c.status, 0, "{:?}", c.row);
                     assert_exact(d.cdf(x), c.after[0], &c.row);
                     assert_exact(d.ccdf(x), c.after[1], &c.row);
                 }
@@ -403,12 +434,14 @@ fn cdfchi_calls() {
                 }
                 Err(e) => check_new(Err::<ChiSquared, _>(e), &c),
             },
-            3 => check(ChiSquared::search_df(p, q, x), &c, c.after[3]),
+            3 => check_positive(ChiSquared::search_df(p, q, x), &c, c.after[3], |e| {
+                *e == ChiSquaredError::DfNotPositive(0.0)
+            }),
             _ => unreachable!(),
         }
         n += 1;
     }
-    assert!(n >= 18, "{n}");
+    assert_eq!(n, 25);
 }
 
 #[test]
@@ -422,6 +455,7 @@ fn cdfchn_calls() {
         match c.which {
             1 => match d {
                 Ok(d) => {
+                    assert_eq!(c.status, 0, "{:?}", c.row);
                     assert_exact(d.cdf(x), c.after[0], &c.row);
                     assert_exact(d.ccdf(x), c.after[1], &c.row);
                 }
@@ -431,13 +465,18 @@ fn cdfchn_calls() {
                 Ok(d) => check(d.inverse_cdf(p), &c, c.after[2]),
                 Err(e) => check_new(Err::<ChiSquaredNoncentral, _>(e), &c),
             },
-            3 => check(ChiSquaredNoncentral::search_df(p, x, pnonc), &c, c.after[3]),
+            3 => check_positive(
+                ChiSquaredNoncentral::search_df(p, x, pnonc),
+                &c,
+                c.after[3],
+                |e| *e == ChiSquaredNoncentralError::DfNotPositive(0.0),
+            ),
             4 => check(ChiSquaredNoncentral::search_ncp(p, x, df), &c, c.after[4]),
             _ => unreachable!(),
         }
         n += 1;
     }
-    assert!(n >= 24, "{n}");
+    assert_eq!(n, 27);
 }
 
 #[test]
@@ -451,6 +490,7 @@ fn cdff_calls() {
         match c.which {
             1 => match d {
                 Ok(d) => {
+                    assert_eq!(c.status, 0, "{:?}", c.row);
                     assert_exact(d.cdf(f), c.after[0], &c.row);
                     assert_exact(d.ccdf(f), c.after[1], &c.row);
                 }
@@ -471,7 +511,7 @@ fn cdff_calls() {
         }
         n += 1;
     }
-    assert!(n >= 28, "{n}");
+    assert_eq!(n, 31);
 }
 
 #[test]
@@ -485,6 +525,7 @@ fn cdffnc_calls() {
         match c.which {
             1 => match d {
                 Ok(d) => {
+                    assert_eq!(c.status, 0, "{:?}", c.row);
                     assert_exact(d.cdf(f), c.after[0], &c.row);
                     assert_exact(d.ccdf(f), c.after[1], &c.row);
                 }
@@ -513,7 +554,7 @@ fn cdffnc_calls() {
         }
         n += 1;
     }
-    assert!(n >= 30, "{n}");
+    assert_eq!(n, 32);
 }
 
 #[test]
@@ -527,6 +568,7 @@ fn cdfgam_calls() {
         match c.which {
             1 => match d {
                 Ok(d) => {
+                    assert_eq!(c.status, 0, "{:?}", c.row);
                     assert_exact(d.cdf(x), c.after[0], &c.row);
                     assert_exact(d.ccdf(x), c.after[1], &c.row);
                 }
@@ -541,13 +583,15 @@ fn cdfgam_calls() {
                 }
                 Err(e) => check_new(Err::<Gamma, _>(e), &c),
             },
-            3 => check(Gamma::search_shape(p, q, x, scale), &c, c.after[3]),
+            3 => check_positive(Gamma::search_shape(p, q, x, scale), &c, c.after[3], |e| {
+                *e == GammaError::ShapeNotPositive(0.0)
+            }),
             4 => check(Gamma::search_rate(p, q, x, shape), &c, c.after[4]),
             _ => unreachable!(),
         }
         n += 1;
     }
-    assert!(n >= 25, "{n}");
+    assert_eq!(n, 28);
 }
 
 #[test]
@@ -568,6 +612,7 @@ fn cdfnbn_calls() {
                 };
                 match NegativeBinomial::try_new(s, pr) {
                     Ok(d) => {
+                        assert_eq!(c.status, 0, "{:?}", c.row);
                         assert_exact(d.cdf(f), c.after[0], &c.row);
                         assert_exact(d.ccdf(f), c.after[1], &c.row);
                     }
@@ -597,19 +642,29 @@ fn cdfnbn_calls() {
                 if pr == 0.0 {
                     continue;
                 }
-                check(NegativeBinomial::search_r(p, q, pr, f), &c, c.after[3]);
+                check_positive(
+                    NegativeBinomial::search_r(p, q, pr, f),
+                    &c,
+                    c.after[3],
+                    |e| *e == NegativeBinomialError::RNotPositive,
+                );
             }
             4 => {
                 let (Some(f), Some(s)) = (count(f), count(s)) else {
                     continue;
                 };
-                check(NegativeBinomial::search_pr(p, q, s, f), &c, c.after[4]);
+                check_positive(
+                    NegativeBinomial::search_pr(p, q, s, f),
+                    &c,
+                    c.after[4],
+                    |e| *e == NegativeBinomialError::PrOutOfRange(0.0),
+                );
             }
             _ => unreachable!(),
         }
         n += 1;
     }
-    assert!(n >= 25, "{n}");
+    assert_eq!(n, 30);
 }
 
 #[test]
@@ -623,6 +678,7 @@ fn cdfnor_calls() {
         match c.which {
             1 => match d {
                 Ok(d) => {
+                    assert_eq!(c.status, 0, "{:?}", c.row);
                     assert_exact(d.cdf(x), c.after[0], &c.row);
                     assert_exact(d.ccdf(x), c.after[1], &c.row);
                 }
@@ -654,7 +710,7 @@ fn cdfnor_calls() {
         }
         n += 1;
     }
-    assert!(n >= 20, "{n}");
+    assert_eq!(n, 20);
 }
 
 #[test]
@@ -669,6 +725,7 @@ fn cdfpoi_calls() {
                 let Some(s) = count(s) else { continue };
                 match Poisson::try_new(xlam) {
                     Ok(d) => {
+                        assert_eq!(c.status, 0, "{:?}", c.row);
                         assert_exact(d.cdf(s), c.after[0], &c.row);
                         assert_exact(d.ccdf(s), c.after[1], &c.row);
                     }
@@ -695,7 +752,7 @@ fn cdfpoi_calls() {
         }
         n += 1;
     }
-    assert!(n >= 18, "{n}");
+    assert_eq!(n, 21);
 }
 
 #[test]
@@ -709,6 +766,7 @@ fn cdft_calls() {
         match c.which {
             1 => match d {
                 Ok(d) => {
+                    assert_eq!(c.status, 0, "{:?}", c.row);
                     assert_exact(d.cdf(t), c.after[0], &c.row);
                     assert_exact(d.ccdf(t), c.after[1], &c.row);
                 }
@@ -731,10 +789,10 @@ fn cdft_calls() {
         }
         n += 1;
     }
-    assert!(n >= 18, "{n}");
+    assert_eq!(n, 23);
 }
 
-/// cdfbin with which = 2 starts its search at s = 5 in [0..xn]; for
+/// cdfbin with which = 2 starts its search at *s* = 5 in [0 . . *xn*]; for
 /// xn < 5 F90 dinvr stops the program. Rust reports it as an error.
 #[test]
 fn cdfbin_start_outside_search_range_is_an_error() {

@@ -16,19 +16,23 @@
 //! call dinvr ( status, a, fx, qleft, qhi )
 //! do while ( status == 1 )
 //!   call cumbet ( x, y, a, b, cum, ccum )
-//!   fx = cum - p
+//!   if ( p <= q ) then
+//!     fx = cum - p
+//!   else
+//!     fx = ccum - q
+//!   end if
 //!   call dinvr ( status, a, fx, qleft, qhi )
 //! end do
 //! ```
 //!
-//! reads in Rust as
+//! (cdflib.f90:2800-2820) reads in Rust as
 //!
 //! ```text
 //! let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
 //! while d.status() == 1 {
 //!     let a = d.x();
 //!     let (cum, ccum) = cumbet(x, y, a, b);
-//!     let fx = cum - p;
+//!     let fx = if p <= q { cum - p } else { ccum - q };
 //!     d.dinvr(fx);
 //! }
 //! ```
@@ -449,18 +453,16 @@ mod tests {
                     "fail" => {
                         assert_eq!(status, -1, "{head}: {line}");
                         assert_eq!(qleft, flag(t[1]), "{head}: {line}");
-                        // F90 leaves qleft and qhi unset when dzror fails at
-                        // label 240; the Rust state machine reports false.
-                        if dinvr.is_some() {
-                            assert_eq!(qhi, flag(t[2]), "{head}: {line}");
-                        }
+                        assert_eq!(qhi, flag(t[2]), "{head}: {line}");
                         assert_eq!(x.to_bits(), hex(t[3]).to_bits(), "{head}: {line}");
                     }
-                    "cap" => {}
+                    // The case was cut while the solver still asked for an
+                    // evaluation.
+                    "cap" => assert_eq!(status, 1, "{head}: {line}"),
                     _ => panic!("unexpected line {line}"),
                 }
             }
         }
-        assert!(cases >= 150, "{cases}");
+        assert_eq!(cases, 158);
     }
 }

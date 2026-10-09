@@ -10,12 +10,15 @@ env:
 
 jobs:
   msrv:
-    name: cargo check (MSRV 1.85)
+    name: cargo check (MSRV 1.71)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.85.0
+      - uses: dtolnay/rust-toolchain@1.71.0
       - uses: Swatinem/rust-cache@v2
+      # The latest releases of thiserror require Rust 1.77 (see README.md).
+      - run: cargo generate-lockfile
+      - run: cargo update -p thiserror --precise 2.0.20
       - run: cargo check --all-targets
 
   test:
@@ -29,3 +32,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
+
+  exact:
+    # The reference tables are generated on macOS on Apple silicon, where
+    # the tests compare bit for bit; release builds are tested too, since
+    # the optimizer can change which libm functions are called.
+    name: test, exact comparison (macOS, Apple silicon)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test
+      - run: cargo test --release

@@ -134,7 +134,7 @@ fn negative_binomial_endpoints() {
 // ---- search_* NaN rejection (must produce typed errors, not hang or panic) ----
 
 #[test]
-fn normal_solve_rejects_nan_x() {
+fn normal_search_rejects_nan_x() {
     use cdflib::NormalError;
     assert!(matches!(
         Normal::search_mean(0.5, 0.5, f64::NAN, 1.0),
@@ -147,7 +147,7 @@ fn normal_solve_rejects_nan_x() {
 }
 
 #[test]
-fn gamma_solve_rejects_nan_x() {
+fn gamma_search_rejects_nan_x() {
     use cdflib::GammaError;
     assert!(matches!(
         Gamma::search_shape(0.5, 0.5, f64::NAN, 2.0),
@@ -164,7 +164,7 @@ fn gamma_solve_rejects_nan_x() {
 }
 
 #[test]
-fn chi_squared_solve_rejects_nan_x() {
+fn chi_squared_search_rejects_nan_x() {
     use cdflib::ChiSquaredError;
     assert!(matches!(
         ChiSquared::search_df(0.5, 0.5, f64::NAN),
@@ -173,7 +173,7 @@ fn chi_squared_solve_rejects_nan_x() {
 }
 
 #[test]
-fn chi_squared_noncentral_solve_rejects_nan() {
+fn chi_squared_noncentral_search_rejects_nan() {
     use cdflib::ChiSquaredNoncentralError;
     assert!(matches!(
         ChiSquaredNoncentral::search_df(0.5, f64::NAN, 2.0),
@@ -190,7 +190,7 @@ fn chi_squared_noncentral_solve_rejects_nan() {
 }
 
 #[test]
-fn students_t_solve_rejects_nan_t() {
+fn students_t_search_rejects_nan_t() {
     use cdflib::StudentsTError;
     assert!(matches!(
         StudentsT::search_df(0.5, 0.5, f64::NAN),
@@ -199,7 +199,7 @@ fn students_t_solve_rejects_nan_t() {
 }
 
 #[test]
-fn fisher_snedecor_noncentral_solve_rejects_nan() {
+fn fisher_snedecor_noncentral_search_rejects_nan() {
     use cdflib::FisherSnedecorNoncentralError;
     assert!(matches!(
         FisherSnedecorNoncentral::search_dfn(0.5, f64::NAN, 5.0, 1.0),

@@ -3,7 +3,10 @@
 A pure-Rust port of [CDFLIB], the cumulative distribution function library by
 Barry Brown, James Lovato, and Kathy Russell.
 
-The minimum supported Rust version is 1.71.
+The minimum supported Rust version is 1.71. The latest releases of the
+`thiserror` dependency require Rust 1.77; with Rust 1.71 to 1.76, pin it
+to the last compatible release with
+`cargo update -p thiserror --precise 2.0.20`.
 
 ## What is CDFLIB?
 
@@ -38,7 +41,7 @@ and comprehensive error handling via the [`thiserror`] crate.
 Expanding or altering the API beyond what CDFLIB offers is explicitly out of
 scope. This is a machine-translated port of the Fortran 90 code. Other
 libraries, such as [`statrs`], can use the high-precision functions provided by
-CDFLIB to build more ergonomic APIs. The only exception are convenience
+CDFLIB to build more ergonomic APIs. The only exceptions are convenience
 textbook one-liners for mean, variance, and so on.
 
 ## Notation conventions
@@ -275,18 +278,20 @@ sources (`tests/regenerate/`) and committed as CSV fixtures under `tests/data/`.
 shell scripts in `tests/regenerate/` if desired; you will need a Fortran 90
 compiler. The Fortran is compiled without fused multiply-adds, and on the
 platform that generates the fixtures (macOS on Apple silicon) the Rust port
-reproduces every fixture value bit for bit, including the iteration traces of
+reproduces every fixture value bit for bit, in debug and release builds,
+including the iteration traces of
 the root finders and the error status of every `cdf*` call; elsewhere the tests
 allow the last-bit differences of the system math library. The script
 `tests/regenerate/coverage.sh` checks that the generators execute every line of
 `cdflib.f90`, except the lines listed with their reason in
-`tests/regenerate/unreachable.txt`.
+`tests/regenerate/unreachable.txt`, and that no generator executes a listed
+line.
 
 The code has been extensively tested against the original Fortran 90 and C
 sources. In the process, we found [serious bugs in `rmathlib`] and bugs in the
-[Fortran 90 version of the library] that has remained undetected for 25 years: a
+[Fortran 90 version of the library] that have remained undetected for 25 years: a
 coefficient for the computation of the error function had been transcribed from
-the [original Fortran 77 code] with a wrong exponent (the [C]/[C++] version are
+the [original Fortran 77 code] with a wrong exponent (the [C]/[C++] versions are
 unaffected); `gamma_inc`, `gamma_inc_inv`, and `rcomp` called the compiler's
 intrinsic Γ function instead of the library's own `gamma_user`, as the [original
 F77 code] does.
