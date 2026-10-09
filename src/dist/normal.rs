@@ -300,6 +300,13 @@ impl ContinuousCdf for Normal {
     /// CDFLIB's `cdfnor` with `which = 1`.
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
+        // Rust only: exact endpoints, where cumnor gives NaN.
+        if x == f64::NEG_INFINITY {
+            return 0.0;
+        }
+        if x == f64::INFINITY {
+            return 1.0;
+        }
         // cdflib.f90:5850-5853
         let z = (x - self.mean) / self.sd;
         let (cum, _ccum) = cumnor(z);
@@ -310,6 +317,13 @@ impl ContinuousCdf for Normal {
     /// as 1 − cdf(*x*), which preserves precision in the right tail.
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
+        // Rust only: exact endpoints, where cumnor gives NaN.
+        if x == f64::NEG_INFINITY {
+            return 1.0;
+        }
+        if x == f64::INFINITY {
+            return 0.0;
+        }
         // cdflib.f90:5850-5853
         let z = (x - self.mean) / self.sd;
         let (_cum, ccum) = cumnor(z);

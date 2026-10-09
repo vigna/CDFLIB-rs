@@ -385,6 +385,10 @@ impl ContinuousCdf for Gamma {
     /// shape > 6.6 · 10²⁸ and *β*·*x* within a few ulps of the shape.
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
+        // Rust only: exact endpoint at +inf, where cumgam gives NaN.
+        if x == f64::INFINITY {
+            return 1.0;
+        }
         // Rust only: no status -4 for x < 0 (cdflib.f90:5043-5054); cumgam
         // returns (0, 1) there.
         // cdflib.f90:5102-5110. F90 sets status 10 for the error value of
@@ -405,6 +409,10 @@ impl ContinuousCdf for Gamma {
     /// shape > 6.6 · 10²⁸ and *β*·*x* within a few ulps of the shape.
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
+        // Rust only: exact endpoint at +inf, where cumgam gives NaN.
+        if x == f64::INFINITY {
+            return 0.0;
+        }
         // Rust only: no status -4 for x < 0 (cdflib.f90:5043-5054); cumgam
         // returns (0, 1) there.
         // cdflib.f90:5102-5110. F90 sets status 10 for the error value of

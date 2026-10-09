@@ -154,8 +154,8 @@ pub(crate) fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
     if pnonc < 1.0e-10 {
         return cumf(f, dfn, dfd);
     }
-    // Rust only: a NaN f, dfn or dfd passes the tests above and makes the
-    // forward sum below loop forever.
+    // Rust only: a NaN f, dfn or dfd passes the tests above, and the F90
+    // then never returns, inside beta_inc or in the forward sum below.
     if f.is_nan() || dfn.is_nan() || dfd.is_nan() {
         return (f64::NAN, f64::NAN);
     }
@@ -521,6 +521,10 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
     /// latter needs *λ*/2 within a few hundred thousand of 2³¹.
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
+        // Rust only: exact endpoint at +inf, where cumfnc truncates its sum short of 1.
+        if x == f64::INFINITY {
+            return 1.0;
+        }
         // Rust only: no status -4 for f < 0 (cdflib.f90:4634-4646); cumfnc
         // returns (0, 1) there.
         // cdflib.f90:4691
@@ -536,6 +540,10 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
     /// latter needs *λ*/2 within a few hundred thousand of 2³¹.
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
+        // Rust only: exact endpoint at +inf, where cumfnc truncates its sum short of 1.
+        if x == f64::INFINITY {
+            return 0.0;
+        }
         // Rust only: no status -4 for f < 0 (cdflib.f90:4634-4646); cumfnc
         // returns (0, 1) there.
         // cdflib.f90:4691

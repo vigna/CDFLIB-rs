@@ -168,8 +168,8 @@ fn check_dfn(dfn: f64) -> Result<(), FisherSnedecorError> {
         return Err(FisherSnedecorError::DfnNotPositive(dfn));
     }
     // Rust only: cumf then passes b = 0.5 * dfn = 0 to beta_inc, which
-    // fails when dfn * f underflows (ierr 7) or dfd halves to 0 too
-    // (ierr 2); the F90 ignores the error.
+    // fails when yy = dfn * f / (dfd + dfn * f) is 0 (ierr 7) or when dfd
+    // halves to 0 too (ierr 2); the F90 ignores the error.
     if 0.5 * dfn == 0.0 {
         return Err(FisherSnedecorError::DfnNotPositive(dfn));
     }
@@ -186,8 +186,9 @@ fn check_dfd(dfd: f64) -> Result<(), FisherSnedecorError> {
         return Err(FisherSnedecorError::DfdNotPositive(dfd));
     }
     // Rust only: cumf then passes a = 0.5 * dfd = 0 to beta_inc, which
-    // fails when xx = 0, for an infinite or overflowing dfn * f (ierr 6),
-    // or when dfn halves to 0 too (ierr 2); the F90 ignores the error.
+    // fails when xx = dfd / (dfd + dfn * f) is 0, as soon as dfn * f >= 2
+    // (ierr 6), or when dfn halves to 0 too (ierr 2); the F90 ignores the
+    // error.
     if 0.5 * dfd == 0.0 {
         return Err(FisherSnedecorError::DfdNotPositive(dfd));
     }

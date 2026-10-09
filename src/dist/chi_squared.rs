@@ -289,6 +289,10 @@ impl ContinuousCdf for ChiSquared {
     /// *df* > 1.3 · 10²⁹ and *x* within a few ulps of *df*.
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
+        // Rust only: exact endpoint at +inf, where cumchi gives NaN.
+        if x == f64::INFINITY {
+            return 1.0;
+        }
         // Rust only: no status -4 for x < 0 (cdflib.f90:3524-3535); cumchi
         // returns (0, 1) there.
         // cdflib.f90:3570-3578. F90 sets status 10 for the error value of
@@ -308,6 +312,10 @@ impl ContinuousCdf for ChiSquared {
     /// *df* > 1.3 · 10²⁹ and *x* within a few ulps of *df*.
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
+        // Rust only: exact endpoint at +inf, where cumchi gives NaN.
+        if x == f64::INFINITY {
+            return 0.0;
+        }
         // Rust only: no status -4 for x < 0 (cdflib.f90:3524-3535); cumchi
         // returns (0, 1) there.
         // cdflib.f90:3570-3578. F90 sets status 10 for the error value of

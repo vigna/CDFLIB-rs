@@ -1393,9 +1393,10 @@ pub fn try_beta_inc(a: f64, b: f64, x: f64, y: f64) -> Result<(f64, f64), BetaIn
             break 'l260;
         }
 
-        // Rust only: past this point a NaN argument reaches a series,
-        // continued fraction or expansion that either never exits its loop
-        // or returns NaN; return NaN.
+        // Rust only: past this point, given a NaN argument, the F90 either
+        // never exits a loop, returns NaN, or returns a value computed from
+        // the arguments that are not NaN (for example, from y alone at label
+        // 120); return NaN.
         if a.is_nan() || b.is_nan() || x.is_nan() || y.is_nan() {
             return Ok((f64::NAN, f64::NAN));
         }

@@ -1,8 +1,9 @@
 //! Shared helpers for integration tests.
 //!
 //! Three things live here:
-//! - [`assert_exact`], the bit-for-bit comparison used by every
-//!   reference-table test against the F90 fixtures.
+//! - [`assert_exact`], the comparison used by every reference-table test
+//!   against the F90 fixtures: bit for bit on the platform that generates
+//!   them, within the last-bit differences of the system libm elsewhere.
 //! - [`assert_close`] / [`assert_close_eps`], the tolerance-based comparison
 //!   used by the round-trip tests.
 //! - [`read_csv`], a tiny line-based reader for the fixture CSVs under
@@ -19,9 +20,10 @@ use std::path::Path;
 // ---------------------------------------------------------------------
 // Tolerance constants
 //
-// The comparisons against the F90 fixtures under tests/data/ are exact
-// (see assert_exact). The tolerances below serve the round-trip tests,
-// which check the Rust port against itself.
+// The comparisons against the F90 fixtures under tests/data/ are exact on
+// the platform that generates them (see assert_exact). The tolerances
+// below serve the round-trip tests, which check the Rust port against
+// itself.
 // ---------------------------------------------------------------------
 
 /// Default relative tolerance: one digit shy of `f64::EPSILON`.
@@ -45,21 +47,45 @@ pub const INVERSE_REL_TOL: f64 = 5e-8;
 /// low-pdf quantiles (e.g., t(df=4) at 0.975) reaches ~5e-7.
 pub const CHAINED_INVERSE_REL_TOL: f64 = 5e-7;
 
+/// Whether the tests run on the platform that generates the fixtures:
+/// gfortran on macOS on Apple silicon, whose `log`, `exp` and `pow` come
+/// from the same system libm that Rust calls there.
+pub const REFERENCE_PLATFORM: bool = cfg!(all(target_os = "macos", target_arch = "aarch64"));
+
+/// Relative tolerance of [`assert_exact`] on other platforms. Their libm
+/// may differ from Apple's in the last bit, and conditioning amplifies
+/// that: `exp` near underflow has condition number up to about 745. The
+/// largest relative difference observed on x86_64 Linux (glibc 2.41) is
+/// 2.3e-13.
+pub const FOREIGN_LIBM_REL_TOL: f64 = 1e-12;
+
 /// Assert that `got` and `expected` are the same IEEE binary64 value, bit
-/// for bit (any NaN matches any NaN). `ctx`, typically the CSV row, is
-/// printed on failure.
+/// for bit, on the [`REFERENCE_PLATFORM`], and close within
+/// [`FOREIGN_LIBM_REL_TOL`] elsewhere (any NaN matches any NaN). `ctx`,
+/// typically the CSV row, is printed on failure.
 ///
 /// The fixtures are generated with `-ffp-contract=off`, so the F90 results
-/// contain no fused multiply-adds and the Rust port reproduces them exactly.
+/// contain no fused multiply-adds, and on the [`REFERENCE_PLATFORM`] the
+/// Rust port reproduces them exactly. Elsewhere [`DEFAULT_ABS_TOL`] also
+/// applies near zero.
 #[track_caller]
 pub fn assert_exact(got: f64, expected: f64, ctx: &[f64]) {
     if got.is_nan() && expected.is_nan() {
         return;
     }
-    assert_eq!(
-        got.to_bits(),
-        expected.to_bits(),
-        "got {got:e}, expected {expected:e} for {ctx:?}",
+    if REFERENCE_PLATFORM || got.to_bits() == expected.to_bits() {
+        assert_eq!(
+            got.to_bits(),
+            expected.to_bits(),
+            "got {got:e}, expected {expected:e} for {ctx:?}",
+        );
+        return;
+    }
+    let diff = (got - expected).abs();
+    let rel = diff / got.abs().max(expected.abs());
+    assert!(
+        diff <= DEFAULT_ABS_TOL || rel <= FOREIGN_LIBM_REL_TOL,
+        "got {got:e}, expected {expected:e} (relative difference {rel:e}) for {ctx:?}",
     );
 }
 

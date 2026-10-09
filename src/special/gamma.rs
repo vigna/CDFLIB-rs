@@ -1926,8 +1926,9 @@ pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<(f64, u32), 
         // ierr = -4.
         return Err(GammaIncInvError::InconsistentPq);
     }
-    // Rust only: a NaN p or q makes t NaN, which passes the test above and
-    // leads to a meaningless x.
+    // Rust only: a NaN p or q makes t NaN, which passes the test above;
+    // the F90 then returns a meaningless x, a negative ierr, or never
+    // returns.
     if t.is_nan() {
         return Err(GammaIncInvError::InconsistentPq);
     }

@@ -352,6 +352,9 @@ impl Discrete for NegativeBinomial {
     }
     #[inline]
     fn ln_pmf(&self, s: u64) -> f64 {
+        if self.pr == 1.0 {
+            return if s == 0 { 0.0 } else { f64::NEG_INFINITY };
+        }
         let rf = self.r as f64;
         let sf = s as f64;
         // ln C(s+r-1, s) + r ln pr + s ln(1-pr)
@@ -410,5 +413,13 @@ mod tests {
             NegativeBinomial::search_r(0.5, 0.5, 0.0, 3),
             Err(NegativeBinomialError::PrOutOfRange(0.0))
         ));
+    }
+
+    #[test]
+    fn pmf_at_unit_success_probability() {
+        let d = NegativeBinomial::new(3, 1.0);
+        assert_eq!(d.pmf(0), 1.0);
+        assert_eq!(d.pmf(1), 0.0);
+        assert_eq!(d.ln_pmf(1), f64::NEG_INFINITY);
     }
 }

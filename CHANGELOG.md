@@ -1,6 +1,6 @@
 # Change Log
 
-## 0.4.4 - 2026-10-09
+## [0.4.4] - 2026-10-09
 
 ### Fixed
 
@@ -10,7 +10,9 @@
   DCDFLIB does; the upstream Fortran 90 used to call the compiler's intrinsic
   instead (it has been fixed now, after our report). The reference tables are
   generated without fused multiply-adds, and the Rust port reproduces all of
-  them bit for bit.
+  them bit for bit on the platform that generates them (macOS on Apple
+  silicon); elsewhere the tests allow the last-bit differences of the system
+  libm.
 
 - Inputs that make the Fortran loop forever (NaN or infinite arguments of
   `gamma_inc`, `gamma_inc_inv`, `beta_pser`, `beta_grat`, `gamma_rat1`,
@@ -22,9 +24,11 @@
 
 - `gamma_inc` and `gamma_inc_inv` with a NaN argument follow the Fortran
   error checks instead of returning NaN, and `gamma_inc_inv` reports a NaN
-  *p* or *q*, for which the Fortran returns a meaningless *x*, as
-  `InconsistentPq`. `beta_inc` with a NaN *x* or *y* and tiny *a* and *b*
-  returns the Fortran values of label 260.
+  *p* or *q*, for which the Fortran returns a meaningless *x*, an error, or
+  never returns, as `InconsistentPq`. `beta_inc` with a NaN argument follows
+  the Fortran through its special cases and label 260, and returns NaN past
+  them, where the Fortran may also return a value computed from the
+  arguments that are not NaN.
 
 - `FisherSnedecor` rejects degrees of freedom whose half is 0, where the
   Fortran ignores the error of `beta_inc` inside `cumf`.
@@ -34,14 +38,20 @@
 
 - The closed-form parameter searches return an error when the parameter
   they compute is not valid, where the Fortran returns it: rate 0 (at
-  *p* = 0) or +∞ (at *q* = 0) in `Gamma::search_rate`, a mean of ±∞ (at
+  *p* = 0) or +∞ (at *q* = 0, `RateNotFinite` instead of
+  `GammaIncInv(AtInfinity)`) in `Gamma::search_rate`, a mean of ±∞ (at
   *p* = 0 or 1) in `Normal::search_mean`, and a *σ* that is not positive
   (when no positive *σ* exists, when *x* = *μ*, and at *p* = 0 or 1) in
   `Normal::search_sd`.
 
-- `Poisson::pmf` is 1 at 0 for *λ* = 0 instead of NaN, and the densities
-  of the Γ, χ², Β and *F* distributions at the ends of the support are
-  their limits (for example, the rate for Γ with shape 1) instead of 0.
+- `Poisson::pmf` is 1 at 0 for *λ* = 0 and `NegativeBinomial::pmf` is 1 at
+  0 for *pr* = 1, instead of NaN, and the densities of the Γ, χ², Β and *F*
+  distributions at the ends of the support are their limits (for example,
+  the rate for Γ with shape 1) instead of 0.
+
+- `cdf` and `ccdf` are exactly 0 or 1 at ±∞ for the normal, Γ, χ²,
+  noncentral χ² and noncentral *F* distributions, where the Fortran gives
+  NaN (0.99999 for the noncentral *F*).
 
 - The noncentral χ² and *F* distributions panic where the Fortran default
   integers would overflow (*λ* beyond about 4.3 · 10⁹), instead of

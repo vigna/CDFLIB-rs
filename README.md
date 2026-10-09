@@ -112,7 +112,7 @@ of five branches in [`gamma_inc`]) covers this range cleanly:
 | (_P_, _Q_)(10⁹, 10⁹)   | (0.5000, 0.5000) | (NaN, NaN)   |
 
 These correspond to χ²(1000), χ²(10⁴), χ²(2·10⁶), and χ²(2·10⁹) at their
-respective medians, which arise in goodness-of-fit and likelihood-ratio tests on
+respective means, which arise in goodness-of-fit and likelihood-ratio tests on
 large samples.
 
 ### 2. Solves for any parameter, not just _x_ and _p_
@@ -231,11 +231,13 @@ coefficient, branch threshold, and truncation depth matches `cdflib.f90` to the
 digit. The intentional structural divergences are:
 
 - There is no silent error returned as a special value, or errors returned as an
-  integer index. All functions returning errors have a `try_` prefix and return
-  a `Result` with a documented error type. The error types are designed to be as
-  specific as possible about the nature of the error.
-- All functions with a `try_` prefix have an infallible variant that panics on
-  errors, and is documented as such.
+  integer index. Fallible functions return a `Result` with a documented error
+  type. The error types are designed to be as specific as possible about the
+  nature of the error.
+- Constructors and special functions come in pairs: a `try_` form returning the
+  `Result`, and an infallible variant that panics on errors and is documented
+  as such. The quantile and search methods (`inverse_cdf`, `inverse_ccdf`,
+  `search_*`) return the `Result` directly.
 - The Fortran routine `gamma_user` is exposed under the Rust name [`gamma`]. The
   Fortran name encodes a Fortran-2008 workaround (the language added a `gamma`
   intrinsic, so the routine had to be renamed to avoid the collision). Rust has
@@ -262,7 +264,8 @@ likely to call. Each CDFLIB algorithmic routine can be found under its original
 name, modulo the renames and splits enumerated above. The machine-constant
 routines `ipmpar` and `exparg` are crate-private ports; fatal errors that the
 Fortran reports by printing a message and stopping are returned as errors
-through the `try_*`/`Result` pairs described above.
+through the `Result` types described above, except that the helpers `dlanor`
+and `dstrem` panic on arguments outside their domain.
 
 ## Testing
 
@@ -270,9 +273,11 @@ Reference values for the test suite are pre-generated from the Fortran 90
 sources (`tests/regenerate/`) and committed as CSV fixtures under `tests/data/`.
 `cargo test` reads the CSVs directly; CSV fixtures can be regenerated using the
 shell scripts in `tests/regenerate/` if desired; you will need a Fortran 90
-compiler. The Fortran is compiled without fused multiply-adds, and the Rust port
+compiler. The Fortran is compiled without fused multiply-adds, and on the
+platform that generates the fixtures (macOS on Apple silicon) the Rust port
 reproduces every fixture value bit for bit, including the iteration traces of
-the root finders and the error status of every `cdf*` call. The script
+the root finders and the error status of every `cdf*` call; elsewhere the tests
+allow the last-bit differences of the system math library. The script
 `tests/regenerate/coverage.sh` checks that the generators execute every line of
 `cdflib.f90`, except the lines listed with their reason in
 `tests/regenerate/unreachable.txt`.
@@ -313,11 +318,11 @@ F77 code] does.
 [noncentral χ²]: https://docs.rs/cdflib/latest/cdflib/struct.ChiSquaredNoncentral.html
 [noncentral _F_]: https://docs.rs/cdflib/latest/cdflib/struct.FisherSnedecorNoncentral.html
 [Fortran 90 version of the library]: https://people.sc.fsu.edu/~jburkardt/f_src/cdflib/cdflib.html
-[original Fortran 77 code]: https://people.sc.fsu.edu/~jburkardt/f77_src/cdflib/cdflib.html
+[original F77 code]: https://people.sc.fsu.edu/~jburkardt/f77_src/cdflib/cdflib.html
 [`cdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.cdf
 [`ccdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.ccdf
 [`inverse_cdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.inverse_cdf
-[`inverse_ccdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.inverse_ccdf
+[`inverse_ccdf`]: https://docs.rs/cdflib/latest/cdflib/struct.Normal.html#method.inverse_ccdf
 [Fortran 90]: https://people.sc.fsu.edu/~jburkardt/f_src/cdflib/cdflib.html
 [Fortran 77]: https://people.sc.fsu.edu/~jburkardt/f77_src/cdflib/cdflib.html
 [C]: https://people.sc.fsu.edu/~jburkardt/c_src/cdflib/cdflib.html

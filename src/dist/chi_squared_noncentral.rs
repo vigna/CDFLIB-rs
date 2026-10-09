@@ -405,6 +405,10 @@ impl ContinuousCdf for ChiSquaredNoncentral {
     /// overflow.
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
+        // Rust only: exact endpoint at +inf, where cumchn gives NaN.
+        if x == f64::INFINITY {
+            return 1.0;
+        }
         // Rust only: no status -4 for x < 0 (cdflib.f90:3866-3875); cumchn
         // returns (0, 1) there.
         // cdflib.f90:3907
@@ -421,6 +425,10 @@ impl ContinuousCdf for ChiSquaredNoncentral {
     /// overflow.
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
+        // Rust only: exact endpoint at +inf, where cumchn gives NaN.
+        if x == f64::INFINITY {
+            return 0.0;
+        }
         // Rust only: no status -4 for x < 0 (cdflib.f90:3866-3875); cumchn
         // returns (0, 1) there.
         // cdflib.f90:3907

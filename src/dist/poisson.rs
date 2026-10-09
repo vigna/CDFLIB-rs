@@ -107,8 +107,9 @@ pub(crate) fn cumpoi(s: f64, xlam: f64) -> Result<(f64, f64), GammaIncError> {
 }
 
 // Rust only: cdfpoi has no status for an error value of gamma_inc, which it
-// passes on as a probability; it can occur only for s and xlam beyond 6.6e28,
-// with xlam within a few ulps of s + 1.
+// passes on as a probability. It needs s + 1 beyond 6.6e28 with xlam within
+// a few ulps of it, so only the search over a real s in inverse_ccdf can
+// reach it; for a u64 s, s + 1 is at most about 1.8e19.
 #[inline]
 fn cumpoi_or_panic(s: f64, xlam: f64) -> (f64, f64) {
     match cumpoi(s, xlam) {
@@ -193,11 +194,6 @@ impl Poisson {
     ///
     /// CDFLIB's `cdfpoi` with `which = 3`. The caller passes both *p* and
     /// *q* = 1 − *p*; they must sum to 1 within 3ε.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the search evaluates `gamma_inc` where it cannot compute
-    /// its result, which needs *s* and *λ* beyond 6.6 · 10²⁸.
     #[inline]
     pub fn search_lambda(p: f64, q: f64, s: u64) -> Result<f64, PoissonError> {
         check_p(p)?;
@@ -234,7 +230,8 @@ impl Poisson {
     /// # Panics
     ///
     /// Panics if the search evaluates `gamma_inc` where it cannot compute
-    /// its result, which needs *s* and *λ* beyond 6.6 · 10²⁸.
+    /// its result, which needs *λ* beyond 6.6 · 10²⁸ and *s* + 1 within a
+    /// few ulps of it.
     ///
     /// [cdf]: crate::traits::DiscreteCdf::cdf
     #[inline]
@@ -267,11 +264,6 @@ impl DiscreteCdf for Poisson {
     type Error = PoissonError;
 
     /// CDFLIB's `cdfpoi` with `which = 1`.
-    ///
-    /// # Panics
-    ///
-    /// Panics where `gamma_inc` cannot compute its result, which needs *s*
-    /// and *λ* beyond 6.6 · 10²⁸.
     #[inline]
     fn cdf(&self, s: u64) -> f64 {
         // Rust only: the test s < 0 (cdflib.f90:6054-6063) is vacuous for a
@@ -281,11 +273,6 @@ impl DiscreteCdf for Poisson {
     }
 
     /// CDFLIB's `cdfpoi` with `which = 1`.
-    ///
-    /// # Panics
-    ///
-    /// Panics where `gamma_inc` cannot compute its result, which needs *s*
-    /// and *λ* beyond 6.6 · 10²⁸.
     #[inline]
     fn ccdf(&self, s: u64) -> f64 {
         // Rust only: the test s < 0 (cdflib.f90:6054-6063) is vacuous for a
@@ -297,10 +284,6 @@ impl DiscreteCdf for Poisson {
     /// Rust only: the smallest integer *s* with [`cdf`](Self::cdf)(*s*) ≥
     /// *p* ([`u64::MAX`] if none). CDFLIB has no counterpart; its
     /// `which = 2` solves for a real *s* (see [`inverse_ccdf`]).
-    ///
-    /// # Panics
-    ///
-    /// Panics as [`cdf`](Self::cdf) does.
     ///
     /// [`inverse_ccdf`]: Poisson::inverse_ccdf
     #[inline]

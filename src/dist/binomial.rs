@@ -161,7 +161,8 @@ impl Binomial {
     ///
     /// # Panics
     ///
-    /// Panics if *pr* is invalid; use [`try_new`] for a fallible variant.
+    /// Panics if *n* is 0 or *pr* is invalid; use [`try_new`] for a fallible
+    /// variant.
     ///
     /// [`try_new`]: Self::try_new
     #[inline]

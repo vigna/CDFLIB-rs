@@ -308,3 +308,31 @@ fn negative_binomial_search_pr_r_zero_upper_tail_branch() {
     let pr = NegativeBinomial::search_pr(0.7, 0.3, 0, 5).unwrap();
     assert!(pr.abs() < 1e-7, "pr = {pr}");
 }
+
+// ---- cdf and ccdf are exact at the infinite ends of the support ----
+
+#[test]
+fn continuous_cdf_at_infinity_is_exact() {
+    let check = |name: &str, cdf: &dyn Fn(f64) -> f64, ccdf: &dyn Fn(f64) -> f64| {
+        assert_eq!(cdf(f64::INFINITY), 1.0, "{name} cdf(+inf)");
+        assert_eq!(ccdf(f64::INFINITY), 0.0, "{name} ccdf(+inf)");
+        assert_eq!(cdf(f64::NEG_INFINITY), 0.0, "{name} cdf(-inf)");
+        assert_eq!(ccdf(f64::NEG_INFINITY), 1.0, "{name} ccdf(-inf)");
+    };
+    let d = Normal::new(1.0, 2.0);
+    check("Normal", &|x| d.cdf(x), &|x| d.ccdf(x));
+    let d = Gamma::new(2.0, 3.0);
+    check("Gamma", &|x| d.cdf(x), &|x| d.ccdf(x));
+    let d = ChiSquared::new(3.0);
+    check("ChiSquared", &|x| d.cdf(x), &|x| d.ccdf(x));
+    let d = ChiSquaredNoncentral::new(3.0, 2.0);
+    check("ChiSquaredNoncentral", &|x| d.cdf(x), &|x| d.ccdf(x));
+    let d = FisherSnedecor::new(3.0, 5.0);
+    check("FisherSnedecor", &|x| d.cdf(x), &|x| d.ccdf(x));
+    let d = FisherSnedecorNoncentral::new(3.0, 5.0, 2.0);
+    check("FisherSnedecorNoncentral", &|x| d.cdf(x), &|x| d.ccdf(x));
+    let d = StudentsT::new(4.0);
+    check("StudentsT", &|x| d.cdf(x), &|x| d.ccdf(x));
+    let d = Beta::new(2.0, 3.0);
+    check("Beta", &|x| d.cdf(x), &|x| d.ccdf(x));
+}
