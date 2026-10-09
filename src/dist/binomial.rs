@@ -1,22 +1,32 @@
 use crate::error::SearchError;
-use crate::search::{search_bounded_zero, search_monotone, SEARCH_BOUND};
-use crate::special::beta_inc;
+use crate::search::{dstinv, dstzr};
 use crate::special::gamma_log;
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 use thiserror::Error;
 
-/// Binomial distribution with *n* trials and success probability *p*.
+use super::beta::cumbet;
+use super::integer_quantile;
+
+// Parameters of cdfbin (cdflib.f90:3000-3014).
+const ATOL: f64 = 1.0e-10;
+const INF: f64 = 1.0e300;
+const TOL: f64 = 1.0e-8;
+
+/// Binomial distribution with *n* trials and success probability *pr*.
 ///
 /// Models the number of successes in a sequence of *n* independent
 /// Bernoulli trials. The CDF reduces to the incomplete Β
 /// (Abramowitz–Stegun 26.5.24):
-/// Pr[*S* ≤ *s*] = *I*₁ ₋ *ₚ*(*n* − *s*, *s* + 1).
+/// Pr[*S* ≤ *s*] = *I*₁ ₋ *ₚ*(*n* − *s*, *s* + 1).
+///
+/// The methods correspond to CDFLIB's `cdfbin` (cdflib.f90:2890), whose
+/// XN is *n*: `which = 1` is [`cdf`] / [`ccdf`], `which = 2` is
+/// [`inverse_ccdf`], `which = 3` is [`search_trials`], `which = 4` is
+/// [`search_pr`].
 ///
 /// # Notes
 ///
 /// [`Entropy`] is not implemented.
-///
-/// [`Entropy`]: crate::traits::Entropy
 ///
 /// # Example
 ///
@@ -32,6 +42,13 @@ use thiserror::Error;
 /// // Compute success probability given Pr[S ≤ 2] = 0.5 and n = 10
 /// let pr = Binomial::search_pr(0.5, 0.5, 10, 2).unwrap();
 /// ```
+///
+/// [`Entropy`]: crate::traits::Entropy
+/// [`cdf`]: DiscreteCdf::cdf
+/// [`ccdf`]: DiscreteCdf::ccdf
+/// [`inverse_ccdf`]: Binomial::inverse_ccdf
+/// [`search_trials`]: Binomial::search_trials
+/// [`search_pr`]: Binomial::search_pr
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Binomial {
     n: u64,
@@ -40,34 +57,102 @@ pub struct Binomial {
 
 /// Errors arising from constructing a [`Binomial`] or from its parameter searches.
 ///
+/// The variants correspond to the `status` codes of CDFLIB's `cdfbin`.
+///
 /// [`Binomial`]: crate::Binomial
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum BinomialError {
-    /// The success probability *pr* fell outside [0 . . 1] (or was non-finite).
+    /// The success probability *pr* fell outside [0 . . 1] (`cdfbin` status −6);
+    /// NaN is also rejected.
     #[error("success probability {0} outside [0..1]")]
     PrOutOfRange(f64),
-    /// The number of trials *n* is zero. Mirrors CDFLIB's `cdfbin`
-    /// status −5 (*xn* ≤ 0).
+    /// The number of trials *n* is zero (`cdfbin` status −5, *xn* ≤ 0).
     #[error("number of trials is zero")]
     TrialsZero,
-    /// The observed number of successes *s* exceeds the number of trials *n*.
+    /// The number of successes *s* exceeds the number of trials *n*
+    /// (`cdfbin` status −4).
     #[error("number of successes {s} exceeds the number of trials {n}")]
     SuccessesExceedTrials { s: u64, n: u64 },
-    /// The probability *p* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *p* fell outside [0 . . 1] (`cdfbin` status −2); NaN is
+    /// also rejected.
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (`cdfbin` status −3); NaN is
+    /// also rejected.
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
-    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3ε).
-    /// Mirrors CDFLIB's `cdfbin` status 3.
+    /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
+    /// (`cdfbin` status 3).
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
-    /// The internal root-finder failed; see [`SearchError`].
+    /// The search for the answer failed (`cdfbin` status 1 or 2); see
+    /// [`SearchError`].
     ///
     /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
     Search(#[from] SearchError),
+}
+
+/// Returns the cumulative binomial distribution (*cum*, *ccum*) of *s* or
+/// fewer successes in *xn* trials with success probability *pr*
+/// (`cumbin`, cdflib.f90:6790).
+///
+/// *ompr* = 1 − *pr* is passed separately to preserve its precision.
+#[inline]
+pub(crate) fn cumbin(s: f64, xn: f64, pr: f64, ompr: f64) -> (f64, f64) {
+    if s < xn {
+        let (ccum, cum) = cumbet(pr, ompr, s + 1.0, xn - s);
+        (cum, ccum)
+    } else {
+        (1.0, 0.0)
+    }
+}
+
+// cdflib.f90:3044-3063 (status -2). Rust also rejects NaN.
+#[inline]
+fn check_p(p: f64) -> Result<(), BinomialError> {
+    if p < 0.0 || 1.0 < p || p.is_nan() {
+        return Err(BinomialError::PNotInRange(p));
+    }
+    Ok(())
+}
+
+// cdflib.f90:3064-3083 (status -3). Rust also rejects NaN.
+#[inline]
+fn check_q(q: f64) -> Result<(), BinomialError> {
+    if q < 0.0 || 1.0 < q || q.is_nan() {
+        return Err(BinomialError::QNotInRange(q));
+    }
+    Ok(())
+}
+
+// cdflib.f90:3084-3096 (status -5).
+#[inline]
+fn check_xn(n: u64) -> Result<(), BinomialError> {
+    if n == 0 {
+        return Err(BinomialError::TrialsZero);
+    }
+    Ok(())
+}
+
+// cdflib.f90:3117-3136 (status -6). Rust also rejects NaN. OMPR = 1 - PR is
+// derived from pr, so the F90 checks on ompr (status -7, cdflib.f90:3137-3156)
+// and on pr + ompr (status 4, cdflib.f90:3169-3181) cannot fail.
+#[inline]
+fn check_pr(pr: f64) -> Result<(), BinomialError> {
+    if pr < 0.0 || 1.0 < pr || pr.is_nan() {
+        return Err(BinomialError::PrOutOfRange(pr));
+    }
+    Ok(())
+}
+
+// cdflib.f90:3157-3168 (status 3).
+#[inline]
+fn check_pq(p: f64, q: f64) -> Result<(), BinomialError> {
+    if 3.0 * f64::EPSILON < ((p + q) - 1.0).abs() {
+        return Err(BinomialError::PQSumNotOne { p, q });
+    }
+    Ok(())
 }
 
 impl Binomial {
@@ -87,22 +172,16 @@ impl Binomial {
     /// Fallible counterpart of [`new`](Self::new) returning a
     /// [`BinomialError`] instead of panicking.
     ///
-    /// Returns [`PrOutOfRange`] if *pr* falls outside [0 . . 1] or is
-    /// non-finite.
-    ///
-    /// Returns [`TrialsZero`] if *n* is zero, mirroring CDFLIB's
-    /// `cdfbin` status −5.
+    /// Returns [`TrialsZero`] if *n* is zero (`cdfbin` status −5), and
+    /// [`PrOutOfRange`] if *pr* falls outside [0 . . 1] or is NaN (`cdfbin`
+    /// status −6).
     ///
     /// [`TrialsZero`]: BinomialError::TrialsZero
     /// [`PrOutOfRange`]: BinomialError::PrOutOfRange
     #[inline]
     pub fn try_new(n: u64, pr: f64) -> Result<Self, BinomialError> {
-        if n == 0 {
-            return Err(BinomialError::TrialsZero);
-        }
-        if !(0.0..=1.0).contains(&pr) || !pr.is_finite() {
-            return Err(BinomialError::PrOutOfRange(pr));
-        }
+        check_xn(n)?;
+        check_pr(pr)?;
         Ok(Self { n, pr })
     }
 
@@ -119,201 +198,168 @@ impl Binomial {
     }
 
     /// Returns the (continuous) number of trials *n* satisfying
-    /// Pr[*S* ≤ *s*] = *p* given the success probability. The search
-    /// works on the continuous extension of the CDF.
+    /// Pr[*S* ≤ *s*] = *p* given the success probability, searched for in
+    /// [0 . . 10³⁰⁰]. The search works on the continuous extension of the CDF.
     ///
-    /// Mirrors CDFLIB's `cdfbin` with `which = 3`. Caller passes both
-    /// *p* and *q* = 1 − *p*; consistency is enforced within 3ε.
+    /// CDFLIB's `cdfbin` with `which = 3`, with *ompr* = 1 − *pr*. The
+    /// caller passes both *p* and *q* = 1 − *p*; they must sum to 1 within
+    /// 3ε.
     #[inline]
     pub fn search_trials(p: f64, q: f64, pr: f64, s: u64) -> Result<f64, BinomialError> {
+        check_p(p)?;
+        check_q(q)?;
+        // Rust only: the test s < 0 (cdflib.f90:3100-3107, status -4) is
+        // dropped, since s is a u64.
+        check_pr(pr)?;
+        let ompr = 1.0 - pr;
         check_pq(p, q)?;
-        if !(0.0..=1.0).contains(&pr) || !pr.is_finite() {
-            return Err(BinomialError::PrOutOfRange(pr));
+        let s = s as f64;
+
+        // cdflib.f90:3238-3278
+        let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
+        while d.status() == 1 {
+            let xn = d.x();
+            let (cum, ccum) = cumbin(s, xn, pr, ompr);
+            let fx = if p <= q { cum - p } else { ccum - q };
+            d.dinvr(fx);
         }
-        let sf = s as f64;
-        // For pr fixed, Pr[S ≤ s] is decreasing in n.
-        let f = |n: f64| {
-            if sf >= n {
-                // Degenerate left side: CDF == 1, SF == 0.
-                return if p <= q { 1.0 - p } else { -q };
-            }
-            let (sf_bin, cdf_bin) = beta_inc(sf + 1.0, n - sf, pr, 1.0 - pr);
-            if p <= q {
-                cdf_bin - p
+        if d.status() == -1 {
+            return Err(if d.qleft() {
+                SearchError::AnswerBelowLowerBound { bound: 0.0 }
             } else {
-                sf_bin - q
+                SearchError::AnswerAboveUpperBound { bound: INF }
             }
-        };
-        // Match cdfbin's which=3: range (zero, inf), start = 5.0.
-        Ok(search_monotone(
-            0.0,
-            SEARCH_BOUND,
-            5.0,
-            0.0,
-            SEARCH_BOUND,
-            f,
-        )?)
+            .into());
+        }
+        Ok(d.x())
     }
 
-    /// Returns the success probability *pr* satisfying Pr[*S* ≤ *s*] = *p* given *n*.
+    /// Returns the success probability *pr* satisfying Pr[*S* ≤ *s*] = *p*
+    /// given *n*.
     ///
-    /// Mirrors CDFLIB's `cdfbin` with `which = 4` (cdflib.f90:3232-3265).
-    /// Caller passes both *p* and *q* = 1 − *p*; consistency is enforced
-    /// within 3ε. When *p* > *q* the search runs on *ompr* = 1 − *pr*
-    /// (F90's variable-switch precision strategy) and returns *pr* = 1 − *ompr*.
+    /// CDFLIB's `cdfbin` with `which = 4`. The caller passes both *p* and
+    /// *q* = 1 − *p*; they must sum to 1 within 3ε. When *p* > *q* the
+    /// search runs on *ompr* = 1 − *pr* and returns *pr* = 1 − *ompr*.
     #[inline]
     pub fn search_pr(p: f64, q: f64, n: u64, s: u64) -> Result<f64, BinomialError> {
-        check_pq(p, q)?;
-        if n == 0 {
-            return Err(BinomialError::TrialsZero);
-        }
-        if s > n {
+        check_p(p)?;
+        check_q(q)?;
+        check_xn(n)?;
+        // cdflib.f90:3097-3116 (status -4). Rust only: the test s < 0 is
+        // dropped, since s is a u64.
+        if n < s {
             return Err(BinomialError::SuccessesExceedTrials { s, n });
         }
-        let nf = n as f64;
-        let sf = s as f64;
-        // Match cdfbin's which=4 exactly: drive dzror directly on pr when
-        // p<=q, else on ompr = 1-pr with the upper-tail residual.
-        // The F90 loop evaluates cumbin, whose s < xn guard
-        // (cdflib.f90:6636-6645) pins the cumulative to (1, 0) when
-        // s >= n, keeping beta_inc away from b = 0 at the pr = 1 endpoint.
-        if p <= q {
-            let f = |pr: f64| {
-                let cdf_bin = if s < n {
-                    let (_sf_bin, cdf_bin) = beta_inc(sf + 1.0, nf - sf, pr, 1.0 - pr);
-                    cdf_bin
-                } else {
-                    1.0
-                };
-                cdf_bin - p
-            };
-            Ok(search_bounded_zero(0.0, 1.0, f)?)
+        check_pq(p, q)?;
+        let xn = n as f64;
+        let s = s as f64;
+
+        // cdflib.f90:3284-3334
+        let search = dstzr(0.0, 1.0, ATOL, TOL);
+        let (pr, z) = if p <= q {
+            let mut z = search.dzror();
+            let mut ompr = 1.0 - z.x();
+            while z.status() == 1 {
+                let (cum, _ccum) = cumbin(s, xn, z.x(), ompr);
+                let fx = cum - p;
+                z.dzror(fx);
+                ompr = 1.0 - z.x();
+            }
+            (z.x(), z)
         } else {
-            let f = |ompr: f64| {
-                let sf_bin = if s < n {
-                    let (sf_bin, _cdf_bin) = beta_inc(sf + 1.0, nf - sf, 1.0 - ompr, ompr);
-                    sf_bin
-                } else {
-                    0.0
-                };
-                sf_bin - q
-            };
-            let ompr = search_bounded_zero(0.0, 1.0, f)?;
-            Ok(1.0 - ompr)
+            let mut z = search.dzror();
+            let mut pr = 1.0 - z.x();
+            while z.status() == 1 {
+                let (_cum, ccum) = cumbin(s, xn, pr, z.x());
+                let fx = ccum - q;
+                z.dzror(fx);
+                pr = 1.0 - z.x();
+            }
+            (pr, z)
+        };
+        if z.status() == -1 {
+            return Err(if z.qleft() {
+                SearchError::AnswerBelowLowerBound { bound: 0.0 }
+            } else {
+                SearchError::AnswerAboveUpperBound { bound: 1.0 }
+            }
+            .into());
         }
+        Ok(pr)
     }
-}
 
-#[inline]
-fn check_p(p: f64) -> Result<(), BinomialError> {
-    if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(BinomialError::PNotInRange(p))
-    } else {
-        Ok(())
-    }
-}
+    /// Returns the real-valued *s* such that [cdf]\(*s*\) = 1 − *q* on the
+    /// continuous extension of the CDF, searched for in [0 . . *n*].
+    ///
+    /// CDFLIB's `cdfbin` with `which = 2`, with *p* = 1 − *q*. CDFLIB
+    /// starts the search at *s* = 5, so it fails with
+    /// [`SearchError::StartOutOfRange`] when *n* < 5.
+    ///
+    /// [cdf]: crate::traits::DiscreteCdf::cdf
+    #[inline]
+    pub fn inverse_ccdf(&self, q: f64) -> Result<f64, BinomialError> {
+        check_q(q)?;
+        let p = 1.0 - q;
+        let xn = self.n as f64;
+        let pr = self.pr;
+        let ompr = 1.0 - pr;
 
-#[inline]
-fn check_q(q: f64) -> Result<(), BinomialError> {
-    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
-        Err(BinomialError::QNotInRange(q))
-    } else {
-        Ok(())
+        // cdflib.f90:3194-3232
+        let mut d = dstinv(0.0, xn, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
+        while d.status() == 1 {
+            let s = d.x();
+            let (cum, ccum) = cumbin(s, xn, pr, ompr);
+            let fx = if p <= q { cum - p } else { ccum - q };
+            d.dinvr(fx);
+        }
+        if d.status() == -1 {
+            return Err(if d.qleft() {
+                SearchError::AnswerBelowLowerBound { bound: 0.0 }
+            } else {
+                SearchError::AnswerAboveUpperBound { bound: xn }
+            }
+            .into());
+        }
+        Ok(d.x())
     }
-}
-
-#[inline]
-fn check_pq(p: f64, q: f64) -> Result<(), BinomialError> {
-    check_p(p)?;
-    check_q(q)?;
-    if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
-        return Err(BinomialError::PQSumNotOne { p, q });
-    }
-    Ok(())
-}
-
-/// `cumbin`: cumulative binomial via beta reduction.
-fn cumbin(s: u64, n: u64, pr: f64) -> (f64, f64) {
-    if s >= n {
-        return (1.0, 0.0);
-    }
-    let sf = s as f64;
-    let nf = n as f64;
-    // cumbet(pr, ompr, s+1, n-s) returns (P, Q); cumbin swaps them.
-    let (p, q) = beta_inc(sf + 1.0, nf - sf, pr, 1.0 - pr);
-    (q, p)
 }
 
 impl DiscreteCdf for Binomial {
     type Error = BinomialError;
 
+    /// CDFLIB's `cdfbin` with `which = 1`, with *ompr* = 1 − *pr*.
     #[inline]
     fn cdf(&self, s: u64) -> f64 {
-        cumbin(s, self.n, self.pr).0
+        // Rust only: no status -4 for n < s (cdflib.f90:3108-3114); cumbin
+        // returns (1, 0) there. The test s < 0 is vacuous for a u64.
+        // cdflib.f90:3187
+        cumbin(s as f64, self.n as f64, self.pr, 1.0 - self.pr).0
     }
 
+    /// CDFLIB's `cdfbin` with `which = 1`, with *ompr* = 1 − *pr*.
     #[inline]
     fn ccdf(&self, s: u64) -> f64 {
-        cumbin(s, self.n, self.pr).1
+        // Rust only: no status -4 for n < s (cdflib.f90:3108-3114); cumbin
+        // returns (1, 0) there. The test s < 0 is vacuous for a u64.
+        // cdflib.f90:3187
+        cumbin(s as f64, self.n as f64, self.pr, 1.0 - self.pr).1
     }
 
+    /// Rust only: the smallest integer *s* ≤ *n* with
+    /// [`cdf`](Self::cdf)(*s*) ≥ *p*. CDFLIB has no counterpart; its
+    /// `which = 2` solves for a real *s* (see [`inverse_ccdf`]).
+    ///
+    /// [`inverse_ccdf`]: Binomial::inverse_ccdf
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<u64, BinomialError> {
         check_p(p)?;
-        // Smallest s with cdf(s) >= p.
         if p == 0.0 {
             return Ok(0);
         }
         if p == 1.0 {
             return Ok(self.n);
         }
-        let mut lo = 0u64;
-        let mut hi = self.n;
-        while lo < hi {
-            let mid = lo + (hi - lo) / 2;
-            if self.cdf(mid) < p {
-                lo = mid + 1;
-            } else {
-                hi = mid;
-            }
-        }
-        Ok(lo)
-    }
-}
-
-impl Binomial {
-    /// Returns the real-valued *s* such that [cdf]\(*s*\) = 1 − *q* on the
-    /// smooth continuous extension via *I*₁₋ₚᵣ(*n*−*s*, *s*+1).
-    ///
-    /// Mirrors CDFLIB's `cdfbin` with `which = 2` (cdflib.f90:3138-3185):
-    /// single dinvr loop, residual cum-p if p≤q else ccum-q.
-    ///
-    /// [cdf]: crate::traits::DiscreteCdf::cdf
-    #[inline]
-    pub fn inverse_ccdf(&self, q: f64) -> Result<f64, BinomialError> {
-        check_q(q)?;
-        let nf = self.n as f64;
-        let pr = self.pr;
-        let p = 1.0 - q;
-        // F90 cumbin(s, xn, pr, ompr, cum, ccum) handles s >= xn natively by
-        // setting cum=1, ccum=0 (cdflib.f90:6636-6645); otherwise reduces to
-        // beta_inc, which returns (P, Q) where Rust's binding is (ccum, cum)
-        // matching F90 cumbet's argument order.
-        let f = |s: f64| {
-            let (cum, ccum) = if s >= nf {
-                (1.0, 0.0)
-            } else {
-                let (cb_ccum, cb_cum) = beta_inc(s + 1.0, nf - s, pr, 1.0 - pr);
-                (cb_cum, cb_ccum)
-            };
-            if p <= q {
-                cum - p
-            } else {
-                ccum - q
-            }
-        };
-        // F90 dstinv(0.0, xn, 0.5, 0.5, 5.0, atol, tol); s = 5.0.
-        Ok(search_monotone(0.0, nf, 5.0, 0.0, nf, f)?)
+        Ok(integer_quantile(p, self.n, |s| self.cdf(s)))
     }
 }
 

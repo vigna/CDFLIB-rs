@@ -1,12 +1,26 @@
 use crate::error::SearchError;
-use crate::search::search_monotone;
+use crate::search::dstinv;
 use crate::special::beta_inc;
 use crate::special::gamma_log;
 use crate::traits::{ContinuousCdf, Mean, Variance};
 use thiserror::Error;
 
+use super::fisher_snedecor::cumf;
+
+// Parameters of cdffnc (cdflib.f90:4571-4587).
+const ATOL: f64 = 1.0e-10;
+const INF: f64 = 1.0e30;
+const TENT4: f64 = 1.0e4;
+const TOL: f64 = 1.0e-8;
+
 /// Noncentral *F* distribution with numerator df *dfn*, denominator df *dfd*,
 /// and noncentrality *λ* ≥ 0.
+///
+/// The methods correspond to CDFLIB's `cdffnc` (cdflib.f90:4432), whose
+/// PNONC is *λ*: `which = 1` is [`cdf`] / [`ccdf`], `which = 2` is
+/// [`inverse_cdf`], `which = 3` is [`search_dfn`], `which = 4` is
+/// [`search_dfd`], `which = 5` is [`search_ncp`]. CDFLIB's searches use
+/// *p* only, and `cumfnc` requires *dfn* ≥ 1 and *dfd* ≥ 1.
 ///
 /// # Notes
 ///
@@ -23,12 +37,18 @@ use thiserror::Error;
 /// // Pr[X ≤ 4.0]
 /// let p = d.cdf(4.0);
 ///
-/// // Compute noncentrality *λ* given Pr[X ≤ 4.0] = 0.5, dfn = 5, dfd = 10
+/// // Compute noncentrality λ given Pr[X ≤ 4.0] = 0.5, dfn = 5, dfd = 10
 /// let ncp = FisherSnedecorNoncentral::search_ncp(0.5, 4.0, 5.0, 10.0).unwrap();
 /// ```
 ///
 /// [`Continuous`]: crate::traits::Continuous
 /// [`Entropy`]: crate::traits::Entropy
+/// [`cdf`]: ContinuousCdf::cdf
+/// [`ccdf`]: ContinuousCdf::ccdf
+/// [`inverse_cdf`]: ContinuousCdf::inverse_cdf
+/// [`search_dfn`]: FisherSnedecorNoncentral::search_dfn
+/// [`search_dfd`]: FisherSnedecorNoncentral::search_dfd
+/// [`search_ncp`]: FisherSnedecorNoncentral::search_ncp
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FisherSnedecorNoncentral {
     dfn: f64,
@@ -39,59 +59,292 @@ pub struct FisherSnedecorNoncentral {
 /// Errors arising from constructing a [`FisherSnedecorNoncentral`] or from
 /// its parameter searches.
 ///
+/// The variants correspond to the `status` codes of CDFLIB's `cdffnc` and
+/// to the fatal errors of `cumfnc`.
+///
 /// [`FisherSnedecorNoncentral`]: crate::FisherSnedecorNoncentral
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum FisherSnedecorNoncentralError {
-    /// The numerator degrees of freedom *dfn* was not strictly positive.
-    /// Mirrors CDFLIB's `cdffnc` status -5.
+    /// The numerator degrees of freedom *dfn* was not strictly positive
+    /// (`cdffnc` status −5).
     #[error("numerator df must be > 0, got {0}")]
     DfnNotPositive(f64),
-    /// The numerator degrees of freedom *dfn* was below `cumfnc`'s valid range.
+    /// The numerator degrees of freedom *dfn* was less than 1, where
+    /// `cumfnc` stops with a fatal error (cdflib.f90:7317-7322). It is
+    /// checked after the `cdffnc` status checks.
     #[error("numerator df must be >= 1, got {0}")]
     DfnTooSmall(f64),
-    /// The numerator degrees of freedom *dfn* was not finite.
+    /// The numerator degrees of freedom *dfn* was not finite (checked only
+    /// in Rust).
     #[error("numerator df must be finite, got {0}")]
     DfnNotFinite(f64),
-    /// The denominator degrees of freedom *dfd* was not strictly positive.
-    /// Mirrors CDFLIB's `cdffnc` status -6.
+    /// The denominator degrees of freedom *dfd* was not strictly positive
+    /// (`cdffnc` status −6).
     #[error("denominator df must be > 0, got {0}")]
     DfdNotPositive(f64),
-    /// The denominator degrees of freedom *dfd* was below `cumfnc`'s valid range.
+    /// The denominator degrees of freedom *dfd* was less than 1, where
+    /// `cumfnc` stops with a fatal error (cdflib.f90:7324-7329). It is
+    /// checked after the `cdffnc` status checks.
     #[error("denominator df must be >= 1, got {0}")]
     DfdTooSmall(f64),
-    /// The denominator degrees of freedom *dfd* was not finite.
+    /// The denominator degrees of freedom *dfd* was not finite (checked
+    /// only in Rust).
     #[error("denominator df must be finite, got {0}")]
     DfdNotFinite(f64),
-    /// The noncentrality parameter *λ* was negative.
+    /// The noncentrality parameter *λ* was negative (`cdffnc` status −7).
     #[error("noncentrality parameter must be ≥ 0, got {0}")]
     NcpNegative(f64),
-    /// The noncentrality parameter *λ* was not finite.
+    /// The noncentrality parameter *λ* was not finite (checked only in
+    /// Rust).
     #[error("noncentrality parameter must be finite, got {0}")]
     NcpNotFinite(f64),
-    /// The argument *f* was not strictly positive.
+    /// The value *f* was not strictly positive (`cdffnc` status −4 for
+    /// *f* < 0; Rust also rejects *f* = 0, where Pr[*X* ≤ *f*] = 0 whatever
+    /// the parameters).
     #[error("f must be positive, got {0}")]
     FNotPositive(f64),
-    /// The argument *f* was not finite.
+    /// The value *f* was not finite (checked only in Rust).
     #[error("f must be finite, got {0}")]
     FNotFinite(f64),
-    /// The probability *p* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *p* fell outside [0 . . 1] (`cdffnc` status −2); NaN is
+    /// also rejected.
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1]; NaN is also rejected.
+    /// No method of [`FisherSnedecorNoncentral`] returns it, since CDFLIB's
+    /// `cdffnc` does not use *q*.
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
-    /// The internal root-finder failed; see [`SearchError`].
+    /// The search for the answer failed (`cdffnc` status 1 or 2); see
+    /// [`SearchError`].
     ///
     /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
     Search(#[from] SearchError),
 }
 
+/// Returns the cumulative noncentral *F* distribution (*cum*, *ccum*) at
+/// *f* with *dfn* and *dfd* degrees of freedom and noncentrality parameter
+/// *pnonc* (`cumfnc`, cdflib.f90:7219).
+///
+/// The series of incomplete Β functions weighted by Poisson terms is
+/// summed backwards and forwards from the central term.
+///
+/// # Panics
+///
+/// Panics if *dfn* < 1 or *dfd* < 1, where CDFLIB stops with a fatal
+/// error; the public API rejects such values first.
+#[allow(clippy::assign_op_pattern)]
+pub(crate) fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
+    const EPS: f64 = 0.0001;
+
+    if f <= 0.0 {
+        return (0.0, 1.0);
+    }
+
+    if dfn < 1.0 {
+        panic!("cumfnc: dfn < 1");
+    }
+
+    if dfd < 1.0 {
+        panic!("cumfnc: dfd < 1");
+    }
+    // Handle the case in which the noncentrality parameter is essentially
+    // zero.
+    if pnonc < 1.0e-10 {
+        return cumf(f, dfn, dfd);
+    }
+    // Rust only: a NaN f, dfn or dfd passes the tests above and makes the
+    // forward sum below loop forever.
+    if f.is_nan() || dfn.is_nan() || dfd.is_nan() {
+        return (f64::NAN, f64::NAN);
+    }
+
+    let xnonc = pnonc / 2.0;
+    // Rust only: int(xnonc) and icent + 1 below overflow the default
+    // integer, which is undefined in Fortran; a NaN pnonc is caught here
+    // too.
+    if xnonc.is_nan() || f64::from(i32::MAX) <= xnonc {
+        panic!("cumfnc: integer overflow for pnonc = {pnonc}");
+    }
+    // Calculate the central term of the Poisson weighting factor.
+    let mut icent = xnonc as i32;
+
+    if icent == 0 {
+        icent = 1;
+    }
+    // Compute the central weight term.
+    let centwt = (-xnonc + icent as f64 * xnonc.ln() - gamma_log((icent + 1) as f64)).exp();
+    // Compute the central incomplete Β term. Ensure that the minimum of
+    // the argument to Β and 1 minus the argument is computed accurately.
+    let prod = dfn * f;
+    let dsum = dfd + prod;
+    let mut yy = dfd / dsum;
+    let xx;
+
+    if 0.5 < yy {
+        xx = prod / dsum;
+        yy = 1.0 - xx;
+    } else {
+        xx = 1.0 - yy;
+    }
+
+    let arg1 = 0.5 * dfn + icent as f64;
+    // F90 ignores the ierr of beta_inc; with dfn, dfd >= 1 and 0 < f,
+    // beta_inc has no error exit.
+    let (mut betdn, _dummy) = beta_inc(arg1, 0.5 * dfd, xx, yy);
+
+    let mut adn = dfn / 2.0 + icent as f64;
+    let mut aup = adn;
+    let b = dfd / 2.0;
+    let mut betup = betdn;
+    let mut sum1 = centwt * betdn;
+    // Now sum terms backward from icent until convergence or all done.
+    let mut xmult = centwt;
+    let mut i = icent;
+    let mut dnterm =
+        (gamma_log(adn + b) - gamma_log(adn + 1.0) - gamma_log(b) + adn * xx.ln() + b * yy.ln())
+            .exp();
+
+    loop {
+        if i <= 0 {
+            break;
+        }
+
+        if sum1 < f64::EPSILON || xmult * betdn < EPS * sum1 {
+            break;
+        }
+
+        xmult = xmult * (i as f64 / xnonc);
+        i = i - 1;
+        adn = adn - 1.0;
+        dnterm = (adn + 1.0) / ((adn + b) * xx) * dnterm;
+        betdn = betdn + dnterm;
+        sum1 = sum1 + xmult * betdn;
+    }
+
+    i = icent + 1;
+    // Now sum forward until convergence.
+    xmult = centwt;
+
+    let expon = if (aup - 1.0 + b) == 0.0 {
+        -gamma_log(aup) - gamma_log(b) + (aup - 1.0) * xx.ln() + b * yy.ln()
+    } else {
+        gamma_log(aup - 1.0 + b) - gamma_log(aup) - gamma_log(b)
+            + (aup - 1.0) * xx.ln()
+            + b * yy.ln()
+    };
+    // CDFLIB guards against exp producing values so small that combining
+    // them with ordinary quantities raises floating-point errors.
+    let mut upterm = if expon <= f64::EPSILON.ln() {
+        0.0
+    } else {
+        expon.exp()
+    };
+
+    loop {
+        // Rust only: i + 1 overflows the default integer, which is
+        // undefined in Fortran.
+        if i == i32::MAX {
+            panic!("cumfnc: integer overflow for pnonc = {pnonc}");
+        }
+        xmult = xmult * (xnonc / i as f64);
+        i = i + 1;
+        aup = aup + 1.0;
+        upterm = (aup + b - 2.0) * xx / (aup - 1.0) * upterm;
+        betup = betup - upterm;
+        sum1 = sum1 + xmult * betup;
+
+        if sum1 < f64::EPSILON || xmult * betup < EPS * sum1 {
+            break;
+        }
+    }
+
+    let cum = sum1;
+    let ccum = 0.5 + (0.5 - cum);
+    (cum, ccum)
+}
+
+// cdflib.f90:4614-4633 (status -2). Rust also rejects NaN.
+#[inline]
+fn check_p(p: f64) -> Result<(), FisherSnedecorNoncentralError> {
+    if p < 0.0 || 1.0 < p || p.is_nan() {
+        return Err(FisherSnedecorNoncentralError::PNotInRange(p));
+    }
+    Ok(())
+}
+
+// cdflib.f90:4634-4646 (status -4). Rust also rejects f = 0 and a
+// non-finite f.
+#[inline]
+fn check_f(f: f64) -> Result<(), FisherSnedecorNoncentralError> {
+    if f <= 0.0 {
+        return Err(FisherSnedecorNoncentralError::FNotPositive(f));
+    }
+    if !f.is_finite() {
+        return Err(FisherSnedecorNoncentralError::FNotFinite(f));
+    }
+    Ok(())
+}
+
+// cdflib.f90:4647-4659 (status -5). Rust also rejects a non-finite dfn.
+#[inline]
+fn check_dfn(dfn: f64) -> Result<(), FisherSnedecorNoncentralError> {
+    if dfn <= 0.0 {
+        return Err(FisherSnedecorNoncentralError::DfnNotPositive(dfn));
+    }
+    if !dfn.is_finite() {
+        return Err(FisherSnedecorNoncentralError::DfnNotFinite(dfn));
+    }
+    Ok(())
+}
+
+// cdflib.f90:4660-4672 (status -6). Rust also rejects a non-finite dfd.
+#[inline]
+fn check_dfd(dfd: f64) -> Result<(), FisherSnedecorNoncentralError> {
+    if dfd <= 0.0 {
+        return Err(FisherSnedecorNoncentralError::DfdNotPositive(dfd));
+    }
+    if !dfd.is_finite() {
+        return Err(FisherSnedecorNoncentralError::DfdNotFinite(dfd));
+    }
+    Ok(())
+}
+
+// cdflib.f90:4673-4685 (status -7). Rust also rejects a non-finite pnonc.
+#[inline]
+fn check_pnonc(pnonc: f64) -> Result<(), FisherSnedecorNoncentralError> {
+    if pnonc < 0.0 {
+        return Err(FisherSnedecorNoncentralError::NcpNegative(pnonc));
+    }
+    if !pnonc.is_finite() {
+        return Err(FisherSnedecorNoncentralError::NcpNotFinite(pnonc));
+    }
+    Ok(())
+}
+
+// cdflib.f90:7317-7322, where cumfnc stops. Rust checks it after the
+// status checks of cdffnc, before cumfnc is called.
+#[inline]
+fn check_cumfnc_dfn(dfn: f64) -> Result<(), FisherSnedecorNoncentralError> {
+    if dfn < 1.0 {
+        return Err(FisherSnedecorNoncentralError::DfnTooSmall(dfn));
+    }
+    Ok(())
+}
+
+// cdflib.f90:7324-7329, where cumfnc stops. Rust checks it after the
+// status checks of cdffnc, before cumfnc is called.
+#[inline]
+fn check_cumfnc_dfd(dfd: f64) -> Result<(), FisherSnedecorNoncentralError> {
+    if dfd < 1.0 {
+        return Err(FisherSnedecorNoncentralError::DfdTooSmall(dfd));
+    }
+    Ok(())
+}
+
 impl FisherSnedecorNoncentral {
-    /// Construct a noncentral *F*(*dfn*, *dfd*, *λ*) distribution with
-    /// *dfn* ≥ 1, *dfd* ≥ 1, and *λ* ≥ 0. This matches `cumfnc`'s domain:
-    /// the F90 reference stops for `dfn < 1` or `dfd < 1`
-    /// (cdflib.f90:7098-7110).
+    /// Construct a noncentral *F*(*dfn*, *dfd*, *λ*) distribution.
     ///
     /// # Panics
     ///
@@ -108,30 +361,11 @@ impl FisherSnedecorNoncentral {
     /// [`FisherSnedecorNoncentralError`] instead of panicking.
     #[inline]
     pub fn try_new(dfn: f64, dfd: f64, ncp: f64) -> Result<Self, FisherSnedecorNoncentralError> {
-        if !dfn.is_finite() {
-            return Err(FisherSnedecorNoncentralError::DfnNotFinite(dfn));
-        }
-        if dfn <= 0.0 {
-            return Err(FisherSnedecorNoncentralError::DfnNotPositive(dfn));
-        }
-        if dfn < 1.0 {
-            return Err(FisherSnedecorNoncentralError::DfnTooSmall(dfn));
-        }
-        if !dfd.is_finite() {
-            return Err(FisherSnedecorNoncentralError::DfdNotFinite(dfd));
-        }
-        if dfd <= 0.0 {
-            return Err(FisherSnedecorNoncentralError::DfdNotPositive(dfd));
-        }
-        if dfd < 1.0 {
-            return Err(FisherSnedecorNoncentralError::DfdTooSmall(dfd));
-        }
-        if !ncp.is_finite() {
-            return Err(FisherSnedecorNoncentralError::NcpNotFinite(ncp));
-        }
-        if ncp < 0.0 {
-            return Err(FisherSnedecorNoncentralError::NcpNegative(ncp));
-        }
+        check_dfn(dfn)?;
+        check_dfd(dfd)?;
+        check_pnonc(ncp)?;
+        check_cumfnc_dfn(dfn)?;
+        check_cumfnc_dfd(dfd)?;
         Ok(Self { dfn, dfd, ncp })
     }
 
@@ -153,14 +387,15 @@ impl FisherSnedecorNoncentral {
         self.ncp
     }
 
-    /// Returns the numerator degrees of freedom *dfn* satisfying Pr[*X* ≤ *f*]
-    /// = *p* given *dfd* and *λ*. Mirrors CDFLIB's `cdffnc` with `which = 3`.
-    /// The search runs over [1 . . 10³⁰].
+    /// Returns the numerator degrees of freedom *dfn* satisfying
+    /// Pr[*X* ≤ *f*] = *p*, searched for in [1 . . 10³⁰].
     ///
-    /// Unlike most `cdf*` searches, this one does not take *q*: CDFLIB
-    /// (cdflib.f90:3766) documents *q* as "not used by this subroutine, and is
-    /// only included for similarity with the other routines", so it is dropped
-    /// from the Rust surface.
+    /// CDFLIB's `cdffnc` with `which = 3`. As in CDFLIB, the lower bound
+    /// reported on failure is 0, not 1.
+    ///
+    /// # Panics
+    ///
+    /// Panics as [`cdf`](ContinuousCdf::cdf) does.
     #[inline]
     pub fn search_dfn(
         p: f64,
@@ -169,41 +404,40 @@ impl FisherSnedecorNoncentral {
         ncp: f64,
     ) -> Result<f64, FisherSnedecorNoncentralError> {
         check_p(p)?;
-        if !f.is_finite() {
-            return Err(FisherSnedecorNoncentralError::FNotFinite(f));
+        check_f(f)?;
+        check_dfd(dfd)?;
+        check_pnonc(ncp)?;
+        check_cumfnc_dfd(dfd)?;
+        let pnonc = ncp;
+
+        // cdflib.f90:4738-4771
+        let mut d = dstinv(1.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
+        while d.status() == 1 {
+            let dfn = d.x();
+            let (cum, _ccum) = cumfnc(f, dfn, dfd, pnonc);
+            let fx = cum - p;
+            d.dinvr(fx);
         }
-        if f <= 0.0 {
-            return Err(FisherSnedecorNoncentralError::FNotPositive(f));
+        if d.status() == -1 {
+            return Err(if d.qleft() {
+                SearchError::AnswerBelowLowerBound { bound: 0.0 }
+            } else {
+                SearchError::AnswerAboveUpperBound { bound: INF }
+            }
+            .into());
         }
-        if !dfd.is_finite() {
-            return Err(FisherSnedecorNoncentralError::DfdNotFinite(dfd));
-        }
-        if dfd <= 0.0 {
-            return Err(FisherSnedecorNoncentralError::DfdNotPositive(dfd));
-        }
-        if dfd < 1.0 {
-            return Err(FisherSnedecorNoncentralError::DfdTooSmall(dfd));
-        }
-        if !ncp.is_finite() {
-            return Err(FisherSnedecorNoncentralError::NcpNotFinite(ncp));
-        }
-        if ncp < 0.0 {
-            return Err(FisherSnedecorNoncentralError::NcpNegative(ncp));
-        }
-        let func = |dfn: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
-        // Match cdffnc's which=3: range (1.0, inf) with inf = 1.0D+30
-        // (Fortran cdflib.f90:4460, :4619: cdffnc caps inf at 1e30 and
-        // explicitly lifts the lower bound from 0 to 1, since dfn < 1
-        // makes cumfnc's beta_inc call diverge). cdflib.f90:4639 writes
-        // bound = 0.0D+00 for qleft (not the search lower bound of 1.0);
-        // :4646 writes bound = inf for qhi.
-        Ok(search_monotone(1.0, 1.0e30, 5.0, 0.0, 1.0e30, func)?)
+        Ok(d.x())
     }
 
     /// Returns the denominator degrees of freedom *dfd* satisfying
-    /// Pr[*X* ≤ *f*] = *p* given *dfn* and *λ*. Mirrors CDFLIB's `cdffnc`
-    /// with `which = 4`. As in [`search_dfn`](Self::search_dfn), *q* is
-    /// dropped from the Rust surface.
+    /// Pr[*X* ≤ *f*] = *p*, searched for in [1 . . 10³⁰].
+    ///
+    /// CDFLIB's `cdffnc` with `which = 4`. As in CDFLIB, the lower bound
+    /// reported on failure is 0, not 1.
+    ///
+    /// # Panics
+    ///
+    /// Panics as [`cdf`](ContinuousCdf::cdf) does.
     #[inline]
     pub fn search_dfd(
         p: f64,
@@ -212,41 +446,35 @@ impl FisherSnedecorNoncentral {
         ncp: f64,
     ) -> Result<f64, FisherSnedecorNoncentralError> {
         check_p(p)?;
-        if !f.is_finite() {
-            return Err(FisherSnedecorNoncentralError::FNotFinite(f));
+        check_f(f)?;
+        check_dfn(dfn)?;
+        check_pnonc(ncp)?;
+        check_cumfnc_dfn(dfn)?;
+        let pnonc = ncp;
+
+        // cdflib.f90:4777-4809
+        let mut d = dstinv(1.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
+        while d.status() == 1 {
+            let dfd = d.x();
+            let (cum, _ccum) = cumfnc(f, dfn, dfd, pnonc);
+            let fx = cum - p;
+            d.dinvr(fx);
         }
-        if f <= 0.0 {
-            return Err(FisherSnedecorNoncentralError::FNotPositive(f));
+        if d.status() == -1 {
+            return Err(if d.qleft() {
+                SearchError::AnswerBelowLowerBound { bound: 0.0 }
+            } else {
+                SearchError::AnswerAboveUpperBound { bound: INF }
+            }
+            .into());
         }
-        if !dfn.is_finite() {
-            return Err(FisherSnedecorNoncentralError::DfnNotFinite(dfn));
-        }
-        if dfn <= 0.0 {
-            return Err(FisherSnedecorNoncentralError::DfnNotPositive(dfn));
-        }
-        if dfn < 1.0 {
-            return Err(FisherSnedecorNoncentralError::DfnTooSmall(dfn));
-        }
-        if !ncp.is_finite() {
-            return Err(FisherSnedecorNoncentralError::NcpNotFinite(ncp));
-        }
-        if ncp < 0.0 {
-            return Err(FisherSnedecorNoncentralError::NcpNegative(ncp));
-        }
-        let func = |dfd: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
-        // CDF is increasing in dfd for fixed f, dfn, ncp.
-        // Match cdffnc's which=4: range (1.0, inf) with inf = 1.0D+30
-        // (Fortran cdflib.f90:4460, :4658: same rationale as search_dfn).
-        // cdflib.f90:4677 writes bound = 0.0D+00 for qleft (not 1.0);
-        // :4684 writes bound = inf for qhi.
-        Ok(search_monotone(1.0, 1.0e30, 5.0, 0.0, 1.0e30, func)?)
+        Ok(d.x())
     }
 
-    /// Returns the noncentrality *λ* satisfying Pr[*X* ≤ *f*] = *p* given
-    /// *dfn* and *dfd*. Mirrors CDFLIB's `cdffnc` with `which = 5`. The
-    /// search is capped at 10⁴ above to avoid overflow inside `cumfnc`.
-    /// As in [`search_dfn`](Self::search_dfn), *q* is dropped from the Rust
-    /// surface.
+    /// Returns the noncentrality parameter *λ* satisfying
+    /// Pr[*X* ≤ *f*] = *p*, searched for in [0 . . 10⁴].
+    ///
+    /// CDFLIB's `cdffnc` with `which = 5`.
     #[inline]
     pub fn search_ncp(
         p: f64,
@@ -255,165 +483,74 @@ impl FisherSnedecorNoncentral {
         dfd: f64,
     ) -> Result<f64, FisherSnedecorNoncentralError> {
         check_p(p)?;
-        if !f.is_finite() {
-            return Err(FisherSnedecorNoncentralError::FNotFinite(f));
-        }
-        if f <= 0.0 {
-            return Err(FisherSnedecorNoncentralError::FNotPositive(f));
-        }
-        if !dfn.is_finite() {
-            return Err(FisherSnedecorNoncentralError::DfnNotFinite(dfn));
-        }
-        if dfn <= 0.0 {
-            return Err(FisherSnedecorNoncentralError::DfnNotPositive(dfn));
-        }
-        if dfn < 1.0 {
-            return Err(FisherSnedecorNoncentralError::DfnTooSmall(dfn));
-        }
-        if !dfd.is_finite() {
-            return Err(FisherSnedecorNoncentralError::DfdNotFinite(dfd));
-        }
-        if dfd <= 0.0 {
-            return Err(FisherSnedecorNoncentralError::DfdNotPositive(dfd));
-        }
-        if dfd < 1.0 {
-            return Err(FisherSnedecorNoncentralError::DfdTooSmall(dfd));
-        }
-        let func = |ncp: f64| cumfnc(f, dfn, dfd, ncp).0 - p;
-        // Upper bound 1e4 matches CDFLIB's hard cap; larger bounds (e.g.
-        // 1e300) overflow inside cumfnc's function evaluations.
-        Ok(search_monotone(0.0, 1.0e4, 5.0, 0.0, 1.0e4, func)?)
-    }
-}
+        check_f(f)?;
+        check_dfn(dfn)?;
+        check_dfd(dfd)?;
+        check_cumfnc_dfn(dfn)?;
+        check_cumfnc_dfd(dfd)?;
 
-#[inline]
-fn check_p(p: f64) -> Result<(), FisherSnedecorNoncentralError> {
-    if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(FisherSnedecorNoncentralError::PNotInRange(p))
-    } else {
-        Ok(())
-    }
-}
-
-/// `cumfnc`: noncentral *F* CDF.
-fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
-    if f.is_nan() || dfn.is_nan() || dfd.is_nan() || pnonc.is_nan() {
-        return (f64::NAN, f64::NAN);
-    }
-    if f <= 0.0 {
-        return (0.0, 1.0);
-    }
-    if pnonc < 1e-10 {
-        // Reduce to central F.
-        let prod = dfn * f;
-        let dsum = dfd + prod;
-        let mut xx = dfd / dsum;
-        let yy;
-        if xx > 0.5 {
-            yy = prod / dsum;
-            xx = 1.0 - yy;
-        } else {
-            yy = 1.0 - xx;
+        // cdflib.f90:4815-4848
+        let mut d = dstinv(0.0, TENT4, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
+        while d.status() == 1 {
+            let pnonc = d.x();
+            let (cum, _ccum) = cumfnc(f, dfn, dfd, pnonc);
+            let fx = cum - p;
+            d.dinvr(fx);
         }
-        let (p, q) = beta_inc(0.5 * dfd, 0.5 * dfn, xx, yy);
-        return (q, p);
-    }
-
-    let eps = 1e-4;
-    let xnonc = pnonc / 2.0;
-    let mut icent = xnonc as i32;
-    if icent == 0 {
-        icent = 1;
-    }
-
-    let centwt = (-xnonc + (icent as f64) * xnonc.ln() - gamma_log((icent + 1) as f64)).exp();
-
-    let prod = dfn * f;
-    let dsum = dfd + prod;
-    let mut yy = dfd / dsum;
-    let xx;
-    if yy > 0.5 {
-        xx = prod / dsum;
-        yy = 1.0 - xx;
-    } else {
-        xx = 1.0 - yy;
-    }
-    let (mut betdn, _) = beta_inc(0.5 * dfn + icent as f64, 0.5 * dfd, xx, yy);
-    let mut adn = dfn / 2.0 + icent as f64;
-    let mut aup = adn;
-    let b = dfd / 2.0;
-    let mut betup = betdn;
-    let mut sum = centwt * betdn;
-
-    // Sum backwards.
-    let mut xmult = centwt;
-    let mut i = icent;
-    let mut dnterm =
-        (gamma_log(adn + b) - gamma_log(adn + 1.0) - gamma_log(b) + adn * xx.ln() + b * yy.ln())
-            .exp();
-    loop {
-        let small = sum < f64::EPSILON || xmult * betdn < eps * sum;
-        if small || i <= 0 {
-            break;
+        if d.status() == -1 {
+            return Err(if d.qleft() {
+                SearchError::AnswerBelowLowerBound { bound: 0.0 }
+            } else {
+                SearchError::AnswerAboveUpperBound { bound: TENT4 }
+            }
+            .into());
         }
-        xmult *= i as f64 / xnonc;
-        i -= 1;
-        adn -= 1.0;
-        dnterm *= (adn + 1.0) / ((adn + b) * xx);
-        betdn += dnterm;
-        sum += xmult * betdn;
+        Ok(d.x())
     }
-
-    // Sum forwards.
-    let mut i = icent + 1;
-    let mut xmult = centwt;
-    // F90 (cdflib.f90:7193-7214) computes expon first, then guards against
-    // underflow: if expon <= ln(ε), set upterm = 0 instead of exp(expon).
-    // The guard prevents subnormal-range exp() results from later being
-    // multiplied into the running sum (the F90 comment cites a 1960s-era
-    // workaround for compilers that choke on subnormal arithmetic).
-    let expon = if aup - 1.0 + b == 0.0 {
-        -gamma_log(aup) - gamma_log(b) + (aup - 1.0) * xx.ln() + b * yy.ln()
-    } else {
-        gamma_log(aup - 1.0 + b) - gamma_log(aup) - gamma_log(b)
-            + (aup - 1.0) * xx.ln()
-            + b * yy.ln()
-    };
-    let mut upterm = if expon <= f64::EPSILON.ln() {
-        0.0
-    } else {
-        expon.exp()
-    };
-    loop {
-        xmult *= xnonc / i as f64;
-        i += 1;
-        aup += 1.0;
-        upterm *= (aup + b - 2.0) * xx / (aup - 1.0);
-        betup -= upterm;
-        sum += xmult * betup;
-        let small = sum < f64::EPSILON || xmult * betup < eps * sum;
-        if small {
-            break;
-        }
-    }
-
-    (sum, 0.5 + (0.5 - sum))
 }
 
 impl ContinuousCdf for FisherSnedecorNoncentral {
     type Error = FisherSnedecorNoncentralError;
 
+    /// CDFLIB's `cdffnc` with `which = 1`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if *λ*/2 ≥ 2³¹ − 1, or if the forward sum of `cumfnc` runs
+    /// past index 2³¹ − 1, where CDFLIB's default integers overflow; the
+    /// latter needs *λ*/2 within a few hundred thousand of 2³¹.
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
+        // Rust only: no status -4 for f < 0 (cdflib.f90:4634-4646); cumfnc
+        // returns (0, 1) there.
+        // cdflib.f90:4691
         cumfnc(x, self.dfn, self.dfd, self.ncp).0
     }
+
+    /// CDFLIB's `cdffnc` with `which = 1`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if *λ*/2 ≥ 2³¹ − 1, or if the forward sum of `cumfnc` runs
+    /// past index 2³¹ − 1, where CDFLIB's default integers overflow; the
+    /// latter needs *λ*/2 within a few hundred thousand of 2³¹.
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
+        // Rust only: no status -4 for f < 0 (cdflib.f90:4634-4646); cumfnc
+        // returns (0, 1) there.
+        // cdflib.f90:4691
         cumfnc(x, self.dfn, self.dfd, self.ncp).1
     }
+
+    /// CDFLIB's `cdffnc` with `which = 2`, searched for in [0 . . 10³⁰].
+    ///
+    /// # Panics
+    ///
+    /// Panics as [`cdf`](ContinuousCdf::cdf) does.
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, FisherSnedecorNoncentralError> {
         check_p(p)?;
+        // Rust only: exact endpoints.
         if p == 0.0 {
             return Ok(0.0);
         }
@@ -422,12 +559,25 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
         }
         let dfn = self.dfn;
         let dfd = self.dfd;
-        let ncp = self.ncp;
-        let func = |x: f64| cumfnc(x, dfn, dfd, ncp).0 - p;
-        // Match cdffnc's which=2: range (0, inf) with inf = 1.0D+30
-        // (Fortran cdflib.f90:4460, :4579: cdffnc caps inf at 1e30
-        // because cumfnc's series overflows further out).
-        Ok(search_monotone(0.0, 1.0e30, 5.0, 0.0, 1.0e30, func)?)
+        let pnonc = self.ncp;
+
+        // cdflib.f90:4698-4732
+        let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
+        while d.status() == 1 {
+            let f = d.x();
+            let (cum, _ccum) = cumfnc(f, dfn, dfd, pnonc);
+            let fx = cum - p;
+            d.dinvr(fx);
+        }
+        if d.status() == -1 {
+            return Err(if d.qleft() {
+                SearchError::AnswerBelowLowerBound { bound: 0.0 }
+            } else {
+                SearchError::AnswerAboveUpperBound { bound: INF }
+            }
+            .into());
+        }
+        Ok(d.x())
     }
 }
 
@@ -517,5 +667,37 @@ mod tests {
         let cdf = d.cdf(x);
         let ccdf = d.ccdf(x);
         assert!((cdf + ccdf - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn dfn_below_1_is_checked_after_the_status_checks() {
+        // F90 returns status -6 for dfd = -1 before cumfnc can stop on
+        // dfn = 0.5.
+        assert_eq!(
+            FisherSnedecorNoncentral::search_ncp(0.5, 1.0, 0.5, -1.0),
+            Err(FisherSnedecorNoncentralError::DfdNotPositive(-1.0))
+        );
+        assert_eq!(
+            FisherSnedecorNoncentral::search_ncp(0.5, 1.0, 0.5, 2.0),
+            Err(FisherSnedecorNoncentralError::DfnTooSmall(0.5))
+        );
+        assert_eq!(
+            FisherSnedecorNoncentral::try_new(0.5, 2.0, -1.0),
+            Err(FisherSnedecorNoncentralError::NcpNegative(-1.0))
+        );
+    }
+
+    #[test]
+    fn nan_f_gives_nan() {
+        let d = FisherSnedecorNoncentral::new(3.0, 4.0, 2.0);
+        assert!(d.cdf(f64::NAN).is_nan());
+        assert!(d.ccdf(f64::NAN).is_nan());
+    }
+
+    #[test]
+    #[should_panic(expected = "integer overflow")]
+    fn huge_ncp_overflows_the_f90_integers() {
+        // pnonc / 2 >= 2^31 - 1: int(xnonc) overflows in F90.
+        FisherSnedecorNoncentral::new(3.0, 4.0, 5.0e9).cdf(1.0);
     }
 }

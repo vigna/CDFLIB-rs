@@ -58,13 +58,87 @@ pub use gamma::{
 pub use normal::{cumnor, dinvnr, dlanor};
 pub use students_t::dt1;
 
-/// Returns the Horner evaluation of *c*₀ + *c*₁·*x* + *c*₂·*x*² + …. Mirrors
-/// CDFLIB's `eval_pol` (coefficients ascending).
+/// Returns *x*², the F90 `x**2`, which gfortran computes as the product
+/// `x * x`.
 #[inline]
-pub(crate) fn eval_pol(c: &[f64], x: f64) -> f64 {
-    let mut acc = c[c.len() - 1];
-    for &ci in c.iter().rev().skip(1) {
-        acc = acc * x + ci;
+pub(crate) fn pow2(x: f64) -> f64 {
+    x * x
+}
+
+/// Evaluates the polynomial *a*₀ + *a*₁·*x* + … + *aₙ*·*xⁿ* by Horner's
+/// method (cdflib.f90:9709). The degree *n* is `a.len() - 1`.
+#[inline]
+#[allow(clippy::needless_range_loop)]
+pub(crate) fn eval_pol(a: &[f64], x: f64) -> f64 {
+    let n = a.len() - 1;
+    let mut term = a[n];
+    for i in (0..n).rev() {
+        term = term * x + a[i];
     }
-    acc
+    term
+}
+
+/// Returns the integer machine constant number *i* (cdflib.f90:12551).
+///
+/// The table is the IEEE 754 binary64 configuration of CDFLIB's `imach`
+/// array: 1 = base of integer arithmetic, 2 = number of base-2 digits of an
+/// integer, 3 = largest integer, 4 = base of floating-point arithmetic,
+/// 5-7 = digits, minimum and maximum exponent of single precision,
+/// 8-10 = digits, minimum and maximum exponent of double precision.
+///
+/// # Panics
+///
+/// Panics if *i* is not in [1 . . 10].
+#[inline]
+pub(crate) fn ipmpar(i: usize) -> i32 {
+    const IMACH: [i32; 10] = [2, 31, 2147483647, 2, 24, -125, 128, 53, -1021, 1024];
+    IMACH[i - 1]
+}
+
+/// Returns the largest positive *w* for which exp(*w*) can be computed
+/// (*l* = 0), or the largest negative *w* for which the computed value of
+/// exp(*w*) is nonzero (*l* ≠ 0); only an approximate value is returned
+/// (cdflib.f90:9761).
+#[inline]
+#[allow(clippy::approx_constant)]
+pub(crate) fn exparg(l: i32) -> f64 {
+    // Get the arithmetic base.
+    let b = ipmpar(4);
+    // Compute the logarithm of the arithmetic base.
+    let lnb = if b == 2 {
+        0.69314718055995
+    } else if b == 8 {
+        2.0794415416798
+    } else if b == 16 {
+        2.7725887222398
+    } else {
+        (b as f64).ln()
+    };
+
+    if l != 0 {
+        let m = ipmpar(9) - 1;
+        0.99999 * (m as f64 * lnb)
+    } else {
+        let m = ipmpar(10);
+        0.99999 * (m as f64 * lnb)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // tests/data/exparg.csv is written by tests/regenerate/gen_kernel_coverage.f90.
+    #[test]
+    #[cfg(not(miri))]
+    fn exparg_matches_reference() {
+        let text = std::fs::read_to_string("tests/data/exparg.csv").unwrap();
+        let mut rows = 0;
+        for line in text.lines().filter(|l| !l.starts_with('#')) {
+            let v: Vec<f64> = line.split(',').map(|t| t.trim().parse().unwrap()).collect();
+            assert_eq!(exparg(v[0] as i32).to_bits(), v[1].to_bits(), "{line}");
+            rows += 1;
+        }
+        assert_eq!(rows, 3);
+    }
 }

@@ -7,7 +7,7 @@
 mod common;
 
 use cdflib::{Binomial, DiscreteCdf, NegativeBinomial, Poisson};
-use common::{assert_close_eps, read_csv, DISTRIBUTION_ABS_TOL, DISTRIBUTION_REL_TOL};
+use common::{assert_exact, read_csv};
 
 #[test]
 fn binomial_cdf_matches_cumbin_reference() {
@@ -16,18 +16,8 @@ fn binomial_cdf_matches_cumbin_reference() {
             panic!("width");
         };
         let d = Binomial::new(n as u64, pr);
-        assert_close_eps(
-            d.cdf(s as u64),
-            expected_cdf,
-            DISTRIBUTION_REL_TOL,
-            DISTRIBUTION_ABS_TOL,
-        );
-        assert_close_eps(
-            d.ccdf(s as u64),
-            expected_sf,
-            DISTRIBUTION_REL_TOL,
-            DISTRIBUTION_ABS_TOL,
-        );
+        assert_exact(d.cdf(s as u64), expected_cdf, &row);
+        assert_exact(d.ccdf(s as u64), expected_sf, &row);
     }
 }
 
@@ -38,18 +28,8 @@ fn poisson_cdf_matches_cumpoi_reference() {
             panic!("width");
         };
         let d = Poisson::new(lambda);
-        assert_close_eps(
-            d.cdf(s as u64),
-            expected_cdf,
-            DISTRIBUTION_REL_TOL,
-            DISTRIBUTION_ABS_TOL,
-        );
-        assert_close_eps(
-            d.ccdf(s as u64),
-            expected_sf,
-            DISTRIBUTION_REL_TOL,
-            DISTRIBUTION_ABS_TOL,
-        );
+        assert_exact(d.cdf(s as u64), expected_cdf, &row);
+        assert_exact(d.ccdf(s as u64), expected_sf, &row);
     }
 }
 
@@ -60,17 +40,7 @@ fn negative_binomial_cdf_matches_cumnbn_reference() {
             panic!("width");
         };
         let d = NegativeBinomial::new(r as u64, pr);
-        assert_close_eps(
-            d.cdf(s as u64),
-            expected_cdf,
-            DISTRIBUTION_REL_TOL,
-            DISTRIBUTION_ABS_TOL,
-        );
-        assert_close_eps(
-            d.ccdf(s as u64),
-            expected_sf,
-            DISTRIBUTION_REL_TOL,
-            DISTRIBUTION_ABS_TOL,
-        );
+        assert_exact(d.cdf(s as u64), expected_cdf, &row);
+        assert_exact(d.ccdf(s as u64), expected_sf, &row);
     }
 }

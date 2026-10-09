@@ -5,7 +5,7 @@
 mod common;
 
 use cdflib::{ContinuousCdf, Normal};
-use common::{assert_close_eps, read_csv, DEFAULT_ABS_TOL, DINVNR_REL_TOL, KERNEL_REL_TOL};
+use common::{assert_exact, read_csv};
 
 #[test]
 fn cdf_and_ccdf_match_cdfnor_reference() {
@@ -15,8 +15,8 @@ fn cdf_and_ccdf_match_cdfnor_reference() {
         };
         let n = Normal::new(mean, sd);
         // Normal::cdf is a direct cumnor wrapper; no iterative routine.
-        assert_close_eps(n.cdf(x), expected_cdf, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
-        assert_close_eps(n.ccdf(x), expected_sf, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
+        assert_exact(n.cdf(x), expected_cdf, &row);
+        assert_exact(n.ccdf(x), expected_sf, &row);
     }
 }
 
@@ -27,27 +27,17 @@ fn inverse_cdf_matches_cdfnor_reference() {
     // trait single-arg API can only carry one of them with full
     // precision, so we route each row to its accurate branch:
     //   - p ≤ 0.5 → inverse_cdf(p) is the accurate call
-    //   - q ≤ 0.5 → inverse_sf(q) is the accurate call
+    //   - q ≤ 0.5 → inverse_ccdf(q) is the accurate call
     for row in read_csv("tests/data/normal_inverse_cdf.csv") {
         let [mean, sd, p, q, expected_x] = row[..] else {
             panic!("width");
         };
         let n = Normal::new(mean, sd);
         if p <= 0.5 {
-            assert_close_eps(
-                n.inverse_cdf(p).unwrap(),
-                expected_x,
-                DINVNR_REL_TOL,
-                DINVNR_REL_TOL,
-            );
+            assert_exact(n.inverse_cdf(p).unwrap(), expected_x, &row);
         }
         if q <= 0.5 {
-            assert_close_eps(
-                n.inverse_ccdf(q).unwrap(),
-                expected_x,
-                DINVNR_REL_TOL,
-                DINVNR_REL_TOL,
-            );
+            assert_exact(n.inverse_ccdf(q).unwrap(), expected_x, &row);
         }
     }
 }

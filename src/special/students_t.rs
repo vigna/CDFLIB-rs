@@ -1,17 +1,18 @@
-//! Student's *t* special functions.
-//!
-//! Currently a single routine: [`dt1`], the asymptotic-series
-//! approximation to the *t* quantile that CDFLIB uses as the Newton
-//! starting value inside `cdft`.
+//! Student's *t* special functions: [`dt1`] (cdflib.f90:8735), the
+//! approximate inverse of the *t* CDF that CDFLIB's `cdft` uses as the
+//! starting point of its search for *t*.
 
 use super::eval_pol;
 use super::normal::dinvnr;
 
-/// Returns an asymptotic approximation to the Student's *t* quantile.
+/// Computes an approximate inverse of the cumulative *t* distribution.
 ///
-/// Returns *t* such that Pr[*T* ≤ *t*] ≈ *p* for a *t*-distribution with
-/// *df* degrees of freedom. Accuracy is O(1/*df*⁴); CDFLIB uses this as
-/// the starting value for Newton iteration on the exact CDF in `cdft`.
+/// Returns the approximate value of *x* for which the *t* CDF with *df*
+/// degrees of freedom has value *p*; *q* is 1 − *p*. This is an initial
+/// approximation: `cdft` (cdflib.f90:6409-6412) uses it as the starting
+/// point of the `dinvr` search for *t*.
+///
+/// This is CDFLIB's `dt1` (cdflib.f90:8735).
 ///
 /// # Example
 ///
@@ -19,24 +20,24 @@ use super::normal::dinvnr;
 /// use cdflib::special::dt1;
 ///
 /// // At df = 10, p = 0.975 the exact t-quantile is ≈ 2.2281.
-/// // dt1 is an approximation; for use as a Newton starting value
+/// // dt1 is an approximation; for use as a starting value
 /// // a few digits of accuracy suffice.
 /// let t = dt1(0.975, 0.025, 10.0);
 /// assert!((t - 2.228138851).abs() < 5e-3);
 /// ```
 #[inline]
+#[allow(clippy::needless_late_init)]
 pub fn dt1(p: f64, q: f64, df: f64) -> f64 {
-    // Coefficient table from cdflib.f90:8531-8534; the F90 stores it
-    // as a reshape((/ ... /), (/ 5, 4 /)) 5×4 matrix indexed
-    // column-by-column. We unpack each column (a polynomial in xx of
-    // ascending degree i) into its own row.
-    const COEF: [&[f64]; 4] = [
-        &[1.0, 1.0],
-        &[3.0, 16.0, 5.0],
-        &[-15.0, 17.0, 19.0, 3.0],
-        &[-945.0, -1920.0, 1482.0, 776.0, 79.0],
+    // The F90 coef(0:4,4) table (cdflib.f90:8776-8780): row i here is
+    // column i there, the coefficients of a polynomial of degree ideg(i).
+    const COEF: [[f64; 5]; 4] = [
+        [1.0, 1.0, 0.0, 0.0, 0.0],
+        [3.0, 16.0, 5.0, 0.0, 0.0],
+        [-15.0, 17.0, 19.0, 3.0, 0.0],
+        [-945.0, -1920.0, 1482.0, 776.0, 79.0],
     ];
     const DENOM: [f64; 4] = [4.0, 96.0, 384.0, 92160.0];
+    const IDEG: [usize; 4] = [1, 2, 3, 4];
 
     let x = dinvnr(p, q).abs();
     let xx = x * x;
@@ -44,16 +45,19 @@ pub fn dt1(p: f64, q: f64, df: f64) -> f64 {
     let mut sum1 = x;
     let mut denpow = 1.0;
     for i in 0..4 {
-        let term = eval_pol(COEF[i], xx) * x;
+        let term = eval_pol(&COEF[i][..=IDEG[i]], xx) * x;
         denpow *= df;
         sum1 += term / (denpow * DENOM[i]);
     }
 
-    if p >= 0.5 {
-        sum1
+    let xp;
+    if 0.5 <= p {
+        xp = sum1;
     } else {
-        -sum1
+        xp = -sum1;
     }
+
+    xp
 }
 
 #[cfg(test)]

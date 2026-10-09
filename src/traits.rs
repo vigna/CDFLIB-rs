@@ -68,7 +68,7 @@ pub trait DiscreteCdf {
     /// Domain-specific error type returned by the inverse routines.
     type Error;
 
-    /// Returns Pr[*X* ≤ *x*].
+    /// Returns Pr\[*X* ≤ *x*\].
     fn cdf(&self, x: u64) -> f64;
 
     /// Returns Pr\[*X* > *x*\] = 1 − [cdf]\(*x*\).
@@ -103,9 +103,9 @@ pub trait Continuous {
 
 /// Probability mass function (and its log) for a discrete distribution.
 pub trait Discrete {
-    /// Returns the mass Pr[*X* = *x*] at the support point *x*.
+    /// Returns the mass Pr\[*X* = *x*\] at the support point *x*.
     fn pmf(&self, x: u64) -> f64;
-    /// Returns the logarithm of the mass Pr[*X* = *x*]. Computing in log-space
+    /// Returns the logarithm of the mass Pr\[*X* = *x*\]. Computing in log-space
     /// avoids underflow in the tails.
     fn ln_pmf(&self, x: u64) -> f64;
 }

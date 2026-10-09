@@ -1,7 +1,7 @@
-// Regression tests for the boundary-input contract: inverse_cdf/inverse_sf at
-// p ∈ {0, 1} return the support endpoints, search_* reject NaN/Inf with typed
-// errors instead of panicking or hanging, and cdf/sf propagate NaN without
-// panicking through beta_inc / gamma_inc.
+// Tests of the boundary-input contract: inverse_cdf and inverse_ccdf at
+// p ∈ {0, 1} return the support endpoints, search_* reject NaN and infinite
+// arguments with typed errors instead of panicking or hanging, and cdf and
+// ccdf propagate NaN without panicking through beta_inc and gamma_inc.
 
 #![cfg(not(miri))]
 
@@ -88,7 +88,7 @@ fn binomial_endpoints() {
     let b = Binomial::new(10, 0.3);
     assert_eq!(b.inverse_cdf(0.0).unwrap(), 0);
     assert_eq!(b.inverse_cdf(1.0).unwrap(), 10);
-    // inverse_sf returns the real-valued F90 cdfbin which=2 quantile.
+    // inverse_ccdf returns the real-valued F90 cdfbin which=2 quantile.
     // At q=0 (p=1) the search converges at s=n; at q=1 (p=0) it walks
     // to the lower bound and fails per F90's status=1.
     let s = b.inverse_ccdf(0.0).unwrap();
@@ -104,8 +104,8 @@ fn poisson_endpoints() {
     let p = Poisson::new(3.0);
     assert_eq!(p.inverse_cdf(0.0).unwrap(), 0);
     assert_eq!(p.inverse_cdf(1.0).unwrap(), u64::MAX);
-    // inverse_sf returns the real-valued F90 cdfpoi which=2 quantile.
-    // At q=0 the search walks to a large s where sf < abs_tol (F90 dstinv
+    // inverse_ccdf returns the real-valued F90 cdfpoi which=2 quantile.
+    // At q=0 the search walks to a large s where ccdf < abs_tol (F90 dstinv
     // converges by absolute tolerance, not by sign change); at q=1 it
     // hits the lower search bound and reports F90 status=1.
     let s_zero = p.inverse_ccdf(0.0).unwrap();
@@ -215,7 +215,7 @@ fn fisher_snedecor_noncentral_solve_rejects_nan() {
     ));
 }
 
-// ---- cdf/sf propagate NaN (do not panic through beta_inc / gamma_inc) ----
+// ---- cdf and ccdf propagate NaN (no panic through beta_inc or gamma_inc) ----
 
 #[test]
 fn continuous_cdf_nan_returns_nan() {
@@ -245,7 +245,7 @@ fn continuous_ccdf_nan_returns_nan() {
 #[test]
 fn binomial_search_pr_all_successes_errors_instead_of_panicking() {
     use cdflib::BinomialError;
-    // s == n pins cumbin to (1, 0) for every pr (cdflib.f90:6636-6645),
+    // s == n pins cumbin to (1, 0) for every pr (cdflib.f90:6847-6856),
     // so dzror sees no sign change and reports a search failure, as the
     // F90 does with status -1 mapped through qleft/qhi.
     assert!(matches!(
@@ -257,7 +257,7 @@ fn binomial_search_pr_all_successes_errors_instead_of_panicking() {
 #[test]
 fn negative_binomial_search_pr_r_zero_converges_like_f90() {
     // With r = 0 the cumulative is a step from 0 (pr = 0, via cumbet's
-    // endpoint guard, cdflib.f90:6563-6571) to 1 (pr > 0), so the search
+    // endpoint guard, cdflib.f90:6772-6780) to 1 (pr > 0), so the search
     // converges to the discontinuity at 0 instead of panicking inside
     // beta_inc.
     let pr = NegativeBinomial::search_pr(0.5, 0.5, 0, 5).unwrap();

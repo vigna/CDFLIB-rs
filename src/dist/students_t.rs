@@ -1,12 +1,23 @@
 use crate::error::SearchError;
-use crate::search::search_monotone;
-use crate::special::beta_inc;
-use crate::special::{dt1, gamma_log, psi};
+use crate::search::dstinv;
+use crate::special::{dt1, gamma_log, pow2, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 use std::f64::consts::PI;
 use thiserror::Error;
 
+use super::beta::cumbet;
+
+// Parameters of cdft (cdflib.f90:6286-6301).
+const ATOL: f64 = 1.0e-10;
+const INF: f64 = 1.0e30;
+const MAXDF: f64 = 1.0e10;
+const TOL: f64 = 1.0e-8;
+
 /// Student's *t* distribution with *df* > 0 degrees of freedom.
+///
+/// The methods correspond to CDFLIB's `cdft` (cdflib.f90:6189):
+/// `which = 1` is [`cdf`] / [`ccdf`], `which = 2` is [`inverse_cdf`] /
+/// [`inverse_ccdf`], `which = 3` is [`search_df`].
 ///
 /// # Example
 ///
@@ -22,6 +33,12 @@ use thiserror::Error;
 /// // Pr[T ≤ 2.228] ≈ 0.975
 /// let p = d.cdf(2.228);
 /// ```
+///
+/// [`cdf`]: ContinuousCdf::cdf
+/// [`ccdf`]: ContinuousCdf::ccdf
+/// [`inverse_cdf`]: ContinuousCdf::inverse_cdf
+/// [`inverse_ccdf`]: StudentsT::inverse_ccdf
+/// [`search_df`]: StudentsT::search_df
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct StudentsT {
     df: f64,
@@ -29,33 +46,96 @@ pub struct StudentsT {
 
 /// Errors arising from constructing a [`StudentsT`] or from its parameter search.
 ///
+/// The variants correspond to the `status` codes of CDFLIB's `cdft`.
+///
 /// [`StudentsT`]: crate::StudentsT
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum StudentsTError {
-    /// The degrees of freedom *df* was not strictly positive.
+    /// The degrees of freedom *df* was not strictly positive (`cdft`
+    /// status −5).
     #[error("degrees of freedom must be positive, got {0}")]
     DfNotPositive(f64),
-    /// The degrees of freedom *df* was not finite.
+    /// The degrees of freedom *df* was not finite (checked only in Rust).
     #[error("degrees of freedom must be finite, got {0}")]
     DfNotFinite(f64),
-    /// The argument *t* was not finite.
+    /// The argument *t* was not finite (checked only in Rust).
     #[error("argument t must be finite, got {0}")]
     TNotFinite(f64),
-    /// The probability *p* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *p* fell outside [0 . . 1] (`cdft` status −2); NaN is
+    /// also rejected.
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (`cdft` status −3); NaN is
+    /// also rejected.
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
-    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3ε).
-    /// Mirrors CDFLIB's `cdft` status 3.
+    /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
+    /// (`cdft` status 3).
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
-    /// The internal root-finder failed; see [`SearchError`].
+    /// The search for the answer failed (`cdft` status 1 or 2); see
+    /// [`SearchError`].
     ///
     /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
     Search(#[from] SearchError),
+}
+
+/// Returns the cumulative *t* distribution (*cum*, *ccum*) at *t* with
+/// *df* degrees of freedom (`cumt`, cdflib.f90:7855).
+#[inline]
+pub(crate) fn cumt(t: f64, df: f64) -> (f64, f64) {
+    let xx = df / (df + pow2(t));
+    let yy = pow2(t) / (df + pow2(t));
+    let (a, oma) = cumbet(xx, yy, 0.5 * df, 0.5);
+    if t <= 0.0 {
+        let cum = 0.5 * a;
+        let ccum = oma + cum;
+        (cum, ccum)
+    } else {
+        let ccum = 0.5 * a;
+        let cum = oma + ccum;
+        (cum, ccum)
+    }
+}
+
+// cdflib.f90:6328-6347 (status -2). Rust also rejects NaN.
+#[inline]
+fn check_p(p: f64) -> Result<(), StudentsTError> {
+    if p < 0.0 || 1.0 < p || p.is_nan() {
+        return Err(StudentsTError::PNotInRange(p));
+    }
+    Ok(())
+}
+
+// cdflib.f90:6348-6367 (status -3). Rust also rejects NaN.
+#[inline]
+fn check_q(q: f64) -> Result<(), StudentsTError> {
+    if q < 0.0 || 1.0 < q || q.is_nan() {
+        return Err(StudentsTError::QNotInRange(q));
+    }
+    Ok(())
+}
+
+// cdflib.f90:6368-6380 (status -5). Rust also rejects a non-finite df.
+#[inline]
+fn check_df(df: f64) -> Result<(), StudentsTError> {
+    if df <= 0.0 {
+        return Err(StudentsTError::DfNotPositive(df));
+    }
+    if !df.is_finite() {
+        return Err(StudentsTError::DfNotFinite(df));
+    }
+    Ok(())
+}
+
+// cdflib.f90:6381-6393 (status 3).
+#[inline]
+fn check_pq(p: f64, q: f64) -> Result<(), StudentsTError> {
+    if 3.0 * f64::EPSILON < ((p + q) - 1.0).abs() {
+        return Err(StudentsTError::PQSumNotOne { p, q });
+    }
+    Ok(())
 }
 
 impl StudentsT {
@@ -75,19 +155,13 @@ impl StudentsT {
     /// Fallible counterpart of [`new`](Self::new) returning a
     /// [`StudentsTError`] instead of panicking.
     ///
-    /// Returns [`DfNotPositive`] or [`DfNotFinite`] if *df* fails its
-    /// validity check.
+    /// Returns [`DfNotPositive`] or [`DfNotFinite`] otherwise.
     ///
     /// [`DfNotPositive`]: StudentsTError::DfNotPositive
     /// [`DfNotFinite`]: StudentsTError::DfNotFinite
     #[inline]
     pub fn try_new(df: f64) -> Result<Self, StudentsTError> {
-        if !df.is_finite() {
-            return Err(StudentsTError::DfNotFinite(df));
-        }
-        if df <= 0.0 {
-            return Err(StudentsTError::DfNotPositive(df));
-        }
+        check_df(df)?;
         Ok(Self { df })
     }
 
@@ -97,151 +171,116 @@ impl StudentsT {
         self.df
     }
 
-    /// Returns the degrees of freedom *df* satisfying Pr[*T* ≤ *t*] = *p*.
+    /// Returns the degrees of freedom *df* satisfying Pr[*T* ≤ *t*] = *p*,
+    /// searched for in [1 . . 10¹⁰].
     ///
-    /// CDFLIB's `cdft` with `which = 3`. Caller passes both *p* and
-    /// *q* = 1 − *p*; consistency is enforced within 3ε.
+    /// CDFLIB's `cdft` with `which = 3`. The caller passes both *p* and
+    /// *q* = 1 − *p*; they must sum to 1 within 3ε. As in CDFLIB, the
+    /// lower bound reported on failure is 0, not 1.
     #[inline]
     pub fn search_df(p: f64, q: f64, t: f64) -> Result<f64, StudentsTError> {
+        check_p(p)?;
+        check_q(q)?;
         check_pq(p, q)?;
+        // Rust only: a finite t.
         if !t.is_finite() {
             return Err(StudentsTError::TNotFinite(t));
         }
-        // cdflib.f90:6263-6267 precision pivot.
-        let f = |df: f64| {
+
+        // cdflib.f90:6450-6488
+        let mut d = dstinv(1.0, MAXDF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
+        while d.status() == 1 {
+            let df = d.x();
             let (cum, ccum) = cumt(t, df);
-            if p <= q {
-                cum - p
+            let fx = if p <= q { cum - p } else { ccum - q };
+            d.dinvr(fx);
+        }
+        if d.status() == -1 {
+            return Err(if d.qleft() {
+                SearchError::AnswerBelowLowerBound { bound: 0.0 }
             } else {
-                ccum - q
+                SearchError::AnswerAboveUpperBound { bound: MAXDF }
             }
-        };
-        // cdflib.f90:6251 dstinv(1.0D+00, maxdf, 0.5D+00, 0.5D+00,
-        // 5.0D+00, atol, tol) with maxdf = 1.0D+10. cdflib.f90:6276
-        // writes bound = 0.0D+00 for the qleft failure (not the
-        // search lower bound of 1.0); cdflib.f90:6283 writes
-        // bound = maxdf for qhi.
-        Ok(search_monotone(1.0, 1.0e10, 5.0, 0.0, 1.0e10, f)?)
-    }
-}
-
-#[inline]
-fn check_p(p: f64) -> Result<(), StudentsTError> {
-    if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(StudentsTError::PNotInRange(p))
-    } else {
-        Ok(())
-    }
-}
-
-#[inline]
-fn check_q(q: f64) -> Result<(), StudentsTError> {
-    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
-        Err(StudentsTError::QNotInRange(q))
-    } else {
-        Ok(())
-    }
-}
-
-#[inline]
-fn check_pq(p: f64, q: f64) -> Result<(), StudentsTError> {
-    check_p(p)?;
-    check_q(q)?;
-    if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
-        return Err(StudentsTError::PQSumNotOne { p, q });
-    }
-    Ok(())
-}
-
-/// `cumt`: CDF of Student's *t* via the incomplete-Β reduction.
-fn cumt(t: f64, df: f64) -> (f64, f64) {
-    let tt = t * t;
-    let dfptt = df + tt;
-    let xx = df / dfptt;
-    let yy = tt / dfptt;
-    // beta_inc returns (P, Q) where P = I_xx(df/2, 0.5).
-    let (a, oma) = beta_inc(df / 2.0, 0.5, xx, yy);
-    if t <= 0.0 {
-        let cum = 0.5 * a;
-        (cum, oma + cum)
-    } else {
-        let ccum = 0.5 * a;
-        (oma + ccum, ccum)
-    }
-}
-
-impl ContinuousCdf for StudentsT {
-    type Error = StudentsTError;
-
-    #[inline]
-    fn cdf(&self, t: f64) -> f64 {
-        let (cum, _) = cumt(t, self.df);
-        cum
-    }
-
-    #[inline]
-    fn ccdf(&self, t: f64) -> f64 {
-        let (_, ccum) = cumt(t, self.df);
-        ccum
-    }
-
-    #[inline]
-    fn inverse_cdf(&self, p: f64) -> Result<f64, StudentsTError> {
-        check_p(p)?;
-        if p == 0.0 {
-            return Ok(f64::NEG_INFINITY);
+            .into());
         }
-        if p == 1.0 {
-            return Ok(f64::INFINITY);
-        }
+        Ok(d.x())
+    }
+
+    /// CDFLIB's `cdft` with `which = 2`: returns *t* given (*p*, *q*),
+    /// already checked.
+    fn search_t(&self, p: f64, q: f64) -> Result<f64, StudentsTError> {
         let df = self.df;
-        let q = 1.0 - p;
-        // cdflib.f90:6219-6223 precision pivot.
-        let f = |t: f64| {
+        // cdflib.f90:6406-6444
+        let mut d = dstinv(-INF, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(dt1(p, q, df))?;
+        while d.status() == 1 {
+            let t = d.x();
             let (cum, ccum) = cumt(t, df);
-            if p <= q {
-                cum - p
+            let fx = if p <= q { cum - p } else { ccum - q };
+            d.dinvr(fx);
+        }
+        if d.status() == -1 {
+            return Err(if d.qleft() {
+                SearchError::AnswerBelowLowerBound { bound: -INF }
             } else {
-                ccum - q
+                SearchError::AnswerAboveUpperBound { bound: INF }
             }
-        };
-        // cdflib.f90:6207 dstinv(-inf, inf, 0.5D+00, 0.5D+00, 5.0D+00,
-        // atol, tol) with inf = 1.0D+30, and cdflib.f90:6210 starting
-        // guess t = dt1(p, q, df).
-        let start = dt1(p, q, df);
-        Ok(search_monotone(-1.0e30, 1.0e30, start, -1.0e30, 1.0e30, f)?)
+            .into());
+        }
+        Ok(d.x())
     }
-}
 
-impl StudentsT {
-    /// Returns the quantile *t* such that [ccdf]\(*t*\) = *q*.
+    /// Returns the quantile *t* such that [ccdf]\(*t*\) = *q*, searched for
+    /// in [−10³⁰ . . 10³⁰] starting from [`dt1`].
     ///
-    /// Mirrors CDFLIB's `cdft` with `which = 2`, using the same
-    /// `cum - p` / `ccum - q` pivot and `dt1` start value as the
-    /// Fortran routine.
+    /// CDFLIB's `cdft` with `which = 2`, with *p* = 1 − *q*.
     ///
     /// [ccdf]: crate::traits::ContinuousCdf::ccdf
+    /// [`dt1`]: crate::special::dt1
     #[inline]
     pub fn inverse_ccdf(&self, q: f64) -> Result<f64, StudentsTError> {
         check_q(q)?;
+        // Rust only: exact endpoints.
         if q == 0.0 {
             return Ok(f64::INFINITY);
         }
         if q == 1.0 {
             return Ok(f64::NEG_INFINITY);
         }
-        let df = self.df;
         let p = 1.0 - q;
-        let f = |t: f64| {
-            let (cum, ccum) = cumt(t, df);
-            if p <= q {
-                cum - p
-            } else {
-                ccum - q
-            }
-        };
-        let start = dt1(p, q, df);
-        Ok(search_monotone(-1.0e30, 1.0e30, start, -1.0e30, 1.0e30, f)?)
+        self.search_t(p, q)
+    }
+}
+
+impl ContinuousCdf for StudentsT {
+    type Error = StudentsTError;
+
+    /// CDFLIB's `cdft` with `which = 1`.
+    #[inline]
+    fn cdf(&self, t: f64) -> f64 {
+        // cdflib.f90:6399
+        cumt(t, self.df).0
+    }
+
+    /// CDFLIB's `cdft` with `which = 1`.
+    #[inline]
+    fn ccdf(&self, t: f64) -> f64 {
+        // cdflib.f90:6399
+        cumt(t, self.df).1
+    }
+
+    /// CDFLIB's `cdft` with `which = 2`, with *q* = 1 − *p*.
+    #[inline]
+    fn inverse_cdf(&self, p: f64) -> Result<f64, StudentsTError> {
+        check_p(p)?;
+        // Rust only: exact endpoints.
+        if p == 0.0 {
+            return Ok(f64::NEG_INFINITY);
+        }
+        if p == 1.0 {
+            return Ok(f64::INFINITY);
+        }
+        let q = 1.0 - p;
+        self.search_t(p, q)
     }
 }
 

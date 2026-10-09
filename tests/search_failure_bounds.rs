@@ -5,18 +5,12 @@
 //! (qleft, "answer below lower range") or `status = 2` (qhi, "answer above
 //! upper range").
 //!
-//! These bounds are not in any CSV reference fixture — the
-//! `tests/regenerate/` Fortran drivers only emit converged values — so
-//! without these tests a regression in the `qleft_bound` / `qhi_bound`
-//! arguments passed to `search_monotone` would silently slip past
-//! `tests/dispatchers.rs`.
-//!
-//! Each assertion cites the F90 source line where the `bound = …`
-//! literal is written. The three drift sites flagged in earlier review
-//! (cdft which=3, cdffnc which=3, cdffnc which=4) write `bound = 0.0D+00`
-//! even though their search lower range is 1.0; the regression that this
-//! file primarily guards against is reverting those three to report
-//! `bound = small = 1.0` instead.
+//! The F90 call logs in tests/dispatcher_calls.rs check the same bounds
+//! against cdflib.f90; these tests name the cases explicitly. Each
+//! assertion cites the F90 source line where the `bound = …` literal is
+//! written. Three dispatchers (cdft which=3, cdffnc which=3, cdffnc
+//! which=4) write `bound = 0.0D+00` even though the lower end of their
+//! search interval is 1.0.
 
 use cdflib::{
     FisherSnedecorNoncentral, FisherSnedecorNoncentralError, SearchError, StudentsT, StudentsTError,
@@ -28,8 +22,8 @@ use cdflib::{
 
 #[test]
 fn students_t_search_df_qleft_bound_is_f90_zero_not_small() {
-    // cdflib.f90:6276 writes bound = 0.0D+00 for cdft which=3 qleft,
-    // despite small = 1.0 (cdflib.f90:6251 sets dstinv(1.0, maxdf, ...)).
+    // cdflib.f90:6475 writes bound = 0.0D+00 for cdft which=3 qleft,
+    // despite small = 1.0 (cdflib.f90:6450 sets dstinv(1.0, maxdf, ...)).
     //
     // Trigger qleft with t = -2.0, p = q = 0.5: the t-CDF at t = -2 is
     // decreasing in df, with cum(-2, df=1) ≈ 0.148 and cum(-2, df→∞) → 0.023.
@@ -41,13 +35,13 @@ fn students_t_search_df_qleft_bound_is_f90_zero_not_small() {
             err,
             StudentsTError::Search(SearchError::AnswerBelowLowerBound { bound }) if bound == 0.0
         ),
-        "expected AnswerBelowLowerBound {{ bound: 0.0 }} per cdflib.f90:6276, got {err:?}"
+        "expected AnswerBelowLowerBound {{ bound: 0.0 }} per cdflib.f90:6475, got {err:?}"
     );
 }
 
 #[test]
 fn students_t_search_df_qhi_bound_is_f90_maxdf() {
-    // cdflib.f90:6283 writes bound = maxdf = 1.0D+10 for cdft which=3 qhi.
+    // cdflib.f90:6482 writes bound = maxdf = 1.0D+10 for cdft which=3 qhi.
     //
     // Trigger qhi with t = -2.0, p = 0.001, q = 0.999: the search-residual
     // pivot uses cum - p (since p ≤ q is true). cum(-2, df) decreases
@@ -59,14 +53,14 @@ fn students_t_search_df_qhi_bound_is_f90_maxdf() {
             err,
             StudentsTError::Search(SearchError::AnswerAboveUpperBound { bound }) if bound == 1.0e10
         ),
-        "expected AnswerAboveUpperBound {{ bound: 1.0e10 }} per cdflib.f90:6283, got {err:?}"
+        "expected AnswerAboveUpperBound {{ bound: 1.0e10 }} per cdflib.f90:6482, got {err:?}"
     );
 }
 
 #[test]
 fn fisher_snedecor_noncentral_search_dfn_qleft_bound_is_f90_zero_not_small() {
-    // cdflib.f90:4639 writes bound = 0.0D+00 for cdffnc which=3 qleft,
-    // despite small = 1.0 (cdflib.f90:4619).
+    // cdflib.f90:4758 writes bound = 0.0D+00 for cdffnc which=3 qleft,
+    // despite small = 1.0 (cdflib.f90:4738).
     //
     // Trigger qleft with f = 2.0, dfd = 10, ncp = 0, p = 0.5: the central-F
     // CDF at f=2, (dfn=1, dfd=10) is ≈ 0.83. Increasing dfn pushes cum
@@ -80,14 +74,14 @@ fn fisher_snedecor_noncentral_search_dfn_qleft_bound_is_f90_zero_not_small() {
             FisherSnedecorNoncentralError::Search(SearchError::AnswerBelowLowerBound { bound })
                 if bound == 0.0
         ),
-        "expected AnswerBelowLowerBound {{ bound: 0.0 }} per cdflib.f90:4639, got {err:?}"
+        "expected AnswerBelowLowerBound {{ bound: 0.0 }} per cdflib.f90:4758, got {err:?}"
     );
 }
 
 #[test]
 fn fisher_snedecor_noncentral_search_dfd_qleft_bound_is_f90_zero_not_small() {
-    // cdflib.f90:4677 writes bound = 0.0D+00 for cdffnc which=4 qleft,
-    // despite small = 1.0 (cdflib.f90:4658).
+    // cdflib.f90:4796 writes bound = 0.0D+00 for cdffnc which=4 qleft,
+    // despite small = 1.0 (cdflib.f90:4777).
     //
     // Trigger qleft with f = 0.5, dfn = 10, ncp = 0, p = 0.5: the central-F
     // CDF at f = 0.5, dfn = 10, dfd → ∞ approaches χ²(10)/10 ≤ 0.5 ≈ 0.0083,
@@ -105,6 +99,6 @@ fn fisher_snedecor_noncentral_search_dfd_qleft_bound_is_f90_zero_not_small() {
             FisherSnedecorNoncentralError::Search(SearchError::AnswerBelowLowerBound { bound })
                 if bound == 0.0
         ),
-        "expected AnswerBelowLowerBound {{ bound: 0.0 }} per cdflib.f90:4677, got {err:?}"
+        "expected AnswerBelowLowerBound {{ bound: 0.0 }} per cdflib.f90:4796, got {err:?}"
     );
 }

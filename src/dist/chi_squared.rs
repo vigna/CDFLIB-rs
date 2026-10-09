@@ -1,15 +1,26 @@
 use crate::error::SearchError;
-use crate::search::{search_monotone, SEARCH_BOUND};
-use crate::special::{gamma_inc, try_gamma_inc, GammaIncError};
+use crate::search::dstinv;
+use crate::special::GammaIncError;
 use crate::special::{gamma_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 use thiserror::Error;
+
+use super::gamma::cumgam;
+
+// Parameters of cdfchi (cdflib.f90:3442-3455).
+const ATOL: f64 = 1.0e-10;
+const INF: f64 = 1.0e300;
+const TOL: f64 = 1.0e-8;
 
 /// χ² distribution with *df* degrees of freedom.
 ///
 /// χ²(*df*) is Γ(*df*/2, 2) in shape-scale parameterization. The
 /// CDF reduces to the regularized incomplete Γ function:
 /// *F*(*x*; *df*) = *P*(*df*/2, *x*/2).
+///
+/// The methods correspond to CDFLIB's `cdfchi` (cdflib.f90:3340):
+/// `which = 1` is [`cdf`] / [`ccdf`], `which = 2` is [`inverse_cdf`] /
+/// [`inverse_ccdf`], `which = 3` is [`search_df`].
 ///
 /// # Example
 ///
@@ -25,6 +36,12 @@ use thiserror::Error;
 /// // Compute df given Pr[X ≤ 3.84] = 0.95
 /// let df = ChiSquared::search_df(0.95, 0.05, 3.84).unwrap();
 /// ```
+///
+/// [`cdf`]: ContinuousCdf::cdf
+/// [`ccdf`]: ContinuousCdf::ccdf
+/// [`inverse_cdf`]: ContinuousCdf::inverse_cdf
+/// [`inverse_ccdf`]: ChiSquared::inverse_ccdf
+/// [`search_df`]: ChiSquared::search_df
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChiSquared {
     df: f64,
@@ -32,41 +49,117 @@ pub struct ChiSquared {
 
 /// Errors arising from constructing a [`ChiSquared`] or from its parameter search.
 ///
+/// The variants correspond to the `status` codes of CDFLIB's `cdfchi`.
+///
 /// [`ChiSquared`]: crate::ChiSquared
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum ChiSquaredError {
-    /// The degrees of freedom *df* was not strictly positive.
+    /// The degrees of freedom *df* was not strictly positive (`cdfchi`
+    /// status −5).
     #[error("degrees of freedom must be positive, got {0}")]
     DfNotPositive(f64),
-    /// The degrees of freedom *df* was not finite.
+    /// The degrees of freedom *df* was not finite (checked only in Rust).
     #[error("degrees of freedom must be finite, got {0}")]
     DfNotFinite(f64),
-    /// The argument *x* was not strictly positive.
+    /// The argument *x* was not strictly positive (`cdfchi` status −4 for
+    /// *x* < 0; Rust also rejects *x* = 0, where Pr[*X* ≤ *x*] = 0 whatever
+    /// *df*).
     #[error("argument x must be positive, got {0}")]
     XNotPositive(f64),
-    /// The argument *x* was not finite.
+    /// The argument *x* was not finite (checked only in Rust).
     #[error("argument x must be finite, got {0}")]
     XNotFinite(f64),
-    /// The probability *p* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *p* fell outside [0 . . 1] (`cdfchi` status −2); NaN is
+    /// also rejected.
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (`cdfchi` status −3); NaN is
+    /// also rejected.
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
-    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3ε).
-    /// Mirrors CDFLIB's `cdfchi` status 3.
+    /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
+    /// (`cdfchi` status 3).
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
-    /// The internal root-finder failed; see [`SearchError`].
+    /// The search for the answer failed (`cdfchi` status 1 or 2); see
+    /// [`SearchError`].
     ///
     /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
     Search(#[from] SearchError),
-    /// The incomplete gamma function failed during the search (CDFLIB `cdfchi`
-    /// status 10, cdflib.f90:5260). Triggered when the routine returns its
-    /// indeterminate sentinel (equivalent to F90's `1.5 < fx + porq`).
+    /// The incomplete Γ function failed during the search (`cdfchi` status
+    /// 10, cdflib.f90:3602-3605 and cdflib.f90:3652-3655); see
+    /// [`GammaIncError`].
+    ///
+    /// [`GammaIncError`]: crate::special::GammaIncError
     #[error(transparent)]
     GammaInc(#[from] GammaIncError),
+}
+
+/// Returns the cumulative χ² distribution (*cum*, *ccum*) at *x* with *df*
+/// degrees of freedom (`cumchi`, cdflib.f90:6860).
+///
+/// The error value of `gamma_inc`, which CDFLIB passes on unchecked, is
+/// returned as a [`GammaIncError`].
+///
+/// [`GammaIncError`]: crate::special::GammaIncError
+#[inline]
+pub(crate) fn cumchi(x: f64, df: f64) -> Result<(f64, f64), GammaIncError> {
+    let a = df * 0.5;
+    let xx = x * 0.5;
+    cumgam(xx, a)
+}
+
+// cdflib.f90:3484-3502 (status -2). Rust also rejects NaN.
+#[inline]
+fn check_p(p: f64) -> Result<(), ChiSquaredError> {
+    if p < 0.0 || 1.0 < p || p.is_nan() {
+        return Err(ChiSquaredError::PNotInRange(p));
+    }
+    Ok(())
+}
+
+// cdflib.f90:3504-3522 (status -3). Rust also rejects NaN.
+#[inline]
+fn check_q(q: f64) -> Result<(), ChiSquaredError> {
+    if q < 0.0 || 1.0 < q || q.is_nan() {
+        return Err(ChiSquaredError::QNotInRange(q));
+    }
+    Ok(())
+}
+
+// cdflib.f90:3524-3535 (status -4). Rust also rejects x = 0 and a
+// non-finite x.
+#[inline]
+fn check_x(x: f64) -> Result<(), ChiSquaredError> {
+    if x <= 0.0 {
+        return Err(ChiSquaredError::XNotPositive(x));
+    }
+    if !x.is_finite() {
+        return Err(ChiSquaredError::XNotFinite(x));
+    }
+    Ok(())
+}
+
+// cdflib.f90:3537-3548 (status -5). Rust also rejects a non-finite df.
+#[inline]
+fn check_df(df: f64) -> Result<(), ChiSquaredError> {
+    if df <= 0.0 {
+        return Err(ChiSquaredError::DfNotPositive(df));
+    }
+    if !df.is_finite() {
+        return Err(ChiSquaredError::DfNotFinite(df));
+    }
+    Ok(())
+}
+
+// cdflib.f90:3550-3560 (status 3).
+#[inline]
+fn check_pq(p: f64, q: f64) -> Result<(), ChiSquaredError> {
+    if 3.0 * f64::EPSILON < ((p + q) - 1.0).abs() {
+        return Err(ChiSquaredError::PQSumNotOne { p, q });
+    }
+    Ok(())
 }
 
 impl ChiSquared {
@@ -85,18 +178,13 @@ impl ChiSquared {
     /// Fallible counterpart of [`new`](Self::new) returning a
     /// [`ChiSquaredError`] instead of panicking.
     ///
-    /// Returns [`DfNotFinite`] or [`DfNotPositive`] otherwise.
+    /// Returns [`DfNotPositive`] or [`DfNotFinite`] otherwise.
     ///
     /// [`DfNotFinite`]: ChiSquaredError::DfNotFinite
     /// [`DfNotPositive`]: ChiSquaredError::DfNotPositive
     #[inline]
     pub fn try_new(df: f64) -> Result<Self, ChiSquaredError> {
-        if !df.is_finite() {
-            return Err(ChiSquaredError::DfNotFinite(df));
-        }
-        if df <= 0.0 {
-            return Err(ChiSquaredError::DfNotPositive(df));
-        }
+        check_df(df)?;
         Ok(Self { df })
     }
 
@@ -106,210 +194,151 @@ impl ChiSquared {
         self.df
     }
 
-    /// Returns the degrees of freedom *df* satisfying Pr[*X* ≤ *x*] = *p*.
+    /// Returns the degrees of freedom *df* satisfying Pr[*X* ≤ *x*] = *p*,
+    /// searched for in [0 . . 10³⁰⁰].
     ///
-    /// CDFLIB's `cdfchi` with `which = 3`. Caller passes both *p* and *q*
-    /// = 1 − *p*; consistency is enforced within 3ε.
+    /// CDFLIB's `cdfchi` with `which = 3`. The caller passes both *p* and
+    /// *q* = 1 − *p*; they must sum to 1 within 3ε.
     #[inline]
     pub fn search_df(p: f64, q: f64, x: f64) -> Result<f64, ChiSquaredError> {
-        check_pq(p, q)?;
-        if !x.is_finite() {
-            return Err(ChiSquaredError::XNotFinite(x));
-        }
-        if x <= 0.0 {
-            return Err(ChiSquaredError::XNotPositive(x));
-        }
-        // F(x; df) = P(df/2, x/2) is decreasing in df for fixed x > 0.
-        // Mirror cdfchi's cum-p if p<=q else ccum-q precision pivot so
-        // the residual stays small near both tails of p. F90 cdfchi
-        // which=3 (cdflib.f90:3589-3592) guards each iteration with
-        // 1.5 < fx + porq, status = 10 to catch gamma_inc returning its
-        // huge sentinel; mirror that guard here.
-        let porq = p.min(q);
-        let mut gamma_inc_err: Option<GammaIncError> = None;
-        let f = |df: f64| {
-            if gamma_inc_err.is_some() {
-                return 0.0;
-            }
-            match try_gamma_inc(df / 2.0, x / 2.0) {
-                Err(e) => {
-                    gamma_inc_err = Some(e);
-                    0.0
-                }
-                Ok((cum, ccum)) => {
-                    let fx = if p <= q { cum - p } else { ccum - q };
-                    if 1.5 < fx + porq {
-                        gamma_inc_err = Some(GammaIncError::Indeterminate {
-                            a: df / 2.0,
-                            x: x / 2.0,
-                        });
-                        return 0.0;
-                    }
-                    fx
-                }
-            }
-        };
-        // Match cdfchi's which=3 dstinv setup: range (0, inf), start = 5.0.
-        let result = search_monotone(0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND, f);
-        if let Some(e) = gamma_inc_err {
-            return Err(e.into());
-        }
-        Ok(result?)
-    }
-}
-
-#[inline]
-fn check_p(p: f64) -> Result<(), ChiSquaredError> {
-    if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(ChiSquaredError::PNotInRange(p))
-    } else {
-        Ok(())
-    }
-}
-
-#[inline]
-fn check_q(q: f64) -> Result<(), ChiSquaredError> {
-    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
-        Err(ChiSquaredError::QNotInRange(q))
-    } else {
-        Ok(())
-    }
-}
-
-#[inline]
-fn check_pq(p: f64, q: f64) -> Result<(), ChiSquaredError> {
-    check_p(p)?;
-    check_q(q)?;
-    if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
-        return Err(ChiSquaredError::PQSumNotOne { p, q });
-    }
-    Ok(())
-}
-
-impl ContinuousCdf for ChiSquared {
-    type Error = ChiSquaredError;
-
-    #[inline]
-    fn cdf(&self, x: f64) -> f64 {
-        if x <= 0.0 {
-            return 0.0;
-        }
-        let (p, _q) = gamma_inc(self.df / 2.0, x / 2.0);
-        p
-    }
-
-    #[inline]
-    fn ccdf(&self, x: f64) -> f64 {
-        if x <= 0.0 {
-            return 1.0;
-        }
-        let (_p, q) = gamma_inc(self.df / 2.0, x / 2.0);
-        q
-    }
-
-    #[inline]
-    fn inverse_cdf(&self, p: f64) -> Result<f64, ChiSquaredError> {
         check_p(p)?;
-        if p == 0.0 {
-            return Ok(0.0);
-        }
-        if p == 1.0 {
-            return Ok(f64::INFINITY);
-        }
-        let df = self.df;
-        // F(x; df) = P(df/2, x/2) is strictly increasing in x.
-        // Mirror cdfchi's which=2 precision pivot: cum-p if p<=q else
-        // ccum-q (cdflib.f90:3533-3537), with q = 1 - p. Guard each
-        // iteration with F90's 1.5 < fx + porq (cdflib.f90:3539-3542)
-        // so gamma_inc's huge sentinel triggers F90 status 10.
-        let q = 1.0 - p;
-        let porq = p.min(q);
-        let mut gamma_inc_err: Option<GammaIncError> = None;
-        let f = |x: f64| {
-            if gamma_inc_err.is_some() {
-                return 0.0;
-            }
-            match try_gamma_inc(df / 2.0, x / 2.0) {
-                Err(e) => {
-                    gamma_inc_err = Some(e);
-                    0.0
-                }
-                Ok((cum, ccum)) => {
-                    let fx = if p <= q { cum - p } else { ccum - q };
-                    if 1.5 < fx + porq {
-                        gamma_inc_err = Some(GammaIncError::Indeterminate {
-                            a: df / 2.0,
-                            x: x / 2.0,
-                        });
-                        return 0.0;
-                    }
-                    fx
-                }
-            }
-        };
-        // Match cdfchi's which=2: range (0, inf), start = 5.0.
-        let result = search_monotone(0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND, f);
-        if let Some(e) = gamma_inc_err {
-            return Err(e.into());
-        }
-        Ok(result?)
-    }
-}
+        check_q(q)?;
+        check_x(x)?;
+        check_pq(p, q)?;
 
-impl ChiSquared {
+        // cdflib.f90:3634-3677
+        let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
+        while d.status() == 1 {
+            let df = d.x();
+            // F90 tests 1.5 < fx + porq, that is, 1.5 < cum or 1.5 < ccum,
+            // for the error value of gamma_inc (status 10,
+            // cdflib.f90:3652-3655), but gamma_inc leaves qans unset on
+            // error, so the test on ccum cannot see it. cumchi returns the
+            // error itself, whichever of p and q is smaller.
+            let (cum, ccum) = cumchi(x, df)?;
+            let fx = if p <= q { cum - p } else { ccum - q };
+            d.dinvr(fx);
+        }
+        if d.status() == -1 {
+            return Err(if d.qleft() {
+                SearchError::AnswerBelowLowerBound { bound: 0.0 }
+            } else {
+                SearchError::AnswerAboveUpperBound { bound: INF }
+            }
+            .into());
+        }
+        Ok(d.x())
+    }
+
+    /// CDFLIB's `cdfchi` with `which = 2`: returns *x* given (*p*, *q*),
+    /// already checked.
+    fn search_x(&self, p: f64, q: f64) -> Result<f64, ChiSquaredError> {
+        let df = self.df;
+        // cdflib.f90:3584-3628
+        let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
+        while d.status() == 1 {
+            let x = d.x();
+            // F90 tests 1.5 < fx + porq, that is, 1.5 < cum or 1.5 < ccum,
+            // for the error value of gamma_inc (status 10,
+            // cdflib.f90:3602-3605), but gamma_inc leaves qans unset on
+            // error, so the test on ccum cannot see it. cumchi returns the
+            // error itself, whichever of p and q is smaller.
+            let (cum, ccum) = cumchi(x, df)?;
+            let fx = if p <= q { cum - p } else { ccum - q };
+            d.dinvr(fx);
+        }
+        if d.status() == -1 {
+            return Err(if d.qleft() {
+                SearchError::AnswerBelowLowerBound { bound: 0.0 }
+            } else {
+                SearchError::AnswerAboveUpperBound { bound: INF }
+            }
+            .into());
+        }
+        Ok(d.x())
+    }
+
     /// Returns the quantile *x* such that [ccdf]\(*x*\) = *q*.
     ///
-    /// Mirrors CDFLIB's `cdfchi` with `which = 2`, using the same
-    /// `cum - p` / `ccum - q` pivot as the Fortran routine.
+    /// CDFLIB's `cdfchi` with `which = 2`, with *p* = 1 − *q*.
     ///
     /// [ccdf]: crate::traits::ContinuousCdf::ccdf
     #[inline]
     pub fn inverse_ccdf(&self, q: f64) -> Result<f64, ChiSquaredError> {
         check_q(q)?;
+        // Rust only: exact endpoints.
         if q == 1.0 {
             return Ok(0.0);
         }
         if q == 0.0 {
             return Ok(f64::INFINITY);
         }
-        let df = self.df;
         let p = 1.0 - q;
-        let porq = p.min(q);
-        let mut gamma_inc_err: Option<GammaIncError> = None;
-        let f = |x: f64| {
-            if gamma_inc_err.is_some() {
-                return 0.0;
-            }
-            match try_gamma_inc(df / 2.0, x / 2.0) {
-                Err(e) => {
-                    gamma_inc_err = Some(e);
-                    0.0
-                }
-                Ok((cum, ccum)) => {
-                    let fx = if p <= q { cum - p } else { ccum - q };
-                    if 1.5 < fx + porq {
-                        gamma_inc_err = Some(GammaIncError::Indeterminate {
-                            a: df / 2.0,
-                            x: x / 2.0,
-                        });
-                        return 0.0;
-                    }
-                    fx
-                }
-            }
-        };
-        let result = search_monotone(0.0, SEARCH_BOUND, 5.0, 0.0, SEARCH_BOUND, f);
-        if let Some(e) = gamma_inc_err {
-            return Err(e.into());
+        self.search_x(p, q)
+    }
+}
+
+impl ContinuousCdf for ChiSquared {
+    type Error = ChiSquaredError;
+
+    /// CDFLIB's `cdfchi` with `which = 1`.
+    ///
+    /// # Panics
+    ///
+    /// Panics where `gamma_inc` cannot compute its result, which needs
+    /// *df* > 1.3 · 10²⁹ and *x* within a few ulps of *df*.
+    #[inline]
+    fn cdf(&self, x: f64) -> f64 {
+        // Rust only: no status -4 for x < 0 (cdflib.f90:3524-3535); cumchi
+        // returns (0, 1) there.
+        // cdflib.f90:3570-3578. F90 sets status 10 for the error value of
+        // gamma_inc by testing porq, which is not set when which = 1.
+        // Rust only: panic on the GammaIncError of cumchi.
+        match cumchi(x, self.df) {
+            Ok((cum, _ccum)) => cum,
+            Err(e) => panic!("cumchi({x}, {}): {e}", self.df),
         }
-        Ok(result?)
+    }
+
+    /// CDFLIB's `cdfchi` with `which = 1`.
+    ///
+    /// # Panics
+    ///
+    /// Panics where `gamma_inc` cannot compute its result, which needs
+    /// *df* > 1.3 · 10²⁹ and *x* within a few ulps of *df*.
+    #[inline]
+    fn ccdf(&self, x: f64) -> f64 {
+        // Rust only: no status -4 for x < 0 (cdflib.f90:3524-3535); cumchi
+        // returns (0, 1) there.
+        // cdflib.f90:3570-3578. F90 sets status 10 for the error value of
+        // gamma_inc by testing porq, which is not set when which = 1.
+        // Rust only: panic on the GammaIncError of cumchi.
+        match cumchi(x, self.df) {
+            Ok((_cum, ccum)) => ccum,
+            Err(e) => panic!("cumchi({x}, {}): {e}", self.df),
+        }
+    }
+
+    /// CDFLIB's `cdfchi` with `which = 2`, with *q* = 1 − *p*.
+    #[inline]
+    fn inverse_cdf(&self, p: f64) -> Result<f64, ChiSquaredError> {
+        check_p(p)?;
+        // Rust only: exact endpoints.
+        if p == 0.0 {
+            return Ok(0.0);
+        }
+        if p == 1.0 {
+            return Ok(f64::INFINITY);
+        }
+        let q = 1.0 - p;
+        self.search_x(p, q)
     }
 }
 
 impl Continuous for ChiSquared {
     #[inline]
     fn pdf(&self, x: f64) -> f64 {
-        if x <= 0.0 {
+        if x < 0.0 {
             return 0.0;
         }
         self.ln_pdf(x).exp()
@@ -317,12 +346,18 @@ impl Continuous for ChiSquared {
 
     #[inline]
     fn ln_pdf(&self, x: f64) -> f64 {
-        if x <= 0.0 {
+        if x < 0.0 {
             return f64::NEG_INFINITY;
         }
         let k = self.df / 2.0;
-        // ln f(x) = -(k ln 2 + ln Γ(k)) + (k - 1) ln x - x/2
-        -(k * 2.0_f64.ln() + gamma_log(k)) + (k - 1.0) * x.ln() - x / 2.0
+        // ln f(x) = -(k ln 2 + ln Γ(k)) + (k - 1) ln x - x/2; for k = 1 the
+        // term (k - 1) ln x is 0 at x = 0, where it would be 0 · (-inf).
+        let ln_x_term = if k == 1.0 && x == 0.0 {
+            0.0
+        } else {
+            (k - 1.0) * x.ln()
+        };
+        -(k * 2.0_f64.ln() + gamma_log(k)) + ln_x_term - x / 2.0
     }
 }
 
@@ -517,5 +552,12 @@ mod tests {
             let h = ChiSquared::new(df).entropy();
             assert!(h.is_finite(), "df={df}: entropy={h}");
         }
+    }
+
+    #[test]
+    fn density_at_zero_is_the_limit() {
+        assert!((ChiSquared::new(2.0).pdf(0.0) - 0.5).abs() < 1e-12);
+        assert_eq!(ChiSquared::new(1.0).pdf(0.0), f64::INFINITY);
+        assert_eq!(ChiSquared::new(3.0).pdf(0.0), 0.0);
     }
 }

@@ -1,17 +1,22 @@
-//! CDFLIB's `dzror` / `E0001` zero-finder.
+//! The F90 subroutine `dzror` and its entry `dstzr` (cdflib.f90:8819-9209).
 //!
-//! Algorithm R of Bus & Dekker (ACM TOMS 1975): a hybrid of linear
-//! and inverse quadratic interpolation. CDFLIB uses a
-//! reverse-communication idiom driven by a `static`-local switch on a
-//! “where to resume” integer `i99999`; this module uses an explicit
-//! `Stage` enum carried inside [`ZrorState`] instead.
+//! `dzror` seeks a zero of a function, using reverse communication, by
+//! Algorithm R of Bus and Dekker: a hybrid of linear interpolation,
+//! inverse quadratic interpolation and bisection. The F90 keeps its state
+//! in `save` variables and resumes at the label stored in `i99999`; here
+//! the saved variables are the fields of [`ZrorState`], with the F90
+//! names, and the resume label is a private enum.
 //!
-//! The exact iteration trace matches CDFLIB. Variable names follow the
-//! CDFLIB source (`a`, `b`, `c`, `d`, `fa`, `fb`, `fc`, `fd`, `fda`,
-//! `fdb`, `m`, `mb`, `p`, `q`, `w`, `tol`, `ext`, `first`) for
-//! line-by-line cross-referencing.
+//! Reference: J. C. P. Bus and T. J. Dekker, Two Efficient Algorithms with
+//! Guaranteed Convergence for Finding a Zero of a Function, *ACM
+//! Transactions on Mathematical Software*, 1(4):330-345, 1975.
 
-/// Configuration mirroring CDFLIB's `dstzr`.
+/// The arguments of the F90 entry `dstzr` (cdflib.f90:9130).
+///
+/// `xlo` and `xhi` (`zxlo`, `zxhi`) are the left and right endpoints of
+/// the interval to be searched for a solution; `abstol` and `reltol`
+/// (`zabstl`, `zreltl`) are two numbers that determine the accuracy of
+/// the solution.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ZrorConfig {
     pub xlo: f64,
@@ -20,54 +25,62 @@ pub(crate) struct ZrorConfig {
     pub reltol: f64,
 }
 
+/// The F90 resume label `i99999` (cdflib.f90:9194-9207).
 #[derive(Debug, Clone, Copy)]
-enum Stage {
-    /// Initial entry: about to request F(xlo).
-    Start,
-    /// Awaiting F(xlo); next is to request F(xhi).
-    AwaitFb,
-    /// Awaiting F(xhi); next is to validate the sign change.
-    AwaitFa,
-    /// Awaiting F(b) after an interpolation step.
-    AwaitFbStep,
+enum Resume {
+    /// No evaluation pending: the F90 call with `status` = 0.
+    Entry,
+    /// Resume at label 10 with F(`xlo`).
+    Label10,
+    /// Resume at label 20 with F(`xhi`).
+    Label20,
+    /// Resume at label 200 with F(`b`).
+    Label200,
 }
 
-/// One step of the [`ZrorState`] machine.
+/// The F90 `status` on return from `dzror`.
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum ZrorAction {
-    /// Caller must evaluate *f*(*x*) and pass the result to the next `step` call.
+    /// `status` = 1: the function must be evaluated at *x*, and the value
+    /// passed as `fx` to the next [`ZrorState::step`] call.
     NeedEval(f64),
-    /// Successful convergence: a root lies in [`xlo`, `xhi`]. `x` is the
-    /// F90 reverse-communication variable: the point handed out for the
-    /// last evaluation. The swap at F90 label 80 updates `xlo` but not
-    /// `x`, so the two can differ by up to the convergence tolerance.
-    /// The direct-`dzror` dispatchers (`cdfbet`, `cdfbin`, `cdfnbn`)
-    /// report `x`, while the `dinvr`-embedded path overwrites it with
-    /// `xlo` (cdflib.f90:8233).
+    /// `status` = 0: `xlo` and `xhi` bound the answer. `x` is the F90
+    /// reverse-communication variable, the last point handed out for
+    /// evaluation; label 80 can move `xlo` without changing `x`. The F90
+    /// direct callers of `dzror` (`cdfbet`, `cdfbin`, `cdfnbn`) report
+    /// `x`, while `dinvr` reports `xlo` (cdflib.f90:8472).
     Converged {
         x: f64,
         xlo: f64,
+        // xhi mirrors the F90 output; no caller reads it.
         #[allow(dead_code)]
         xhi: f64,
     },
-    /// *f*(`xlo`) and *f*(`xhi`) do not straddle zero. `qleft` / `qhi`
-    /// follow the CDFLIB sign-flag convention. `xlo` is the last lower
-    /// bound dzror maintained — F90 cdflib.f90:8233 returns it as the
-    /// approximate root on failure.
-    #[allow(dead_code)]
+    /// `status` = -1: F(`xlo`) and F(`xhi`) have the same sign. `qleft`
+    /// is true if the search terminated unsuccessfully at `xlo`, false if
+    /// it terminated unsuccessfully at `xhi`; `qhi` is true if
+    /// *Y* < F(*X*) at the termination of the search and false if
+    /// F(*X*) < *Y*. `xlo` is the F90 `xlo` on return, which `dinvr`
+    /// reports as its approximate root (cdflib.f90:8472).
     Failed { xlo: f64, qleft: bool, qhi: bool },
 }
 
+/// The `save` variables of the F90 `dzror`, with the F90 names, together
+/// with the dummy arguments `x`, `xlo` and `xhi`, which the F90 caller
+/// passes back unchanged on every call.
 #[derive(Debug)]
 pub(crate) struct ZrorState {
-    cfg: ZrorConfig,
-    stage: Stage,
-    // working state, names from the CDFLIB source
+    // Set by the entry dstzr.
+    xxlo: f64,
+    xxhi: f64,
+    abstol: f64,
+    reltol: f64,
+    i99999: Resume,
+    // The dummy arguments: x is the point handed out for evaluation, and
+    // xlo and xhi bound the answer.
+    x: f64,
     xlo: f64,
     xhi: f64,
-    // the reverse-communication variable: last point handed out for
-    // evaluation
-    x: f64,
     a: f64,
     b: f64,
     c: f64,
@@ -76,21 +89,41 @@ pub(crate) struct ZrorState {
     fb: f64,
     fc: f64,
     fd: f64,
-    w: f64,
     mb: f64,
+    w: f64,
     ext: i32,
     first: bool,
 }
 
+/// The F90 intrinsic `sign ( a, b )`: the magnitude of *a* with the sign
+/// of *b*.
+#[inline]
+fn sign(a: f64, b: f64) -> f64 {
+    a.copysign(b)
+}
+
 impl ZrorState {
+    /// The F90 entry `dstzr` (cdflib.f90:9183-9187). The first `dzror`
+    /// call, with `status` = 0, is the first [`step`](Self::step).
+    ///
+    /// Given a function F, find `xlo` such that F(`xlo`) = 0. Input
+    /// condition: F is a function of a single argument and `xlo` and `xhi`
+    /// are such that F(`xlo`) · F(`xhi`) ≤ 0. If the input condition is
+    /// met, `dzror` returns `status` = 0 and the output values of `xlo` and
+    /// `xhi` satisfy F(`xlo`) · F(`xhi`) ≤ 0, |F(`xlo`)| ≤ |F(`xhi`)| and
+    /// |`xlo` − `xhi`| ≤ TOL(*X*), where TOL(*X*) = max(`abstol`,
+    /// `reltol` · |*X*|).
     #[inline]
     pub(crate) fn new(cfg: ZrorConfig) -> Self {
         Self {
-            cfg,
-            stage: Stage::Start,
+            xxlo: cfg.xlo,
+            xxhi: cfg.xhi,
+            abstol: cfg.abstol,
+            reltol: cfg.reltol,
+            i99999: Resume::Entry,
+            x: 0.0,
             xlo: 0.0,
             xhi: 0.0,
-            x: 0.0,
             a: 0.0,
             b: 0.0,
             c: 0.0,
@@ -99,100 +132,128 @@ impl ZrorState {
             fb: 0.0,
             fc: 0.0,
             fd: 0.0,
-            w: 0.0,
             mb: 0.0,
+            w: 0.0,
             ext: 0,
-            first: true,
+            first: false,
         }
     }
 
-    /// Returns the next action of the root-finder after driving one
-    /// iteration. On the first call, `fx` is ignored (no evaluation has
-    /// happened yet). On subsequent calls, `fx` must be the value of *f*
-    /// at the *x* from the previous `NeedEval`.
+    /// The F90 statement function `ftol` (cdflib.f90:8929).
+    #[inline]
+    fn ftol(&self, zx: f64) -> f64 {
+        0.5 * self.abstol.max(self.reltol * zx.abs())
+    }
+
+    /// One call of the F90 `dzror` (cdflib.f90:8819).
+    ///
+    /// The first call is the F90 call with `status` = 0, and `fx` is
+    /// ignored. When `dzror` needs the function evaluated, it returns
+    /// [`ZrorAction::NeedEval`] (`status` = 1); the value of the function
+    /// must be passed as `fx` to the next call. When `dzror` has finished
+    /// without error, it returns [`ZrorAction::Converged`] (`status` = 0);
+    /// if it finds an error (which implies that F(`xlo`) − *Y* and
+    /// F(`xhi`) − *Y* have the same sign), it returns
+    /// [`ZrorAction::Failed`] (`status` = -1).
+    #[allow(clippy::collapsible_if, clippy::assign_op_pattern)]
     #[inline]
     pub(crate) fn step(&mut self, fx: f64) -> ZrorAction {
-        loop {
-            match self.stage {
-                Stage::Start => {
-                    self.xlo = self.cfg.xlo;
-                    self.xhi = self.cfg.xhi;
-                    self.b = self.xlo;
-                    self.x = self.xlo;
-                    self.stage = Stage::AwaitFb;
-                    return ZrorAction::NeedEval(self.b);
-                }
-                Stage::AwaitFb => {
-                    self.fb = fx;
-                    self.xlo = self.xhi;
-                    self.a = self.xlo;
-                    self.x = self.xlo;
-                    self.stage = Stage::AwaitFa;
-                    return ZrorAction::NeedEval(self.a);
-                }
-                Stage::AwaitFa => {
-                    // Validate sign change.
-                    if self.fb < 0.0 {
-                        if fx < 0.0 {
-                            return ZrorAction::Failed {
-                                xlo: self.xlo,
-                                qleft: fx < self.fb,
-                                qhi: false,
-                            };
-                        }
-                    } else if self.fb > 0.0 && fx > 0.0 {
+        // cdflib.f90:8931-8933: if 0 < status, go to label 280, which
+        // resumes at label i99999 (cdflib.f90:9194-9207). Rust only: the
+        // F90 stop 1 for an illegal i99999 cannot occur, as Resume has no
+        // other values.
+        match self.i99999 {
+            Resume::Entry => {
+                self.xlo = self.xxlo;
+                self.xhi = self.xxhi;
+                self.b = self.xlo;
+                self.x = self.xlo;
+                // GET-function-VALUE
+                self.i99999 = Resume::Label10;
+                self.label_270()
+            }
+            Resume::Label10 => {
+                // Label 10.
+                self.fb = fx;
+                self.xlo = self.xhi;
+                self.a = self.xlo;
+                self.x = self.xlo;
+                // GET-function-VALUE
+                self.i99999 = Resume::Label20;
+                self.label_270()
+            }
+            Resume::Label20 => {
+                // Label 20. Check that F(ZXLO) < 0 < F(ZXHI) or
+                // F(ZXLO) > 0 > F(ZXHI).
+                if self.fb < 0.0 {
+                    if fx < 0.0 {
+                        // status = -1
                         return ZrorAction::Failed {
                             xlo: self.xlo,
-                            qleft: fx > self.fb,
+                            qleft: fx < self.fb,
+                            qhi: false,
+                        };
+                    }
+                }
+
+                if 0.0 < self.fb {
+                    if 0.0 < fx {
+                        // status = -1
+                        return ZrorAction::Failed {
+                            xlo: self.xlo,
+                            qleft: self.fb < fx,
                             qhi: true,
                         };
                     }
-                    self.fa = fx;
-                    self.first = true;
-                    // Enter S70: c = a; fc = fa; ext = 0.
-                    self.restart_c_from_a();
-                    // Fall through to the swap+interpolation step.
-                    if let Some(action) = self.refine_iteration() {
-                        return action;
-                    }
                 }
-                Stage::AwaitFbStep => {
-                    self.fb = fx;
-                    if self.fc * self.fb >= 0.0 {
-                        // Sign-change lost: restart with c <- a.
-                        self.restart_c_from_a();
-                    } else if self.w == self.mb {
+
+                self.fa = fx;
+                self.first = true;
+                self.label_70()
+            }
+            Resume::Label200 => {
+                // Label 200.
+                self.fb = fx;
+
+                if 0.0 <= self.fc * self.fb {
+                    self.label_70()
+                } else {
+                    if self.w == self.mb {
                         self.ext = 0;
                     } else {
-                        self.ext += 1;
+                        self.ext = self.ext + 1;
                     }
-                    if let Some(action) = self.refine_iteration() {
-                        return action;
-                    }
+
+                    self.label_80()
                 }
             }
         }
     }
 
+    // Label 70 (cdflib.f90:8982-8986), falling through to label 80.
     #[inline]
-    fn restart_c_from_a(&mut self) {
+    fn label_70(&mut self) -> ZrorAction {
         self.c = self.a;
         self.fc = self.fa;
         self.ext = 0;
+        self.label_80()
     }
 
-    /// Drive one round of the swap → check-convergence → step loop.
-    /// Returns `Some(action)` if we need to leave (with eval request or
-    /// terminal result); `None` if we've internally looped to the next
-    /// iteration without external evaluation.
+    // Label 80 (cdflib.f90:8988-9094): the interpolation step, through
+    // labels 150, 180 and 190, up to the request for F(b).
+    #[allow(
+        clippy::assign_op_pattern,
+        clippy::needless_late_init,
+        clippy::neg_cmp_op_on_partial_ord
+    )]
     #[inline]
-    fn refine_iteration(&mut self) -> Option<ZrorAction> {
-        // S80: swap so |fb| is the smaller residual.
+    fn label_80(&mut self) -> ZrorAction {
         if self.fc.abs() < self.fb.abs() {
             if self.c == self.a {
                 self.d = self.a;
                 self.fd = self.fa;
             }
+
             self.a = self.b;
             self.fa = self.fb;
             self.xlo = self.c;
@@ -201,78 +262,119 @@ impl ZrorState {
             self.c = self.a;
             self.fc = self.fa;
         }
-        // S100: check convergence.
-        let tol = 0.5 * self.cfg.abstol.max(self.cfg.reltol * self.xlo.abs());
-        let m = 0.5 * (self.c + self.b);
-        let mb = m - self.b;
-        self.mb = mb;
-        if mb.abs() <= tol {
-            // Convergence section S240.
-            self.xhi = self.c;
-            let qrzero = (self.fc >= 0.0 && self.fb <= 0.0) || (self.fc < 0.0 && self.fb >= 0.0);
-            if qrzero {
-                return Some(ZrorAction::Converged {
-                    x: self.x,
-                    xlo: self.xlo,
-                    xhi: self.xhi,
-                });
-            }
-            return Some(ZrorAction::Failed {
-                xlo: self.xlo,
-                qleft: false,
-                qhi: false,
-            });
+
+        let mut tol = self.ftol(self.xlo);
+        let m = (self.c + self.b) * 0.5;
+        self.mb = m - self.b;
+
+        if !(tol < self.mb.abs()) {
+            return self.label_240();
         }
 
-        // S110 / step-size selection.
-        let w;
-        if self.ext > 3 {
-            w = mb;
-        } else {
-            let tol_signed = tol.copysign(mb);
-            let mut p = (self.b - self.a) * self.fb;
-            let q;
-            if self.first {
-                q = self.fa - self.fb;
-                self.first = false;
-            } else {
-                let fdb = if self.d == self.b {
-                    1.0
+        'l190: {
+            'l180: {
+                if 3 < self.ext {
+                    self.w = self.mb;
+                    break 'l190;
+                }
+
+                tol = sign(tol, self.mb);
+                let mut p = (self.b - self.a) * self.fb;
+                let mut q;
+                // The F90 guards both divided differences against a zero
+                // denominator (cdflib.f90:9025-9026).
+                if self.first {
+                    q = self.fa - self.fb;
+                    self.first = false;
                 } else {
-                    (self.fd - self.fb) / (self.d - self.b)
-                };
-                let fda = if self.d == self.a {
-                    1.0
+                    let fdb;
+                    let fda;
+
+                    if self.d == self.b {
+                        fdb = 1.0;
+                    } else {
+                        fdb = (self.fd - self.fb) / (self.d - self.b);
+                    }
+
+                    if self.d == self.a {
+                        fda = 1.0;
+                    } else {
+                        fda = (self.fd - self.fa) / (self.d - self.a);
+                    }
+
+                    p = fda * p;
+                    q = fdb * self.fa - fda * self.fb;
+                }
+
+                if p < 0.0 {
+                    p = -p;
+                    q = -q;
+                }
+
+                if self.ext == 3 {
+                    p = p * 2.0;
+                }
+
+                'l150: {
+                    if !((p * 1.0) == 0.0 || p <= (q * tol)) {
+                        break 'l150;
+                    }
+
+                    self.w = tol;
+                    break 'l180;
+                }
+
+                // Label 150.
+                if p < self.mb * q {
+                    self.w = p / q;
                 } else {
-                    (self.fd - self.fa) / (self.d - self.a)
-                };
-                p *= fda;
-                q = fdb * self.fa - fda * self.fb;
-            }
-            let (mut p, q) = if p < 0.0 { (-p, -q) } else { (p, q) };
-            if self.ext == 3 {
-                p *= 2.0;
-            }
-            if p == 0.0 || p <= q * tol_signed {
-                w = tol_signed;
-            } else if p < mb * q {
-                w = p / q;
-            } else {
-                w = mb;
+                    self.w = self.mb;
+                }
             }
         }
-        self.w = w;
 
-        // S170: update history and step b.
+        // Labels 180 and 190.
         self.d = self.a;
         self.fd = self.fa;
         self.a = self.b;
         self.fa = self.fb;
-        self.b += w;
+        self.b = self.b + self.w;
         self.xlo = self.b;
         self.x = self.xlo;
-        self.stage = Stage::AwaitFbStep;
-        Some(ZrorAction::NeedEval(self.b))
+        // GET-function-VALUE
+        self.i99999 = Resume::Label200;
+        self.label_270()
+    }
+
+    // Label 240 (cdflib.f90:9116-9128).
+    #[inline]
+    fn label_240(&mut self) -> ZrorAction {
+        self.xhi = self.c;
+        let qrzero = (0.0 <= self.fc && self.fb <= 0.0) || (self.fc < 0.0 && self.fb >= 0.0);
+
+        if qrzero {
+            // status = 0
+            ZrorAction::Converged {
+                x: self.x,
+                xlo: self.xlo,
+                xhi: self.xhi,
+            }
+        } else {
+            // status = -1. Rust only: the F90 leaves qleft and qhi unset
+            // here, and the Rust reports both as false.
+            ZrorAction::Failed {
+                xlo: self.xlo,
+                qleft: false,
+                qhi: false,
+            }
+        }
+    }
+
+    // Label 270 (cdflib.f90:9191-9192): TO GET-function-VALUE, that is,
+    // status = 1 and return.
+    #[inline]
+    fn label_270(&self) -> ZrorAction {
+        ZrorAction::NeedEval(self.x)
     }
 }
 
@@ -292,8 +394,7 @@ mod tests {
     #[test]
     fn swap_branch_preserves_history_when_c_equals_a() {
         let mut z = ZrorState {
-            cfg: cfg(),
-            stage: Stage::AwaitFbStep,
+            i99999: Resume::Label200,
             xlo: 0.0,
             xhi: 0.0,
             x: 0.0,
@@ -309,11 +410,12 @@ mod tests {
             mb: 0.0,
             ext: 0,
             first: false,
+            ..ZrorState::new(cfg())
         };
 
-        let action = z.refine_iteration();
+        let action = z.label_80();
         match action {
-            Some(ZrorAction::NeedEval(x)) => assert!((x - 4.0 / 3.0).abs() < 1e-15),
+            ZrorAction::NeedEval(x) => assert!((x - 4.0 / 3.0).abs() < 1e-15),
             other => panic!("unexpected action: {other:?}"),
         }
     }
@@ -321,8 +423,7 @@ mod tests {
     #[test]
     fn guarded_divided_difference_when_d_equals_a() {
         let mut z = ZrorState {
-            cfg: cfg(),
-            stage: Stage::AwaitFbStep,
+            i99999: Resume::Label200,
             xlo: 2.0,
             xhi: 4.0,
             x: 0.0,
@@ -338,11 +439,12 @@ mod tests {
             mb: 0.0,
             ext: 0,
             first: false,
+            ..ZrorState::new(cfg())
         };
 
-        let action = z.refine_iteration();
+        let action = z.label_80();
         match action {
-            Some(ZrorAction::NeedEval(x)) => assert!((x - (2.0 + 1.0 / 23.0)).abs() < 1e-15),
+            ZrorAction::NeedEval(x) => assert!((x - (2.0 + 1.0 / 23.0)).abs() < 1e-15),
             other => panic!("unexpected action: {other:?}"),
         }
     }
@@ -350,8 +452,7 @@ mod tests {
     #[test]
     fn guarded_divided_difference_when_d_equals_b() {
         let mut z = ZrorState {
-            cfg: cfg(),
-            stage: Stage::AwaitFbStep,
+            i99999: Resume::Label200,
             xlo: 2.0,
             xhi: 4.0,
             x: 0.0,
@@ -367,11 +468,12 @@ mod tests {
             mb: 0.0,
             ext: 0,
             first: false,
+            ..ZrorState::new(cfg())
         };
 
-        let action = z.refine_iteration();
+        let action = z.label_80();
         match action {
-            Some(ZrorAction::NeedEval(x)) => assert_eq!(x, 3.0),
+            ZrorAction::NeedEval(x) => assert_eq!(x, 3.0),
             other => panic!("unexpected action: {other:?}"),
         }
     }
@@ -409,8 +511,7 @@ mod tests {
     #[test]
     fn reports_failed_convergence_if_interval_no_longer_straddles_zero() {
         let mut z = ZrorState {
-            cfg: cfg(),
-            stage: Stage::AwaitFbStep,
+            i99999: Resume::Label200,
             xlo: 1.0,
             xhi: 1.0,
             x: 0.0,
@@ -426,15 +527,16 @@ mod tests {
             mb: 0.0,
             ext: 0,
             first: false,
+            ..ZrorState::new(cfg())
         };
 
         assert!(matches!(
-            z.refine_iteration(),
-            Some(ZrorAction::Failed {
+            z.label_80(),
+            ZrorAction::Failed {
                 qleft: false,
                 qhi: false,
                 ..
-            })
+            }
         ));
     }
 }

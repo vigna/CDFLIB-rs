@@ -21,7 +21,7 @@ fn chi_squared_inverse_cdf_round_trip() {
 }
 
 #[test]
-fn chi_squared_inverse_sf_round_trip() {
+fn chi_squared_inverse_ccdf_round_trip() {
     for &df in &[1.0, 2.0, 5.0, 10.0, 30.0] {
         let c = ChiSquared::new(df);
         for &q in &[0.01, 0.05, 0.1, 0.5] {

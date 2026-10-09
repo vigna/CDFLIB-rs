@@ -1,17 +1,17 @@
-//! CDFLIB-style helper routines that the user-facing routines build on.
+//! CDFLIB helper routines that the user-facing routines build on.
 //!
-//! Every function here is part of the public API and is documented with
-//! its CDFLIB role; they live in a separate module so the user-facing
+//! Every function here is part of the public API and is documented with its
+//! CDFLIB role; they live in a separate module so the user-facing
 //! [`cdflib::special`](crate::special) namespace stays focused on the
 //! routines a statistical user is likely to call directly ([`beta_inc`],
 //! [`gamma_inc`], [`error_f`], [`cumnor`], etc.).
 //!
-//! Users porting C/Fortran code that calls these helpers by name (for
-//! example `algdiv(a, b)`, `bcorr(a, b)`, `gam1(a)`, `rlog(x)`) can find
-//! each routine here. Documentation and numerical behavior mirror CDFLIB;
-//! Fortran `ierr` out-parameters and subroutine in/out arguments are
-//! surfaced through the matching Rust `Result` types (see for example
-//! [`BetaGratError`]).
+//! Users porting code that calls these helpers by name (for example
+//! `algdiv(a, b)`, `bcorr(a, b)`, `gam1(a)`, `rlog(x)`, `stvaln(p)`) can find
+//! each routine here under its CDFLIB name. Each one is a port of the routine
+//! of the same name in the Fortran 90 CDFLIB, and its documentation follows
+//! the Fortran header; `ierr` out-parameters are surfaced through the
+//! matching Rust `Result` types (see for example [`BetaGratError`]).
 //!
 //! [`beta_inc`]: crate::special::beta_inc
 //! [`gamma_inc`]: crate::special::gamma_inc

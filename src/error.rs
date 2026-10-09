@@ -18,9 +18,9 @@ use thiserror::Error;
 /// non-closed-form inverse CDFs.
 ///
 /// The two out-of-bounds variants mirror CDFLIB's `status = 1` and `status = 2`
-/// (cdflib.f90:5568): the answer fell below the lowest search bound or above
-/// the highest, respectively. `bound` carries the violated endpoint (CDFLIB's
-/// `bound` output).
+/// (as in `cdfbet`, cdflib.f90:2545-2546): the answer fell below the lowest
+/// search bound or above the highest, respectively. `bound` carries the
+/// violated endpoint (CDFLIB's `bound` output).
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum SearchError {
     /// The solution lay below the lower search bound (CDFLIB `status = 1`).
@@ -29,8 +29,9 @@ pub enum SearchError {
     /// The solution lay above the upper search bound (CDFLIB `status = 2`).
     #[error("answer fell above upper search bound {bound}")]
     AnswerAboveUpperBound { bound: f64 },
-    /// The initial guess `start` fell outside the range `[small . . big]`.
-    /// Mirrors CDFLIB's `DINVR` fatal-error abort at cdflib.f90:8020-8024.
+    /// The initial guess *start* fell outside the range
+    /// [*small* . . *big*]. Mirrors CDFLIB's `dinvr` fatal-error abort
+    /// at cdflib.f90:8258-8263.
     #[error("start {start} fell outside [{small}, {big}]")]
     StartOutOfRange { start: f64, small: f64, big: f64 },
 }

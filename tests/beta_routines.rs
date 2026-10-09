@@ -6,10 +6,7 @@ mod common;
 
 use cdflib::special::internal::dbetrm;
 use cdflib::special::{beta_inc, beta_log};
-use common::{
-    assert_close_eps, read_csv, DEFAULT_ABS_TOL, ITERATIVE_KERNEL_ABS_TOL,
-    ITERATIVE_KERNEL_REL_TOL, KERNEL_REL_TOL,
-};
+use common::{assert_exact, read_csv};
 
 #[test]
 fn beta_log_matches_reference() {
@@ -17,7 +14,7 @@ fn beta_log_matches_reference() {
         let [a, b, expected] = row[..] else {
             panic!("width");
         };
-        assert_close_eps(beta_log(a, b), expected, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
+        assert_exact(beta_log(a, b), expected, &row);
     }
 }
 
@@ -28,18 +25,8 @@ fn beta_inc_matches_reference() {
             panic!("width");
         };
         let (p, q) = beta_inc(a, b, x, 1.0 - x);
-        assert_close_eps(
-            p,
-            expected_p,
-            ITERATIVE_KERNEL_REL_TOL,
-            ITERATIVE_KERNEL_ABS_TOL,
-        );
-        assert_close_eps(
-            q,
-            expected_q,
-            ITERATIVE_KERNEL_REL_TOL,
-            ITERATIVE_KERNEL_ABS_TOL,
-        );
+        assert_exact(p, expected_p, &row);
+        assert_exact(q, expected_q, &row);
     }
 }
 
@@ -49,6 +36,6 @@ fn dbetrm_matches_reference() {
         let [a, b, expected] = row[..] else {
             panic!("width");
         };
-        assert_close_eps(dbetrm(a, b), expected, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
+        assert_exact(dbetrm(a, b), expected, &row);
     }
 }

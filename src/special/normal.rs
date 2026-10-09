@@ -1,13 +1,35 @@
-//! Standard normal cumulative distribution function and its inverse.
+//! Standard normal cumulative distribution function and its inverse
+//! (cdflib.f90:7582, cdflib.f90:8041, cdflib.f90:14233 and cdflib.f90:8584).
 
 #![allow(clippy::excessive_precision)]
 
 use super::eval_pol;
+use super::gamma::alnrel;
 
-/// Returns (Φ(*x*), 1 − Φ(*x*)), where Φ is the standard-normal CDF.
+/// Computes the cumulative normal distribution.
 ///
-/// Both tails are returned because the small one is computed directly, which
-/// preserves precision deep into either tail.
+/// Evaluates the normal distribution function
+///
+/// *P*(*x*) = (1 / √(2π)) ∫ exp(−*t*²/2) d*t*,
+///
+/// the integral running from −∞ to *x* = *arg*, the upper limit of
+/// integration, and returns (*cum*, *ccum*), the normal CDF and the
+/// complementary CDF. Both are returned because the smaller one is computed
+/// directly, which preserves precision in either tail.
+///
+/// This transportable program uses rational functions that theoretically
+/// approximate the normal distribution function to at least 18 significant
+/// decimal digits. The accuracy achieved depends on the arithmetic system,
+/// the compiler, the intrinsic functions, and proper selection of the machine
+/// dependent constants.
+///
+/// This is CDFLIB's `cumnor` (cdflib.f90:7582).
+///
+/// References: William Cody, Rational Chebyshev approximations for the error
+/// function, Mathematics of Computation, 1969, pages 631-637. William Cody,
+/// Algorithm 715: SPECFUN - A Portable Fortran Package of Special Function
+/// Routines and Test Drivers, ACM Transactions on Mathematical Software,
+/// Volume 19, Number 1, 1993, pages 22-32.
 ///
 /// # Example
 ///
@@ -19,46 +41,42 @@ use super::eval_pol;
 /// assert!((q - 0.025).abs() < 1e-3);
 /// ```
 #[inline]
-pub fn cumnor(x: f64) -> (f64, f64) {
-    // Coefficients for |x| ≤ 0.66291.
+#[allow(unused_assignments, clippy::assign_op_pattern)]
+pub fn cumnor(arg: f64) -> (f64, f64) {
     const A: [f64; 5] = [
-        2.2352520354606839287e00,
-        1.6102823106855587881e02,
-        1.0676894854603709582e03,
-        1.8154981253343561249e04,
+        2.2352520354606839287,
+        1.6102823106855587881e2,
+        1.0676894854603709582e3,
+        1.8154981253343561249e4,
         6.5682337918207449113e-2,
     ];
     const B: [f64; 4] = [
-        4.7202581904688241870e01,
-        9.7609855173777669322e02,
-        1.0260932208618978205e04,
-        4.5507789335026729956e04,
+        4.7202581904688241870e1,
+        9.7609855173777669322e2,
+        1.0260932208618978205e4,
+        4.5507789335026729956e4,
     ];
-
-    // Coefficients for 0.66291 < |x| ≤ √32.
-    const C_COEF: [f64; 9] = [
+    const C: [f64; 9] = [
         3.9894151208813466764e-1,
-        8.8831497943883759412e00,
-        9.3506656132177855979e01,
-        5.9727027639480026226e02,
-        2.4945375852903726711e03,
-        6.8481904505362823326e03,
-        1.1602651437647350124e04,
-        9.8427148383839780218e03,
+        8.8831497943883759412,
+        9.3506656132177855979e1,
+        5.9727027639480026226e2,
+        2.4945375852903726711e3,
+        6.8481904505362823326e3,
+        1.1602651437647350124e4,
+        9.8427148383839780218e3,
         1.0765576773720192317e-8,
     ];
     const D: [f64; 8] = [
-        2.2266688044328115691e01,
-        2.3538790178262499861e02,
-        1.5193775994075548050e03,
-        6.4855582982667607550e03,
-        1.8615571640885098091e04,
-        3.4900952721145977266e04,
-        3.8912003286093271411e04,
-        1.9685429676859990727e04,
+        2.2266688044328115691e1,
+        2.3538790178262499861e2,
+        1.5193775994075548050e3,
+        6.4855582982667607550e3,
+        1.8615571640885098091e4,
+        3.4900952721145977266e4,
+        3.8912003286093271411e4,
+        1.9685429676859990727e4,
     ];
-
-    // Coefficients for |x| > √32.
     const P: [f64; 6] = [
         2.1589853405795699e-1,
         1.274011611602473639e-1,
@@ -68,92 +86,118 @@ pub fn cumnor(x: f64) -> (f64, f64) {
         2.307344176494017303e-2,
     ];
     const Q: [f64; 5] = [
-        1.28426009614491121e00,
+        1.28426009614491121,
         4.68238212480865118e-1,
         6.59881378689285515e-2,
         3.78239633202758244e-3,
         7.29751555083966205e-5,
     ];
-
+    const ROOT32: f64 = 5.656854248;
     const SIXTEN: f64 = 16.0;
-    const SQRPI: f64 = 0.39894228040143267794; // 1 / √(2π)
+    const SQRPI: f64 = 3.9894228040143267794e-1;
     const THRSH: f64 = 0.66291;
-    const ROOT32: f64 = 5.656854248; // √32
 
-    // CDFLIB uses eps = 0.5 * f64::EPSILON and min = f64::MIN_POSITIVE
-    // sourced from dpmpar; the constants are identical in IEEE 754
-    // binary64, so we just use Rust's intrinsics.
-    let eps = 0.5 * f64::EPSILON;
-    let min = f64::MIN_POSITIVE;
+    let mut cum;
+    let mut ccum;
+    let mut xsq;
 
+    // Machine dependent constants: eps is epsilon(1.0D+00) * 0.5D+00
+    // (cdflib.f90:7713).
+    let eps = f64::EPSILON * 0.5;
+
+    let x = arg;
     let y = x.abs();
-    let (mut result, mut ccum);
 
     if y <= THRSH {
-        // |x| ≤ 0.66291: rational approximation around the origin.
-        let xsq = if y > eps { x * x } else { 0.0 };
+        // Evaluate anorm for abs(x) <= 0.66291.
+        if eps < y {
+            xsq = x * x;
+        } else {
+            xsq = 0.0;
+        }
+
         let mut xnum = A[4] * xsq;
         let mut xden = xsq;
         for i in 0..3 {
             xnum = (xnum + A[i]) * xsq;
             xden = (xden + B[i]) * xsq;
         }
-        let r = x * (xnum + A[3]) / (xden + B[3]);
-        result = 0.5 + r;
-        ccum = 0.5 - r;
+        cum = x * (xnum + A[3]) / (xden + B[3]);
+        let temp = cum;
+        cum = 0.5 + temp;
+        ccum = 0.5 - temp;
     } else if y <= ROOT32 {
-        // 0.66291 < |x| ≤ √32.
-        let mut xnum = C_COEF[8] * y;
+        // Evaluate anorm for 0.66291 <= abs(x) <= sqrt(32).
+        let mut xnum = C[8] * y;
         let mut xden = y;
         for i in 0..7 {
-            xnum = (xnum + C_COEF[i]) * y;
+            xnum = (xnum + C[i]) * y;
             xden = (xden + D[i]) * y;
         }
-        let r = (xnum + C_COEF[7]) / (xden + D[7]);
-        // Precision-preserving split of exp(-y²/2): trunc y at 4 fractional
-        // bits, compute the residual exactly via the difference-of-squares
-        // identity, exponentiate in two pieces.
-        let xsq = (y * SIXTEN).trunc() / SIXTEN;
+        cum = (xnum + C[7]) / (xden + D[7]);
+        xsq = (y * SIXTEN).trunc() / SIXTEN;
         let del = (y - xsq) * (y + xsq);
-        result = (-0.5 * xsq * xsq).exp() * (-0.5 * del).exp() * r;
-        ccum = 1.0 - result;
-        if x > 0.0 {
-            std::mem::swap(&mut result, &mut ccum);
+        cum = (-(xsq * xsq * 0.5)).exp() * (-(del * 0.5)).exp() * cum;
+        ccum = 1.0 - cum;
+
+        if 0.0 < x {
+            std::mem::swap(&mut cum, &mut ccum);
         }
     } else {
-        // |x| > √32: asymptotic expansion in 1/x².
-        let xsq = 1.0 / (x * x);
+        // Evaluate anorm for sqrt(32) < abs(x). cdflib.f90:7763 has the
+        // dead store cum = 0.
+        cum = 0.0;
+        xsq = 1.0 / (x * x);
         let mut xnum = P[5] * xsq;
         let mut xden = xsq;
         for i in 0..4 {
             xnum = (xnum + P[i]) * xsq;
             xden = (xden + Q[i]) * xsq;
         }
-        let mut r = xsq * (xnum + P[4]) / (xden + Q[4]);
-        r = (SQRPI - r) / y;
-        let xsq = (x * SIXTEN).trunc() / SIXTEN;
+
+        cum = xsq * (xnum + P[4]) / (xden + Q[4]);
+        cum = (SQRPI - cum) / y;
+        xsq = (x * SIXTEN).trunc() / SIXTEN;
         let del = (x - xsq) * (x + xsq);
-        result = (-0.5 * xsq * xsq).exp() * (-0.5 * del).exp() * r;
-        ccum = 1.0 - result;
-        if x > 0.0 {
-            std::mem::swap(&mut result, &mut ccum);
+        cum = (-(xsq * xsq * 0.5)).exp() * (-(del * 0.5)).exp() * cum;
+        ccum = 1.0 - cum;
+
+        if 0.0 < x {
+            std::mem::swap(&mut cum, &mut ccum);
         }
     }
 
-    if result < min {
-        result = 0.0;
+    // The threshold is tiny(cum) (cdflib.f90:7786 and cdflib.f90:7790).
+    if cum < f64::MIN_POSITIVE {
+        cum = 0.0;
     }
-    if ccum < min {
+
+    if ccum < f64::MIN_POSITIVE {
         ccum = 0.0;
     }
-    (result, ccum)
+
+    (cum, ccum)
 }
 
-/// Returns *x* such that Φ(*x*) = *p*; the inverse of [`cumnor`].
+/// Computes the inverse of the normal distribution.
 ///
-/// Takes both *p* and *q* = 1 − *p* so that the routine can root-find in
-/// the smaller of the two tails, preserving precision for *p* very close
-/// to 1.0 (where 1 − *p* loses digits to cancellation).
+/// Returns *x* such that [`cumnor`]\(*x*\) = *p*, that is, so that
+///
+/// *p* = ∫ exp(−*u*²/2) / √(2π) d*u*,
+///
+/// the integral running from −∞ to *x*. The arguments *p* and *q* are the
+/// probability and the complementary probability; the search runs on the
+/// smaller of the two, which preserves precision when *p* is close to 1.
+///
+/// The rational function on page 95 of Kennedy and Gentle ([`stvaln`]) is
+/// used as a starting value for the Newton method of finding roots. If the
+/// Newton method does not converge in 100 iterations, the starting value is
+/// returned.
+///
+/// This is CDFLIB's `dinvnr` (cdflib.f90:8041).
+///
+/// Reference: William Kennedy, James Gentle, Statistical Computing, Marcel
+/// Dekker, NY, 1980.
 ///
 /// # Example
 ///
@@ -165,26 +209,30 @@ pub fn cumnor(x: f64) -> (f64, f64) {
 /// ```
 ///
 /// [`cumnor`]: crate::special::cumnor
+/// [`stvaln`]: crate::special::internal::stvaln
 #[inline]
 pub fn dinvnr(p: f64, q: f64) -> f64 {
-    const MAXIT: u32 = 100;
     const EPS: f64 = 1.0e-13;
+    const MAXIT: i32 = 100;
     const R2PI: f64 = 0.3989422804014326;
 
+    // As with gfortran's min, f64::min returns the other argument when one
+    // of p and q is NaN.
     let pp = p.min(q);
     let strtx = stvaln(pp);
     let mut xcur = strtx;
 
     // Newton iterations.
-    for _ in 1..=MAXIT {
+    for _i in 1..=MAXIT {
         let (cum, _ccum) = cumnor(xcur);
-        let dx = (cum - pp) / (R2PI * (-0.5 * xcur * xcur).exp());
+        let dx = (cum - pp) / (R2PI * (-(0.5 * xcur * xcur)).exp());
         xcur -= dx;
+
         if (dx / xcur).abs() < EPS {
             return if p <= q { xcur } else { -xcur };
         }
     }
-    // Newton didn't converge; return the starting value (matches CDFLIB).
+
     if p <= q {
         strtx
     } else {
@@ -192,46 +240,75 @@ pub fn dinvnr(p: f64, q: f64) -> f64 {
     }
 }
 
-/// Kennedy–Gentle rational starting value for [`dinvnr`].
+/// Provides starting values for the inverse of the normal distribution.
 ///
-/// Returns *x* such that Φ(*x*) ≈ *p*, accurate to ~3 digits; enough for
-/// Newton to converge in a handful of iterations.
+/// Returns an *x* for which it is approximately true that
+/// *p* = [`cumnor`]\(*x*\), that is,
 ///
+/// *p* = ∫ exp(−*u*²/2) / √(2π) d*u*,
+///
+/// the integral running from −∞ to *x*; *p* is the probability whose normal
+/// deviate is sought. This is the starting value of [`dinvnr`].
+///
+/// This is CDFLIB's `stvaln` (cdflib.f90:14233).
+///
+/// Reference: William Kennedy, James Gentle, Statistical Computing, Marcel
+/// Dekker, NY, 1980, page 95.
+///
+/// [`cumnor`]: crate::special::cumnor
 /// [`dinvnr`]: crate::special::dinvnr
+#[allow(clippy::assign_op_pattern, clippy::needless_late_init)]
 pub fn stvaln(p: f64) -> f64 {
     const XDEN: [f64; 5] = [
         0.993484626060e-1,
-        0.588581570495e0,
-        0.531103462366e0,
-        0.103537752850e0,
+        0.588581570495,
+        0.531103462366,
+        0.103537752850,
         0.38560700634e-2,
     ];
     const XNUM: [f64; 5] = [
-        -0.322232431088e0,
-        -1.000000000000e0,
-        -0.342242088547e0,
+        -0.322232431088,
+        -1.000000000000,
+        -0.342242088547,
         -0.204231210245e-1,
         -0.453642210148e-4,
     ];
 
-    let (sign, z) = if p <= 0.5 { (-1.0, p) } else { (1.0, 1.0 - p) };
+    let sgn;
+    let z;
+
+    if p <= 0.5 {
+        sgn = -1.0;
+        z = p;
+    } else {
+        sgn = 1.0;
+        z = 1.0 - p;
+    }
+
     let y = (-2.0 * z.ln()).sqrt();
-    let num = eval_pol(&XNUM, y);
-    let den = eval_pol(&XDEN, y);
-    sign * (y + num / den)
+    let mut stvaln = y + eval_pol(&XNUM, y) / eval_pol(&XDEN, y);
+    stvaln = sgn * stvaln;
+
+    stvaln
 }
 
-/// Returns the logarithm of the asymptotic upper-tail standard normal CDF for
-/// |*x*| ≥ 5: returns ln Pr\[*X* > |*x*|\] for *X* ∼ *N*(0, 1) via Abramowitz &
-/// Stegun formula 26.2.12.
+/// Evaluates the logarithm of the asymptotic normal CDF.
 ///
-/// The relative error at *x* = 5 is about 5·10⁻⁶ and improves as |*x*|
-/// grows.
+/// Computes the logarithm of the cumulative normal distribution from |*x*|
+/// to infinity, that is, ln Pr[*X* > |*x*|] for a standard normal *X*, for
+/// 5 ≤ |*x*|.
+///
+/// The relative error at *x* = 5 is about 0.5·10⁻⁵.
+///
+/// This is CDFLIB's `dlanor` (cdflib.f90:8584).
+///
+/// Reference: Milton Abramowitz, Irene Stegun, Handbook of Mathematical
+/// Functions, 1966, Formula 26.2.12.
 ///
 /// # Panics
 ///
-/// Panics if |*x*| < 5 (the F90 routine prints a fatal-error message;
-/// the asymptotic formula is invalid in that regime).
+/// Panics if |*x*| < 5. In this case the F90 routine prints a fatal-error
+/// message and then continues with the asymptotic formula anyway.
 ///
 /// # Example
 ///
@@ -246,9 +323,8 @@ pub fn stvaln(p: f64) -> f64 {
 /// ```
 #[inline]
 pub fn dlanor(x: f64) -> f64 {
-    use super::gamma::alnrel;
-
-    // Bernoulli-style asymptotic coefficients: c[k] = (-1)^k (2k-1)!! .
+    // The coefficients (-1)^(k+1) (2k+1)!! of the asymptotic series in
+    // 1 / x^2.
     const COEF: [f64; 12] = [
         -1.0,
         3.0,
@@ -263,16 +339,22 @@ pub fn dlanor(x: f64) -> f64 {
         -13749310575.0,
         316234143225.0,
     ];
-    const DLSQPI: f64 = 0.91893853320467274177; // ½ ln(2π)
+    const DLSQPI: f64 = 0.91893853320467274177;
 
     let xx = x.abs();
-    if xx < 5.0 {
+
+    if x.abs() < 5.0 {
+        // Rust only: panic where the F90 prints a fatal-error message and
+        // continues (cdflib.f90:8641-8645).
         panic!("dlanor: argument |x| must be ≥ 5 (got {x})");
     }
-    let approx = -DLSQPI - 0.5 * x * x - xx.ln();
+
+    let approx = -DLSQPI - 0.5 * x * x - x.abs().ln();
+
     let xx2 = xx * xx;
-    let correc = eval_pol(&COEF, 1.0 / xx2) / xx2;
-    let correc = alnrel(correc);
+    let mut correc = eval_pol(&COEF, 1.0 / xx2) / xx2;
+    correc = alnrel(correc);
+
     approx + correc
 }
 

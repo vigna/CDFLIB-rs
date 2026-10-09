@@ -5,37 +5,40 @@
 
 use super::erf::error_fc_scaled;
 use super::gamma::{alnrel, gam1, gamma_ln1, gamma_log, gsumln, psi, rexp, rlog1};
+use super::pow2;
 
-/// Largest negative argument to `exp` for which the result is nonzero in
-/// IEEE 754 binary64; corresponds to CDFLIB's `exparg(1)`.
-/// 0.99999 · (−1022) · 0.69314718055995 matching F90 cdflib.f90:9544, :9555.
-const NEG_EXPARG: f64 = -708.389_334_568_083_540_9;
-/// Largest positive argument to `exp`; F90's `exparg(0)`.
-/// 0.99999 · 1024 · 0.69314718055995.
-const POS_EXPARG: f64 = 709.775_615_066_259_888_4;
-
-/// Returns exp(*μ* + *x*) where *μ* is a small integer scaling factor and *x* is a
-/// double. Splits into pieces to avoid intermediate overflow.
+/// Evaluates exp(*mu* + *x*) (cdflib.f90:9641).
+///
+/// The integer *mu* and the real *x* are both part of the argument.
 #[inline]
+#[allow(clippy::collapsible_if)]
 pub fn esum(mu: i32, x: f64) -> f64 {
     if x <= 0.0 {
-        if mu >= 0 {
+        if 0 <= mu {
             let w = mu as f64 + x;
             if w <= 0.0 {
                 return w.exp();
             }
         }
-    } else if mu <= 0 {
-        let w = mu as f64 + x;
-        if w >= 0.0 {
-            return w.exp();
+    } else if 0.0 < x {
+        if mu <= 0 {
+            let w = mu as f64 + x;
+            if 0.0 <= w {
+                return w.exp();
+            }
         }
     }
-    (mu as f64).exp() * x.exp()
+
+    let w = mu as f64;
+    w.exp() * x.exp()
 }
 
-/// Returns ln(Γ(*b*) / Γ(*a* + *b*)) for *b* ≥ 8.
+/// Computes ln(Γ(*b*) / Γ(*a* + *b*)) when 8 ≤ *b* (cdflib.f90:1).
+///
+/// In this algorithm, DEL(*x*) is the function defined by
+/// ln Γ(*x*) = (*x* − 0.5) ln *x* − *x* + 0.5 ln(2π) + DEL(*x*).
 #[inline]
+#[allow(clippy::needless_late_init)]
 pub fn algdiv(a: f64, b: f64) -> f64 {
     const C0: f64 = 0.833333333333333e-1;
     const C1: f64 = -0.277777777760991e-2;
@@ -44,20 +47,24 @@ pub fn algdiv(a: f64, b: f64) -> f64 {
     const C4: f64 = 0.837308034031215e-3;
     const C5: f64 = -0.165322962780713e-2;
 
-    let (c, x, d) = if b < a {
-        let h = b / a;
-        let c = 1.0 / (1.0 + h);
-        let x = h / (1.0 + h);
-        let d = a + (b - 0.5);
-        (c, x, d)
-    } else {
-        let h = a / b;
-        let c = h / (1.0 + h);
-        let x = 1.0 / (1.0 + h);
-        let d = b + (a - 0.5);
-        (c, x, d)
-    };
+    let c;
+    let d;
+    let h;
+    let x;
 
+    if b < a {
+        h = b / a;
+        c = 1.0 / (1.0 + h);
+        x = h / (1.0 + h);
+        d = a + (b - 0.5);
+    } else {
+        h = a / b;
+        c = h / (1.0 + h);
+        x = 1.0 / (1.0 + h);
+        d = b + (a - 0.5);
+    }
+
+    // Set SN = (1 - X^N)/(1 - X).
     let x2 = x * x;
     let s3 = 1.0 + (x + x2);
     let s5 = 1.0 + (x + x2 * s3);
@@ -65,21 +72,27 @@ pub fn algdiv(a: f64, b: f64) -> f64 {
     let s9 = 1.0 + (x + x2 * s7);
     let s11 = 1.0 + (x + x2 * s9);
 
-    let t = (1.0 / b).powi(2);
-    let w = ((((C5 * s11 * t + C4 * s9) * t + C3 * s7) * t + C2 * s5) * t + C1 * s3) * t + C0;
-    let w = w * (c / b);
+    // Set W = DEL(B) - DEL(A + B).
+    let t = pow2(1.0 / b);
+    let mut w = ((((C5 * s11 * t + C4 * s9) * t + C3 * s7) * t + C2 * s5) * t + C1 * s3) * t + C0;
 
+    w *= c / b;
+
+    // Combine the results.
     let u = d * alnrel(a / b);
     let v = a * (b.ln() - 1.0);
 
     if v < u {
-        w - v - u
+        (w - v) - u
     } else {
-        w - u - v
+        (w - u) - v
     }
 }
 
-/// Returns ln Β(*a*, *b*) = ln Γ(*a*) + ln Γ(*b*) − ln Γ(*a* + *b*).
+/// Evaluates the logarithm of the Β function, ln Β(*a0*, *b0*)
+/// (cdflib.f90:1460).
+///
+/// *a0* and *b0* should be nonnegative.
 ///
 /// # Example
 ///
@@ -95,82 +108,96 @@ pub fn beta_log(a0: f64, b0: f64) -> f64 {
     const E: f64 = 0.918938533204673;
 
     let mut a = a0.min(b0);
-    let b = a0.max(b0);
+    let mut b = a0.max(b0);
 
-    if a >= 8.0 {
-        // Procedure for a ≥ 8.
+    // 8 <= A.
+    if 8.0 <= a {
         let w = bcorr(a, b);
         let h = a / b;
         let c = h / (1.0 + h);
         let u = -((a - 0.5) * c.ln());
         let v = b * alnrel(h);
+
         return if v < u {
-            -(0.5 * b.ln()) + E + w - v - u
+            (((-(0.5 * b.ln()) + E) + w) - v) - u
         } else {
-            -(0.5 * b.ln()) + E + w - u - v
+            (((-(0.5 * b.ln()) + E) + w) - u) - v
         };
     }
 
+    // Procedure when A < 1.
     if a < 1.0 {
-        // a < 1
-        if b < 8.0 {
-            return gamma_log(a) + (gamma_log(b) - gamma_log(a + b));
-        }
-        return gamma_log(a) + algdiv(a, b);
+        return if b < 8.0 {
+            gamma_log(a) + (gamma_log(b) - gamma_log(a + b))
+        } else {
+            gamma_log(a) + algdiv(a, b)
+        };
     }
 
-    // 1 ≤ a < 8
-    if a <= 2.0 {
-        if b <= 2.0 {
-            return gamma_log(a) + gamma_log(b) - gsumln(a, b);
-        }
-        let w = 0.0;
-        if b >= 8.0 {
+    // Procedure when 1 <= A < 8.
+    let mut w;
+    'l60: {
+        'l40: {
+            if 2.0 < a {
+                break 'l40;
+            }
+
+            if b <= 2.0 {
+                return gamma_log(a) + gamma_log(b) - gsumln(a, b);
+            }
+
+            w = 0.0;
+
+            if b < 8.0 {
+                break 'l60;
+            }
+
             return gamma_log(a) + algdiv(a, b);
         }
-        // fall through to S60 with w = 0
-        return reduce_b(a, b, w);
-    }
 
-    // 2 < a < 8
-    if b > 1000.0 {
-        // S80: reduction of a
-        let n = (a - 1.0) as i64;
-        let mut w = 1.0;
-        for _ in 0..n {
-            a -= 1.0;
-            w *= a / (1.0 + a / b);
+        // Label 40: reduction of A when 1000 < B.
+        if 1000.0 < b {
+            let n = (a - 1.0) as i32;
+            w = 1.0;
+            for _ in 1..=n {
+                a -= 1.0;
+                w *= a / (1.0 + a / b);
+            }
+
+            return (w.ln() - n as f64 * b.ln()) + (gamma_log(a) + algdiv(a, b));
         }
-        return w.ln() - (n as f64) * b.ln() + (gamma_log(a) + algdiv(a, b));
+
+        let n = (a - 1.0) as i32;
+        w = 1.0;
+        for _ in 1..=n {
+            a -= 1.0;
+            let h = a / b;
+            w *= h / (1.0 + h);
+        }
+        w = w.ln();
+
+        if 8.0 <= b {
+            return w + gamma_log(a) + algdiv(a, b);
+        }
     }
 
-    // b ≤ 1000: reduce a
-    let n = (a - 1.0) as i64;
-    let mut w = 1.0;
-    for _ in 0..n {
-        a -= 1.0;
-        let h = a / b;
-        w *= h / (1.0 + h);
-    }
-    let w = w.ln();
-    if b >= 8.0 {
-        return w + gamma_log(a) + algdiv(a, b);
-    }
-    reduce_b(a, b, w)
-}
-
-fn reduce_b(a: f64, b0: f64, w: f64) -> f64 {
-    let mut b = b0;
-    let n = (b - 1.0) as i64;
+    // Label 60: reduction of B when B < 8.
+    let n = (b - 1.0) as i32;
     let mut z = 1.0;
-    for _ in 0..n {
+    for _ in 1..=n {
         b -= 1.0;
         z *= b / (a + b);
     }
+
     w + z.ln() + (gamma_log(a) + (gamma_log(b) - gsumln(a, b)))
 }
 
-/// Returns Δ(*a*) + Δ(*b*) − Δ(*a* + *b*), for *a* ≥ 8 and *b* ≥ 8.
+/// Evaluates DEL(*a0*) + DEL(*b0*) − DEL(*a0* + *b0*) (cdflib.f90:282).
+///
+/// The function DEL(*a*) is a remainder term that is used in the expression
+/// ln Γ(*a*) = (*a* − 0.5) ln *a* − *a* + 0.5 ln(2π) + DEL(*a*).
+///
+/// It is assumed that 8 ≤ *a0* and 8 ≤ *b0*.
 #[inline]
 pub fn bcorr(a0: f64, b0: f64) -> f64 {
     const C0: f64 = 0.833333333333333e-1;
@@ -182,23 +209,33 @@ pub fn bcorr(a0: f64, b0: f64) -> f64 {
 
     let a = a0.min(b0);
     let b = a0.max(b0);
+
     let h = a / b;
     let c = h / (1.0 + h);
     let x = 1.0 / (1.0 + h);
     let x2 = x * x;
+
+    // Set SN = (1 - X^N)/(1 - X).
     let s3 = 1.0 + (x + x2);
     let s5 = 1.0 + (x + x2 * s3);
     let s7 = 1.0 + (x + x2 * s5);
     let s9 = 1.0 + (x + x2 * s7);
     let s11 = 1.0 + (x + x2 * s9);
-    let t = (1.0 / b).powi(2);
-    let w = ((((C5 * s11 * t + C4 * s9) * t + C3 * s7) * t + C2 * s5) * t + C1 * s3) * t + C0;
-    let w = w * (c / b);
-    let t = (1.0 / a).powi(2);
+
+    // Set W = DEL(B) - DEL(A + B).
+    let mut t = pow2(1.0 / b);
+
+    let mut w = ((((C5 * s11 * t + C4 * s9) * t + C3 * s7) * t + C2 * s5) * t + C1 * s3) * t + C0;
+
+    w *= c / b;
+
+    // Compute DEL(A) + W.
+    t = pow2(1.0 / a);
+
     (((((C5 * t + C4) * t + C3) * t + C2) * t + C1) * t + C0) / a + w
 }
 
-/// Returns Β(*a*, *b*) = Γ(*a*) Γ(*b*) / Γ(*a* + *b*).
+/// Evaluates the Β function, Β(*a*, *b*) (cdflib.f90:400).
 ///
 /// # Example
 ///
@@ -213,545 +250,769 @@ pub fn beta(a: f64, b: f64) -> f64 {
     beta_log(a, b).exp()
 }
 
-/// Returns the Stirling remainder for the complete Β function:
-/// ln Β(*a*, *b*) − [Stirling(*a*) + Stirling(*b*) − Stirling(*a* + *b*)],
-/// where Stirling(*z*) = ln √(2π) + (*z* − ½) ln *z* − *z*.
+/// Computes the Sterling remainder for the complete Β function
+/// (cdflib.f90:7919).
 ///
-/// Sums from smallest to largest argument for accuracy.
+/// ln Β(*a*, *b*) = ln Γ(*a*) + ln Γ(*b*) − ln Γ(*a* + *b*). Let *zz* be the
+/// approximation obtained if each ln Γ is approximated by Sterling's formula,
+/// Sterling(*z*) = ln √(2π) + (*z* − 0.5) ln *z* − *z*. The Sterling remainder
+/// is ln Β(*a*, *b*) − *zz*.
 ///
 /// # Example
 ///
 /// ```
 /// use cdflib::special::internal::dbetrm;
 ///
-/// // Stirling remainder is small and decreasing in (a, b) for large args.
+/// // Sterling remainder is small and decreasing in (a, b) for large args.
 /// let r = dbetrm(50.0, 60.0);
 /// assert!(r.abs() < 0.01);
 /// ```
 #[inline]
 pub fn dbetrm(a: f64, b: f64) -> f64 {
     use super::gamma::dstrem;
-    let mut r = -dstrem(a + b);
-    r += dstrem(a.max(b));
-    r += dstrem(a.min(b));
-    r
+
+    // Try to sum from smallest to largest.
+    let mut dbetrm = -dstrem(a + b);
+    dbetrm += dstrem(a.max(b));
+    dbetrm += dstrem(a.min(b));
+
+    dbetrm
 }
 
-/// Returns *Iₓ*(*a*, *b*) when *b* < min(*ε*, *ε*·*a*) and *x* ≤ 0.5.
+/// Evaluates *Iₓ*(*a*, *b*) for very small *b* (cdflib.f90:10075).
+///
+/// This routine is appropriate for use when *b* < min(*eps*, *eps*·*a*) and
+/// *x* ≤ 0.5.
 #[inline]
+#[allow(clippy::assign_op_pattern)]
 pub fn fpser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
-    let mut result = 1.0;
-    if a > 1e-3 * eps {
-        // F90 cdflib.f90:9854-9863 has fpser = 0.0D+00 here before the
-        // t = a * log(x) line, used as a dead-store before the t.exp()
-        // overwrite or the return on underflow. Mirror it explicitly:
-        result = 0.0;
+    use super::exparg;
+
+    let mut fpser = 1.0;
+
+    if 1.0e-3 * eps < a {
+        fpser = 0.0;
         let t = a * x.ln();
-        if t < NEG_EXPARG {
-            return result;
+        if t < exparg(1) {
+            return fpser;
         }
-        result = t.exp();
+        fpser = t.exp();
     }
-    result *= b / a;
+
+    // 1/B(A,B) = B
+    fpser = (b / a) * fpser;
     let tol = eps / a;
     let mut an = a + 1.0;
     let mut t = x;
     let mut s = t / an;
+
     loop {
         an += 1.0;
-        t *= x;
+        t = x * t;
         let c = t / an;
         s += c;
+
         if c.abs() <= tol {
             break;
         }
+        // Rust only: the F90 loop never exits once tol is NaN or a term is
+        // NaN or infinite.
+        if tol.is_nan() || !c.is_finite() {
+            return f64::NAN;
+        }
     }
-    result * (1.0 + a * s)
+
+    fpser * (1.0 + a * s)
 }
 
-/// Returns *I*₁ ₋ *ₓ*(*b*, *a*) when *a* is very small. Note the swapped
-/// parameter convention: caller passes (*a*, *b*, *x*) where *a* is the
-/// small parameter.
+/// Computes the incomplete Β ratio *I*₁₋ₓ(*b*, *a*) (cdflib.f90:188).
+///
+/// `apser` is used only for cases where *a* ≤ min(*eps*, *eps*·*b*),
+/// *b*·*x* ≤ 1, and *x* ≤ 0.5.
 #[inline]
 pub fn apser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
     const G: f64 = 0.577215664901533;
+
     let bx = b * x;
     let mut t = x - bx;
-    let c = if b * eps <= 2e-2 {
+
+    let c = if b * eps <= 0.02 {
         x.ln() + psi(b) + G + t
     } else {
         bx.ln() + G + t
     };
+
     let tol = 5.0 * eps * c.abs();
     let mut j = 1.0;
     let mut s = 0.0;
+
     loop {
         j += 1.0;
         t *= x - bx / j;
         let aj = t / j;
         s += aj;
+
         if aj.abs() <= tol {
             break;
         }
+        // Rust only: the F90 loop never exits once tol is NaN or a term is
+        // NaN or infinite.
+        if tol.is_nan() || !aj.is_finite() {
+            return f64::NAN;
+        }
     }
+
     -(a * (c + s))
 }
 
-/// Returns *Iₓ*(*a*, *b*) by power series when *b* ≤ 1 or *b*·*x* ≤ 0.7.
+/// Uses a power series expansion to evaluate *Iₓ*(*a*, *b*)
+/// (cdflib.f90:1625).
+///
+/// `beta_pser` is used when *b* ≤ 1 or *b*·*x* ≤ 0.7. *eps* is the tolerance.
 #[inline]
+#[allow(clippy::assign_op_pattern)]
 pub fn beta_pser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
+    let mut beta_pser = 0.0;
+
     if x == 0.0 {
-        return 0.0;
+        return beta_pser;
     }
 
+    // Compute the factor X^A/(A*BETA(A,B)).
     let a0 = a.min(b);
-    let mut result;
-    if a0 >= 1.0 {
+
+    if 1.0 <= a0 {
         let z = a * x.ln() - beta_log(a, b);
-        result = z.exp() / a;
+        beta_pser = z.exp() / a;
     } else {
         let mut b0 = a.max(b);
+
         if b0 <= 1.0 {
-            // a < 1, b ≤ 1
-            result = x.powf(a);
-            if result == 0.0 {
-                return 0.0;
+            beta_pser = x.powf(a);
+            if beta_pser == 0.0 {
+                return beta_pser;
             }
+
             let apb = a + b;
+
             let z = if apb <= 1.0 {
                 1.0 + gam1(apb)
             } else {
                 let u = a + b - 1.0;
                 (1.0 + gam1(u)) / apb
             };
+
             let c = (1.0 + gam1(a)) * (1.0 + gam1(b)) / z;
-            result = result * c * (b / apb);
+            beta_pser = beta_pser * c * (b / apb);
         } else if b0 < 8.0 {
-            // a < 1, 1 < b < 8
             let mut u = gamma_ln1(a0);
-            let m = (b0 - 1.0) as i64;
+            let m = (b0 - 1.0) as i32;
+
             let mut c = 1.0;
             for _ in 1..=m {
                 b0 -= 1.0;
                 c *= b0 / (a0 + b0);
             }
-            u += c.ln();
+
+            u = c.ln() + u;
             let z = a * x.ln() - u;
             b0 -= 1.0;
             let apb = a0 + b0;
+
             let t = if apb <= 1.0 {
                 1.0 + gam1(apb)
             } else {
-                let u = a0 + b0 - 1.0;
+                u = a0 + b0 - 1.0;
                 (1.0 + gam1(u)) / apb
             };
-            result = z.exp() * (a0 / a) * (1.0 + gam1(b0)) / t;
-        } else {
-            // a < 1, b ≥ 8
+
+            beta_pser = z.exp() * (a0 / a) * (1.0 + gam1(b0)) / t;
+        } else if 8.0 <= b0 {
             let u = gamma_ln1(a0) + algdiv(a0, b0);
             let z = a * x.ln() - u;
-            result = (a0 / a) * z.exp();
+            beta_pser = (a0 / a) * z.exp();
         }
     }
 
-    if result == 0.0 || a <= 0.1 * eps {
-        return result;
+    if beta_pser == 0.0 || a <= 0.1 * eps {
+        return beta_pser;
     }
 
-    // Series.
-    let mut sum = 0.0;
+    // Compute the series.
+    let mut sum1 = 0.0;
     let mut n = 0.0;
     let mut c = 1.0;
     let tol = eps / a;
+
     loop {
         n += 1.0;
         c = c * (0.5 + (0.5 - b / n)) * x;
         let w = c / (a + n);
-        sum += w;
+        sum1 += w;
+
         if w.abs() <= tol {
             break;
         }
+        // Rust only: the F90 loop never exits once tol is NaN or a term is
+        // NaN or infinite.
+        if tol.is_nan() || !w.is_finite() {
+            return f64::NAN;
+        }
     }
-    result * (1.0 + a * sum)
+
+    beta_pser * (1.0 + a * sum1)
 }
 
-/// Returns *xᵃ* · *yᵇ* / Β(*a*, *b*).
+/// Evaluates *xᵃ* · *yᵇ* / Β(*a*, *b*) (cdflib.f90:1798).
+///
+/// *a* and *b* should be nonnegative; *x* and *y* define the numerator of the
+/// fraction.
 #[inline]
+#[allow(clippy::assign_op_pattern, clippy::needless_late_init)]
 pub fn beta_rcomp(a: f64, b: f64, x: f64, y: f64) -> f64 {
-    const CONST_VAL: f64 = 0.398942280401433; // 1/√(2π)
+    const CONST: f64 = 0.398942280401433;
+
+    let mut beta_rcomp = 0.0;
     if x == 0.0 || y == 0.0 {
-        return 0.0;
+        return beta_rcomp;
     }
+
     let a0 = a.min(b);
+
     if a0 < 8.0 {
-        let (lnx, lny) = if x <= 0.375 {
-            (x.ln(), alnrel(-x))
+        let lnx;
+        let lny;
+        if x <= 0.375 {
+            lnx = x.ln();
+            lny = alnrel(-x);
         } else if y <= 0.375 {
-            (alnrel(-y), y.ln())
+            lnx = alnrel(-y);
+            lny = y.ln();
         } else {
-            (x.ln(), y.ln())
-        };
-        let z = a * lnx + b * lny;
-        if a0 >= 1.0 {
-            return (z - beta_log(a, b)).exp();
+            lnx = x.ln();
+            lny = y.ln();
         }
-        // Procedure for a < 1 or b < 1.
+
+        let mut z = a * lnx + b * lny;
+
+        if 1.0 <= a0 {
+            z -= beta_log(a, b);
+            beta_rcomp = z.exp();
+            return beta_rcomp;
+        }
+
+        // Procedure for A < 1 or B < 1.
         let mut b0 = a.max(b);
+
         if b0 <= 1.0 {
-            let result = z.exp();
-            if result == 0.0 {
-                return 0.0;
+            beta_rcomp = z.exp();
+            if beta_rcomp == 0.0 {
+                return beta_rcomp;
             }
+
             let apb = a + b;
-            let z = if apb <= 1.0 {
-                1.0 + gam1(apb)
+
+            if apb <= 1.0 {
+                z = 1.0 + gam1(apb);
             } else {
                 let u = a + b - 1.0;
-                (1.0 + gam1(u)) / apb
-            };
+                z = (1.0 + gam1(u)) / apb;
+            }
+
             let c = (1.0 + gam1(a)) * (1.0 + gam1(b)) / z;
-            return result * (a0 * c) / (1.0 + a0 / b0);
-        }
-        if b0 < 8.0 {
+            beta_rcomp = beta_rcomp * (a0 * c) / (1.0 + a0 / b0);
+        } else if b0 < 8.0 {
             let mut u = gamma_ln1(a0);
-            let n = (b0 - 1.0) as i64;
+            let n = (b0 - 1.0) as i32;
+
             let mut c = 1.0;
             for _ in 1..=n {
                 b0 -= 1.0;
                 c *= b0 / (a0 + b0);
             }
-            u += c.ln();
-            let z = z - u;
+            u = c.ln() + u;
+
+            z -= u;
             b0 -= 1.0;
             let apb = a0 + b0;
+
             let t = if apb <= 1.0 {
                 1.0 + gam1(apb)
             } else {
-                let u = a0 + b0 - 1.0;
+                u = a0 + b0 - 1.0;
                 (1.0 + gam1(u)) / apb
             };
-            return a0 * z.exp() * (1.0 + gam1(b0)) / t;
-        }
-        // 8 <= b0
-        let u = gamma_ln1(a0) + algdiv(a0, b0);
-        return a0 * (z - u).exp();
-    }
-    // a ≥ 8 and b ≥ 8.
-    let (x0, y0, lambda) = if a <= b {
-        let h = a / b;
-        (h / (1.0 + h), 1.0 / (1.0 + h), a - (a + b) * x)
-    } else {
-        let h = b / a;
-        (1.0 / (1.0 + h), h / (1.0 + h), (a + b) * y - b)
-    };
-    let e = -(lambda / a);
-    let u = if e.abs() <= 0.6 {
-        rlog1(e)
-    } else {
-        e - (x / x0).ln()
-    };
-    let e = lambda / b;
-    // Use y0 directly, not 1.0 - x0. The two are mathematically equal but
-    // 1.0 - x0 loses precision (down to exactly 0) when
-    // h = min(a,b)/max(a,b) is below f64 epsilon, while y0 = h/(1+h)
-    // preserves the small value. Matches F90's use of log(y/y0).
-    let v = if e.abs() <= 0.6 {
-        rlog1(e)
-    } else {
-        e - (y / y0).ln()
-    };
-    let z = (-(a * u + b * v)).exp();
-    CONST_VAL * (b * x0).sqrt() * z * (-bcorr(a, b)).exp()
-}
 
-/// Returns exp(*μ*) · *xᵃ* · *yᵇ* / Β(*a*, *b*).
-#[inline]
-pub fn beta_rcomp1(mu: i32, a: f64, b: f64, x: f64, y: f64) -> f64 {
-    const CONST_VAL: f64 = 0.398942280401433;
-    let a0 = a.min(b);
-    if a0 >= 8.0 {
-        let (x0, y0, lambda) = if a <= b {
-            let h = a / b;
-            (h / (1.0 + h), 1.0 / (1.0 + h), a - (a + b) * x)
+            beta_rcomp = a0 * z.exp() * (1.0 + gam1(b0)) / t;
+        } else if 8.0 <= b0 {
+            let u = gamma_ln1(a0) + algdiv(a0, b0);
+            beta_rcomp = a0 * (z - u).exp();
+        }
+    } else {
+        let h;
+        let x0;
+        let y0;
+        let lambda;
+        if a <= b {
+            h = a / b;
+            x0 = h / (1.0 + h);
+            y0 = 1.0 / (1.0 + h);
+            lambda = a - (a + b) * x;
         } else {
-            let h = b / a;
-            (1.0 / (1.0 + h), h / (1.0 + h), (a + b) * y - b)
-        };
-        let e = -(lambda / a);
+            h = b / a;
+            x0 = 1.0 / (1.0 + h);
+            y0 = h / (1.0 + h);
+            lambda = (a + b) * y - b;
+        }
+
+        let mut e = -(lambda / a);
+
         let u = if e.abs() <= 0.6 {
             rlog1(e)
         } else {
             e - (x / x0).ln()
         };
-        let e = lambda / b;
-        // Use y0 directly; see the comment in beta_rcomp for the rationale.
+
+        e = lambda / b;
+
         let v = if e.abs() <= 0.6 {
             rlog1(e)
         } else {
             e - (y / y0).ln()
         };
-        let t4 = -(a * u + b * v);
-        let z = esum(mu, t4);
-        return CONST_VAL * (b * x0).sqrt() * z * (-bcorr(a, b)).exp();
+
+        let z = (-(a * u + b * v)).exp();
+        beta_rcomp = CONST * (b * x0).sqrt() * z * (-bcorr(a, b)).exp();
     }
 
-    let (lnx, lny) = if x <= 0.375 {
-        (x.ln(), alnrel(-x))
-    } else if y <= 0.375 {
-        (alnrel(-y), y.ln())
-    } else {
-        (x.ln(), y.ln())
-    };
-    let z = a * lnx + b * lny;
-    if a0 >= 1.0 {
-        return esum(mu, z - beta_log(a, b));
-    }
-    // Procedure for a < 1 or b < 1.
-    let mut b0 = a.max(b);
-    if b0 >= 8.0 {
-        let u = gamma_ln1(a0) + algdiv(a0, b0);
-        return a0 * esum(mu, z - u);
-    }
-    if b0 > 1.0 {
-        // Algorithm for 1 < b0 < 8.
-        let mut u = gamma_ln1(a0);
-        let n = (b0 - 1.0) as i64;
-        let mut c = 1.0;
-        for _ in 1..=n {
-            b0 -= 1.0;
-            c *= b0 / (a0 + b0);
-        }
-        u += c.ln();
-        let z = z - u;
-        b0 -= 1.0;
-        let apb = a0 + b0;
-        let t = if apb <= 1.0 {
-            1.0 + gam1(apb)
-        } else {
-            let u = a0 + b0 - 1.0;
-            (1.0 + gam1(u)) / apb
-        };
-        return a0 * esum(mu, z) * (1.0 + gam1(b0)) / t;
-    }
-    // Algorithm for b0 ≤ 1.
-    let result = esum(mu, z);
-    if result == 0.0 {
-        return 0.0;
-    }
-    let apb = a + b;
-    let z = if apb <= 1.0 {
-        1.0 + gam1(apb)
-    } else {
-        let u = a + b - 1.0;
-        (1.0 + gam1(u)) / apb
-    };
-    let c = (1.0 + gam1(a)) * (1.0 + gam1(b)) / z;
-    result * (a0 * c) / (1.0 + a0 / b0)
+    beta_rcomp
 }
 
-/// Returns *Iₓ*(*a*, *b*) − *Iₓ*(*a* + *n*, *b*) for positive integer *n*.
+/// Evaluates exp(*mu*) · *xᵃ* · *yᵇ* / Β(*a*, *b*) (cdflib.f90:1992).
+///
+/// *a* and *b* should be nonnegative; *x* and *y* are the quantities whose
+/// powers form part of the expression.
 #[inline]
+#[allow(clippy::assign_op_pattern, clippy::needless_late_init)]
+pub fn beta_rcomp1(mu: i32, a: f64, b: f64, x: f64, y: f64) -> f64 {
+    const CONST: f64 = 0.398942280401433;
+
+    let mut beta_rcomp1;
+
+    let a0 = a.min(b);
+
+    if 8.0 <= a0 {
+        // Procedure for 8 <= A and 8 <= B.
+        let h;
+        let x0;
+        let y0;
+        let lambda;
+        if a <= b {
+            h = a / b;
+            x0 = h / (1.0 + h);
+            y0 = 1.0 / (1.0 + h);
+            lambda = a - (a + b) * x;
+        } else {
+            h = b / a;
+            x0 = 1.0 / (1.0 + h);
+            y0 = h / (1.0 + h);
+            lambda = (a + b) * y - b;
+        }
+
+        let mut e = -(lambda / a);
+
+        let u = if e.abs() <= 0.6 {
+            rlog1(e)
+        } else {
+            e - (x / x0).ln()
+        };
+
+        e = lambda / b;
+
+        let v = if e.abs() <= 0.6 {
+            rlog1(e)
+        } else {
+            e - (y / y0).ln()
+        };
+
+        let z = esum(mu, -(a * u + b * v));
+        beta_rcomp1 = CONST * (b * x0).sqrt() * z * (-bcorr(a, b)).exp();
+    } else {
+        // Procedure for A < 8 or B < 8.
+        let lnx;
+        let lny;
+        if x <= 0.375 {
+            lnx = x.ln();
+            lny = alnrel(-x);
+        } else if y <= 0.375 {
+            lnx = alnrel(-y);
+            lny = y.ln();
+        } else {
+            lnx = x.ln();
+            lny = y.ln();
+        }
+
+        let mut z = a * lnx + b * lny;
+
+        if 1.0 <= a0 {
+            z -= beta_log(a, b);
+            beta_rcomp1 = esum(mu, z);
+            return beta_rcomp1;
+        }
+
+        // Procedure for A < 1 or B < 1.
+        let mut b0 = a.max(b);
+
+        if 8.0 <= b0 {
+            let u = gamma_ln1(a0) + algdiv(a0, b0);
+            beta_rcomp1 = a0 * esum(mu, z - u);
+            return beta_rcomp1;
+        }
+
+        if 1.0 < b0 {
+            // Algorithm for 1 < B0 < 8.
+            let mut u = gamma_ln1(a0);
+            let n = (b0 - 1.0) as i32;
+
+            let mut c = 1.0;
+            for _ in 1..=n {
+                b0 -= 1.0;
+                c *= b0 / (a0 + b0);
+            }
+            u = c.ln() + u;
+
+            z -= u;
+            b0 -= 1.0;
+            let apb = a0 + b0;
+
+            let t = if apb <= 1.0 {
+                1.0 + gam1(apb)
+            } else {
+                u = a0 + b0 - 1.0;
+                (1.0 + gam1(u)) / apb
+            };
+
+            beta_rcomp1 = a0 * esum(mu, z) * (1.0 + gam1(b0)) / t;
+        } else {
+            // Algorithm for B0 <= 1.
+            beta_rcomp1 = esum(mu, z);
+            if beta_rcomp1 == 0.0 {
+                return beta_rcomp1;
+            }
+
+            let apb = a + b;
+
+            if apb <= 1.0 {
+                z = 1.0 + gam1(apb);
+            } else {
+                let u = a + b - 1.0;
+                z = (1.0 + gam1(u)) / apb;
+            }
+
+            let c = (1.0 + gam1(a)) * (1.0 + gam1(b)) / z;
+            beta_rcomp1 = beta_rcomp1 * (a0 * c) / (1.0 + a0 / b0);
+        }
+    }
+
+    beta_rcomp1
+}
+
+/// Evaluates *Iₓ*(*a*, *b*) − *Iₓ*(*a* + *n*, *b*) where *n* is a positive
+/// integer (cdflib.f90:2196).
+///
+/// *a* and *b* should be nonnegative; *n* is the increment to the first
+/// argument of *Iₓ*; *eps* is the tolerance.
+#[inline]
+#[allow(clippy::assign_op_pattern, clippy::collapsible_if)]
 pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
+    use super::exparg;
+
+    // Obtain the scaling factor exp(-MU) and
+    // exp(MU) * (X^A * Y^B / BETA(A,B)) / A.
     let apb = a + b;
     let ap1 = a + 1.0;
     let mut mu = 0;
     let mut d = 1.0;
-    if n != 1 && a >= 1.0 && apb >= 1.1 * ap1 {
-        // F90 (cdflib.f90:2267-2273): mu = abs(exparg(1)), k = exparg(0).
-        // NEG_EXPARG = exparg(1) (negative bound), POS_EXPARG = exparg(0).
-        mu = NEG_EXPARG.abs() as i32;
-        let k = POS_EXPARG as i32;
-        if k < mu {
-            mu = k;
+
+    if n != 1 {
+        if 1.0 <= a {
+            if 1.1 * ap1 <= apb {
+                mu = exparg(1).abs() as i32;
+                let k = exparg(0) as i32;
+                if k < mu {
+                    mu = k;
+                }
+                let t = mu as f64;
+                d = (-t).exp();
+            }
         }
-        d = (-(mu as f64)).exp();
     }
-    let bup = beta_rcomp1(mu, a, b, x, y) / a;
-    if n == 1 || bup == 0.0 {
-        return bup;
+
+    let beta_up = beta_rcomp1(mu, a, b, x, y) / a;
+
+    if n == 1 || beta_up == 0.0 {
+        return beta_up;
     }
-    let nm1 = n - 1;
+
     let mut w = d;
-    let mut k = 0_i32;
-    if b > 1.0 {
-        if y <= 1e-4 {
-            k = nm1;
+
+    // Let K be the index of the maximum term.
+    let mut k = 0;
+
+    if 1.0 < b {
+        if y <= 0.0001 {
+            k = n - 1;
         } else {
             let r = (b - 1.0) * x / y - a;
-            if r >= 1.0 {
-                let t = nm1 as f64;
-                k = nm1;
+
+            if 1.0 <= r {
+                k = n - 1;
+                let t = (n - 1) as f64;
                 if r < t {
                     k = r as i32;
                 }
             }
         }
+
         // Add the increasing terms of the series.
         for i in 1..=k {
             let l = (i - 1) as f64;
-            d *= ((apb + l) / (ap1 + l)) * x;
+            d = ((apb + l) / (ap1 + l)) * x * d;
             w += d;
         }
     }
-    // Add remaining terms.
-    let kp1 = k + 1;
-    for i in kp1..=nm1 {
+
+    // Add the remaining terms of the series.
+    for i in (k + 1)..=(n - 1) {
         let l = (i - 1) as f64;
-        d *= (apb + l) / (ap1 + l) * x;
+        d = ((apb + l) / (ap1 + l)) * x * d;
         w += d;
         if d <= eps * w {
-            break;
+            return beta_up * w;
         }
     }
-    bup * w
+
+    beta_up * w
 }
 
-/// Returns the incomplete Γ ratios *P*(*a*, *x*), *Q*(*a*, *x*) specialized to
-/// *a* ≤ 1. Used by [`beta_grat`].
+/// Evaluates the incomplete Γ ratio functions *P*(*a*, *x*) and
+/// *Q*(*a*, *x*) (cdflib.f90:12208).
 ///
-/// [`beta_grat`]: crate::special::internal::beta_grat
+/// It is assumed that *a* ≤ 1. The argument *r* is the value
+/// exp(−*x*) · *x*^*a* / Γ(*a*), and *eps* is the tolerance. Returns
+/// (*p*, *q*), the values of *P*(*a*, *x*) and *Q*(*a*, *x*).
 #[inline]
 pub fn gamma_rat1(a: f64, x: f64, r: f64, eps: f64) -> (f64, f64) {
     use super::erf::{error_f, error_fc};
+
+    let p;
+    let mut q;
+
     if a * x == 0.0 {
-        return if x <= a { (0.0, 1.0) } else { (1.0, 0.0) };
-    }
-    if a == 0.5 {
-        let rtx = x.sqrt();
-        return if x < 0.25 {
-            let p = error_f(rtx);
-            (p, 0.5 + (0.5 - p))
+        if x <= a {
+            p = 0.0;
+            q = 1.0;
         } else {
-            let q = error_fc(rtx);
-            (0.5 + (0.5 - q), q)
-        };
+            p = 1.0;
+            q = 0.0;
+        }
+
+        return (p, q);
     }
 
+    if a == 0.5 {
+        if x < 0.25 {
+            p = error_f(x.sqrt());
+            q = 0.5 + (0.5 - p);
+        } else {
+            q = error_fc(x.sqrt());
+            p = 0.5 + (0.5 - q);
+        }
+
+        return (p, q);
+    }
+
+    // Rust only: with a or x NaN or infinite, the F90 Taylor series or
+    // continued fraction below never exits, except for an infinite a with
+    // x < 1.1, where the Taylor series exits at once and j = a * x * 0 is
+    // NaN.
+    if !a.is_finite() || !x.is_finite() {
+        return (f64::NAN, f64::NAN);
+    }
+
+    // Taylor series for P(A,X)/X^A.
     if x < 1.1 {
-        // Taylor series for P(a, x)/x^a.
-        let mut an: f64 = 3.0;
+        let mut an = 3.0;
         let mut c = x;
-        let mut sum = x / (a + 3.0);
+        let mut sum1 = x / (a + 3.0);
         let tol = 0.1 * eps / (a + 1.0);
+
         loop {
             an += 1.0;
             c = -(c * (x / an));
             let t = c / (a + an);
-            sum += t;
+            sum1 += t;
+
             if t.abs() <= tol {
                 break;
             }
         }
-        let j = a * x * ((sum / 6.0 - 0.5 / (a + 2.0)) * x + 1.0 / (a + 1.0));
+
+        let j = a * x * ((sum1 / 6.0 - 0.5 / (a + 2.0)) * x + 1.0 / (a + 1.0));
+
         let z = a * x.ln();
         let h = gam1(a);
         let g = 1.0 + h;
-        let use_label_50 = if x < 0.25 { z > -0.13394 } else { a < x / 2.59 };
-        return if use_label_50 {
-            let l = rexp(z);
-            let w = 0.5 + (0.5 + l);
-            let q = (w * j - l) * g - h;
-            if q < 0.0 {
-                (1.0, 0.0)
-            } else {
-                let p = 0.5 + (0.5 - q);
-                (p, q)
+
+        'l50: {
+            'l40: {
+                'l30: {
+                    if x < 0.25 {
+                        break 'l30;
+                    }
+
+                    if a < x / 2.59 {
+                        break 'l50;
+                    } else {
+                        break 'l40;
+                    }
+                }
+
+                // Label 30.
+                if -0.13394 < z {
+                    break 'l50;
+                }
             }
-        } else {
+
+            // Label 40.
             let w = z.exp();
-            let p = w * g * (0.5 + (0.5 - j));
-            let q = 0.5 + (0.5 - p);
-            (p, q)
-        };
+            p = w * g * (0.5 + (0.5 - j));
+            q = 0.5 + (0.5 - p);
+            return (p, q);
+        }
+
+        // Label 50.
+        let l = rexp(z);
+        let w = 0.5 + (0.5 + l);
+        q = (w * j - l) * g - h;
+
+        if q < 0.0 {
+            p = 1.0;
+            q = 0.0;
+        } else {
+            p = 0.5 + (0.5 - q);
+        }
+    } else {
+        // Continued fraction expansion.
+        let mut a2nm1 = 1.0;
+        let mut a2n = 1.0;
+        let mut b2nm1 = x;
+        let mut b2n = x + (1.0 - a);
+        let mut c = 1.0;
+        let mut an0;
+
+        loop {
+            a2nm1 = x * a2n + c * a2nm1;
+            b2nm1 = x * b2n + c * b2nm1;
+            let am0 = a2nm1 / b2nm1;
+            c += 1.0;
+            let cma = c - a;
+            a2n = a2nm1 + cma * a2n;
+            b2n = b2nm1 + cma * b2n;
+            an0 = a2n / b2n;
+
+            if (an0 - am0).abs() < eps * an0 {
+                break;
+            }
+        }
+
+        q = r * an0;
+        p = 0.5 + (0.5 - q);
     }
 
-    // Continued fraction.
-    let mut a2nm1: f64 = 1.0;
-    let mut a2n: f64 = 1.0;
-    let mut b2nm1 = x;
-    let mut b2n = x + (1.0 - a);
-    let mut c: f64 = 1.0;
-    loop {
-        a2nm1 = x * a2n + c * a2nm1;
-        b2nm1 = x * b2n + c * b2nm1;
-        let am0 = a2nm1 / b2nm1;
-        c += 1.0;
-        let cma = c - a;
-        a2n = a2nm1 + cma * a2n;
-        b2n = b2nm1 + cma * b2n;
-        let an0 = a2n / b2n;
-        if (an0 - am0).abs() < eps * an0 {
-            let q = r * an0;
-            return (0.5 + (0.5 - q), q);
-        }
-    }
+    (p, q)
 }
 
 /// Failure modes of [`beta_grat`].
 ///
-/// All variants are *soft* failures: the routine cannot add a
-/// correction to *w*, but the input *w* itself is a usable answer
-/// (CDFLIB's documented fallback). Callers typically recover with
-/// `result.unwrap_or(w_in)`.
+/// CDFLIB's `beta_grat` reports each of them as `ierr = 1` and returns
+/// without changing *w*; callers recover with `result.unwrap_or(w)`, as
+/// CDFLIB's `beta_inc` does by ignoring `ierr`.
 ///
 /// [`beta_grat`]: crate::special::internal::beta_grat
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
 pub enum BetaGratError {
-    /// `b · z` evaluated to zero (b ≈ 0 or z = 0 with the other finite).
+    /// *b* · *z* evaluated to zero (CDFLIB `ierr = 1`).
     #[error("b·z evaluated to zero")]
     BzZero,
-    /// The exponential scale `u = r · exp(−u)` underflowed to zero.
+    /// The scale *r* · exp(−(algdiv(*b*, *a*) + *b* · ln *nu*))
+    /// underflowed to zero (CDFLIB `ierr = 1`).
     #[error("u underflowed to zero")]
     UnderflowedScale,
-    /// The partial sum went non-positive during the 30-term expansion.
+    /// The partial sum of the expansion became nonpositive (CDFLIB
+    /// `ierr = 1`).
     #[error("partial sum went non-positive")]
     NonPositiveSum,
 }
 
-/// Returns *Iₓ*(*a*, *b*) by asymptotic expansion when 15 ≤ *a* and *b* ≤ 1.
+/// Evaluates an asymptotic expansion for *Iₓ*(*a*, *b*) (cdflib.f90:763).
 ///
-/// Adds a correction to *w*; on success returns the updated value.
+/// *a* and *b* are the parameters of the function and should be
+/// nonnegative; it is assumed that 15 ≤ *a* and *b* ≤ 1, and that *b* is
+/// less than *a*. *x* is the argument of the function and should satisfy
+/// 0 ≤ *x* ≤ 1; *y* should equal 1 − *x*. *w* is a quantity to which the
+/// result of the computation is added, and *eps* is a tolerance.
 ///
-/// Each `Err` variant is a *soft* failure: the routine cannot add a
-/// correction in that regime, but the input *w* itself is a usable
-/// answer, the F90's documented fallback. Callers recover with
-/// `result.unwrap_or(w_in)`.
+/// Returns *w* plus the expansion. CDFLIB's `ierr = 1` is returned as a
+/// [`BetaGratError`]; in that case CDFLIB leaves *w* unchanged, so callers
+/// recover with `result.unwrap_or(w)`.
+///
+/// [`BetaGratError`]: crate::special::internal::BetaGratError
 #[inline]
 pub fn beta_grat(
     a: f64,
     b: f64,
     x: f64,
     y: f64,
-    w_in: f64,
+    mut w: f64,
     eps: f64,
 ) -> Result<f64, BetaGratError> {
-    let bm1 = b - 0.5 - 0.5;
+    let mut c = [0.0_f64; 30];
+    let mut d = [0.0_f64; 30];
+
+    let bm1 = (b - 0.5) - 0.5;
     let nu = a + 0.5 * bm1;
-    let lnx = if y > 0.375 { x.ln() } else { alnrel(-y) };
+
+    let lnx = if y <= 0.375 { alnrel(-y) } else { x.ln() };
+
     let z = -(nu * lnx);
+
     if b * z == 0.0 {
+        // ierr = 1, mapped onto BetaGratError.
         return Err(BetaGratError::BzZero);
     }
 
+    // Computation of the expansion. Set R = EXP(-Z)*Z^B/GAMMA(B).
     let mut r = b * (1.0 + gam1(b)) * (b * z.ln()).exp();
     r = r * (a * lnx).exp() * (0.5 * bm1 * lnx).exp();
     let mut u = algdiv(b, a) + b * nu.ln();
     u = r * (-u).exp();
+
     if u == 0.0 {
+        // ierr = 1, mapped onto BetaGratError.
         return Err(BetaGratError::UnderflowedScale);
     }
 
-    let (_, q) = gamma_rat1(b, z, r, eps);
-    let v = 0.25 * (1.0 / nu).powi(2);
+    let (_p, q) = gamma_rat1(b, z, r, eps);
+
+    let v = 0.25 * pow2(1.0 / nu);
     let t2 = 0.25 * lnx * lnx;
-    let l = w_in / u;
+    let l = w / u;
     let mut j = q / r;
-    let mut sum = j;
+    let mut sum1 = j;
     let mut t = 1.0;
     let mut cn = 1.0;
     let mut n2 = 0.0;
-    let mut c_arr = [0.0_f64; 30];
-    let mut d_arr = [0.0_f64; 30];
 
     for n in 1..=30 {
         let bp2n = b + n2;
@@ -759,69 +1020,89 @@ pub fn beta_grat(
         n2 += 2.0;
         t *= t2;
         cn /= n2 * (n2 + 1.0);
-        c_arr[n - 1] = cn;
+        c[n - 1] = cn;
         let mut s = 0.0;
-        if n != 1 {
-            let mut coef = b - n as f64;
-            for i in 1..n {
-                s += coef * c_arr[i - 1] * d_arr[n - i - 1];
-                coef += b;
-            }
+
+        let mut coef = b - n as f64;
+        for i in 1..n {
+            s += coef * c[i - 1] * d[n - i - 1];
+            coef += b;
         }
-        d_arr[n - 1] = bm1 * cn + s / (n as f64);
-        let dj = d_arr[n - 1] * j;
-        sum += dj;
-        if sum <= 0.0 {
+
+        d[n - 1] = bm1 * cn + s / n as f64;
+        let dj = d[n - 1] * j;
+        sum1 += dj;
+
+        if sum1 <= 0.0 {
+            // ierr = 1, mapped onto BetaGratError.
             return Err(BetaGratError::NonPositiveSum);
         }
-        if dj.abs() <= eps * (sum + l) {
-            return Ok(w_in + u * sum);
+
+        if dj.abs() <= eps * (sum1 + l) {
+            w += u * sum1;
+            return Ok(w);
         }
     }
-    Ok(w_in + u * sum)
+
+    w += u * sum1;
+    Ok(w)
 }
 
-/// Returns *Iₓ*(*a*, *b*) by asymptotic expansion when both *a* and *b* are ≥ 15.
+/// Computes an asymptotic expansion for *Iₓ*(*a*, *b*), for large *a* and
+/// *b* (cdflib.f90:439).
+///
+/// *a* and *b* are the parameters of the function and should be
+/// nonnegative; it is assumed that both *a* and *b* are greater than or
+/// equal to 15. *lambda* is the value of (*a* + *b*) · *y* − *b*, assumed
+/// nonnegative, and *eps* is the tolerance.
 #[inline]
+#[allow(clippy::assign_op_pattern, clippy::needless_late_init)]
 pub fn beta_asym(a: f64, b: f64, lambda: f64, eps: f64) -> f64 {
-    const E0: f64 = 1.12837916709551; // 2/√π
-    const E1: f64 = 0.353553390593274; // 2^(-3/2)
     const NUM: usize = 20;
+    const E0: f64 = 1.12837916709551;
+    const E1: f64 = 0.353553390593274;
 
-    let (h, r0, r1, w0) = if a < b {
-        let h = a / b;
-        let r0 = 1.0 / (1.0 + h);
-        let r1 = (b - a) / b;
-        let w0 = 1.0 / (a * (1.0 + h)).sqrt();
-        (h, r0, r1, w0)
+    let mut a0 = [0.0_f64; NUM + 1];
+    let mut b0 = [0.0_f64; NUM + 1];
+    let mut c = [0.0_f64; NUM + 1];
+    let mut d = [0.0_f64; NUM + 1];
+
+    let mut beta_asym = 0.0;
+
+    let h;
+    let r0;
+    let r1;
+    let w0;
+
+    if a < b {
+        h = a / b;
+        r0 = 1.0 / (1.0 + h);
+        r1 = (b - a) / b;
+        w0 = 1.0 / (a * (1.0 + h)).sqrt();
     } else {
-        let h = b / a;
-        let r0 = 1.0 / (1.0 + h);
-        let r1 = (b - a) / a;
-        let w0 = 1.0 / (b * (1.0 + h)).sqrt();
-        (h, r0, r1, w0)
-    };
+        h = b / a;
+        r0 = 1.0 / (1.0 + h);
+        r1 = (b - a) / a;
+        w0 = 1.0 / (b * (1.0 + h)).sqrt();
+    }
 
     let f = a * rlog1(-(lambda / a)) + b * rlog1(lambda / b);
     let t = (-f).exp();
     if t == 0.0 {
-        return 0.0;
+        return beta_asym;
     }
+
     let z0 = f.sqrt();
     let z = 0.5 * (z0 / E1);
     let z2 = f + f;
 
-    let mut a0_arr = [0.0_f64; 21];
-    let mut b0_arr = [0.0_f64; 21];
-    let mut c_arr = [0.0_f64; 21];
-    let mut d_arr = [0.0_f64; 21];
-
-    a0_arr[0] = 2.0 / 3.0 * r1;
-    c_arr[0] = -(0.5 * a0_arr[0]);
-    d_arr[0] = -c_arr[0];
-    let mut j0 = 0.5 / E0 * error_fc_scaled(z0);
+    a0[0] = (2.0 / 3.0) * r1;
+    c[0] = -(0.5 * a0[0]);
+    d[0] = -c[0];
+    let mut j0 = (0.5 / E0) * error_fc_scaled(z0);
     let mut j1 = E1;
-    let mut sum = j0 + d_arr[0] * w0 * j1;
+    let mut sum1 = j0 + d[0] * w0 * j1;
+
     let mut s = 1.0;
     let h2 = h * h;
     let mut hn = 1.0;
@@ -829,111 +1110,135 @@ pub fn beta_asym(a: f64, b: f64, lambda: f64, eps: f64) -> f64 {
     let mut znm1 = z;
     let mut zn = z2;
 
-    let mut n = 2;
-    while n <= NUM {
-        hn *= h2;
-        a0_arr[n - 1] = 2.0 * r0 * (1.0 + h * hn) / (n as f64 + 2.0);
+    for n in (2..=NUM).step_by(2) {
+        hn = h2 * hn;
+        a0[n - 1] = 2.0 * r0 * (1.0 + h * hn) / (n as f64 + 2.0);
         let np1 = n + 1;
         s += hn;
-        a0_arr[np1 - 1] = 2.0 * r1 * s / (n as f64 + 3.0);
+        a0[np1 - 1] = 2.0 * r1 * s / (n as f64 + 3.0);
 
         for i in n..=np1 {
             let r = -(0.5 * (i as f64 + 1.0));
-            b0_arr[0] = r * a0_arr[0];
+            b0[0] = r * a0[0];
             for m in 2..=i {
                 let mut bsum = 0.0;
-                for j in 1..m {
+                let mm1 = m - 1;
+                for j in 1..=mm1 {
                     let mmj = m - j;
-                    bsum += (j as f64 * r - mmj as f64) * a0_arr[j - 1] * b0_arr[mmj - 1];
+                    bsum += (j as f64 * r - mmj as f64) * a0[j - 1] * b0[mmj - 1];
                 }
-                b0_arr[m - 1] = r * a0_arr[m - 1] + bsum / m as f64;
+                b0[m - 1] = r * a0[m - 1] + bsum / m as f64;
             }
-            c_arr[i - 1] = b0_arr[i - 1] / (i as f64 + 1.0);
+
+            c[i - 1] = b0[i - 1] / (i as f64 + 1.0);
+
             let mut dsum = 0.0;
             for j in 1..i {
-                let imj = i - j;
-                dsum += d_arr[imj - 1] * c_arr[j - 1];
+                dsum += d[i - j - 1] * c[j - 1];
             }
-            d_arr[i - 1] = -(dsum + c_arr[i - 1]);
-        }
-        j0 = E1 * znm1 + (n as f64 - 1.0) * j0;
-        j1 = E1 * zn + (n as f64) * j1;
-        znm1 *= z2;
-        zn *= z2;
-        w *= w0;
-        let t0 = d_arr[n - 1] * w * j0;
-        w *= w0;
-        let t1 = d_arr[np1 - 1] * w * j1;
-        sum += t0 + t1;
-        if t0.abs() + t1.abs() <= eps * sum {
-            break;
+            d[i - 1] = -(dsum + c[i - 1]);
         }
 
-        n += 2;
+        j0 = E1 * znm1 + (n as f64 - 1.0) * j0;
+        j1 = E1 * zn + n as f64 * j1;
+        znm1 = z2 * znm1;
+        zn = z2 * zn;
+        w = w0 * w;
+        let t0 = d[n - 1] * w * j0;
+        w = w0 * w;
+        let t1 = d[np1 - 1] * w * j1;
+        sum1 += t0 + t1;
+
+        if (t0.abs() + t1.abs()) <= eps * sum1 {
+            let u = (-bcorr(a, b)).exp();
+            beta_asym = E0 * t * u * sum1;
+            return beta_asym;
+        }
     }
 
     let u = (-bcorr(a, b)).exp();
-    E0 * t * u * sum
+    beta_asym = E0 * t * u * sum1;
+    beta_asym
 }
 
-/// Returns *Iₓ*(*a*, *b*) by continued fraction expansion when both
-/// *a* and *b* are > 1.
+/// Evaluates a continued fraction expansion for *Iₓ*(*a*, *b*)
+/// (cdflib.f90:626).
+///
+/// *a* and *b* are the parameters of the function and should be
+/// nonnegative; it is assumed that both *a* and *b* are greater than 1.
+/// *x* is the argument of the function and should satisfy 0 ≤ *x* ≤ 1;
+/// *y* should equal 1 − *x*. *lambda* is the value of
+/// (*a* + *b*) · *y* − *b*, and *eps* is a tolerance.
 #[inline]
 pub fn beta_frac(a: f64, b: f64, x: f64, y: f64, lambda: f64, eps: f64) -> f64 {
-    let bfrac_init = beta_rcomp(a, b, x, y);
-    if bfrac_init == 0.0 {
-        return 0.0;
+    let mut beta_frac = beta_rcomp(a, b, x, y);
+
+    if beta_frac == 0.0 {
+        return beta_frac;
     }
+
     let c = 1.0 + lambda;
     let c0 = b / a;
     let c1 = 1.0 + 1.0 / a;
     let yp1 = y + 1.0;
+
     let mut n = 0.0;
     let mut p = 1.0;
     let mut s = a + 1.0;
     let mut an = 0.0;
-    let mut anp1 = 1.0;
     let mut bn = 1.0;
+    let mut anp1 = 1.0;
     let mut bnp1 = c / c1;
     let mut r = c1 / c;
 
+    // Continued fraction calculation.
     loop {
         n += 1.0;
-        let t_local = n / a;
+        let mut t = n / a;
         let w = n * (b - n) * x;
-        let e1 = a / s;
-        let alpha = p * (p + c0) * e1 * e1 * (w * x);
-        let e2 = (1.0 + t_local) / (c1 + t_local + t_local);
-        let beta_v = n + w / s + e2 * (c + n * yp1);
-        p = 1.0 + t_local;
+        let mut e = a / s;
+        let alpha = (p * (p + c0) * e * e) * (w * x);
+        e = (1.0 + t) / (c1 + t + t);
+        let beta = n + w / s + e * (c + n * yp1);
+        p = 1.0 + t;
         s += 2.0;
 
-        let t_new = alpha * an + beta_v * anp1;
+        // Update AN, BN, ANP1, and BNP1.
+        t = alpha * an + beta * anp1;
         an = anp1;
-        anp1 = t_new;
-        let t_new = alpha * bn + beta_v * bnp1;
+        anp1 = t;
+        t = alpha * bn + beta * bnp1;
         bn = bnp1;
-        bnp1 = t_new;
+        bnp1 = t;
+
         let r0 = r;
         r = anp1 / bnp1;
 
         if (r - r0).abs() <= eps * r {
-            return bfrac_init * r;
+            beta_frac *= r;
+            break;
         }
 
-        // Rescale.
+        // Rust only: once r is NaN the F90 loop never exits.
+        if r.is_nan() {
+            return f64::NAN;
+        }
+
+        // Rescale AN, BN, ANP1, and BNP1.
         an /= bnp1;
         bn /= bnp1;
         anp1 = r;
         bnp1 = 1.0;
     }
+
+    beta_frac
 }
 
-/// Errors of [`beta_inc`].
+/// Errors of [`beta_inc`], one variant per nonzero `ierr` of CDFLIB's
+/// `beta_inc`, in CDFLIB order.
 ///
-/// All variants correspond to invalid inputs: CDFLIB's `beta_inc` reports
-/// them via a positive integer `ierr` [1 . . 7] and returns zeros for *w*,
-/// *w*₁. This enum gives each one a named, descriptive form.
+/// On error CDFLIB returns *w* = *w*₁ = 0, except for `ierr = 6`, where
+/// it returns *w* = 0 and *w*₁ = 1.
 ///
 /// [`beta_inc`]: crate::special::beta_inc
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
@@ -941,42 +1246,42 @@ pub enum BetaIncError {
     /// *a* or *b* is negative (CDFLIB `ierr = 1`).
     #[error("a or b is negative: a = {a}, b = {b}")]
     NegativeParameter { a: f64, b: f64 },
-    /// Both *a* and *b* are zero (CDFLIB `ierr = 2`).
+    /// *a* = *b* = 0 (CDFLIB `ierr = 2`).
     #[error("both a and b are zero")]
     BothZero,
-    /// *x* ∉ [0 . . 1] (CDFLIB `ierr = 3`).
+    /// *x* < 0 or 1 < *x* (CDFLIB `ierr = 3`).
     #[error("x must be in [0..1], got {0}")]
     XOutOfRange(f64),
-    /// *y* ∉ [0 . . 1] (CDFLIB `ierr = 4`).
+    /// *y* < 0 or 1 < *y* (CDFLIB `ierr = 4`).
     #[error("y must be in [0..1], got {0}")]
     YOutOfRange(f64),
-    /// *x* + *y* ≠ 1 within tolerance (CDFLIB `ierr = 5`).
+    /// *x* + *y* ≠ 1, that is, 3*ε* < |*x* + *y* − 1| (CDFLIB `ierr = 5`).
     #[error("x + y must equal 1, got x = {x}, y = {y}")]
     InconsistentSum { x: f64, y: f64 },
-    /// Degenerate: *x* = 0 and *a* = 0 (CDFLIB `ierr = 6`).
+    /// *x* = *a* = 0 (CDFLIB `ierr = 6`).
     #[error("degenerate: x = 0 and a = 0")]
     XZeroAndAZero,
-    /// Degenerate: *y* = 0 and *b* = 0 (CDFLIB `ierr = 7`).
+    /// *y* = *b* = 0 (CDFLIB `ierr = 7`).
     #[error("degenerate: y = 0 and b = 0")]
     YZeroAndBZero,
 }
 
-/// Returns the regularized incomplete Β function *Iₓ*(*a*, *b*) and its
-/// complement 1 − *Iₓ*(*a*, *b*).
+/// Evaluates the incomplete Β function *Iₓ*(*a*, *b*) (cdflib.f90:928).
 ///
-/// The argument pair (*x*, *y*) is the (value, complement) of the
-/// integration upper limit: the caller must supply *y* = 1 − *x* directly
-/// rather than letting the routine subtract, because in the deep tail
-/// the cancellation in `1.0 - x` would lose digits. The returned pair
-/// (*w*, *w*₁) is the (lower-tail, upper-tail) probability with
-/// *w* + *w*₁ = 1, analogous to the (*p*, *q*) pair returned by [`gamma_inc`];
-/// both are computed independently rather than one from the other, for
-/// the same precision reason.
+/// *a* and *b* are the parameters of the function and should be
+/// nonnegative. *x* is the argument of the function and should satisfy
+/// *x* ∈ [0 . . 1]; *y* should equal 1 − *x*. Returns (*w*, *w*₁), the values of
+/// *Iₓ*(*a*, *b*) and 1 − *Iₓ*(*a*, *b*).
+///
+/// The caller supplies *y* rather than letting the routine compute 1 − *x*,
+/// because in the deep tail that subtraction would lose digits. Each series
+/// or expansion computes one of *w* and *w*₁ and derives the other as
+/// 0.5 + (0.5 − ·), as with the (*p*, *q*) pair returned by [`gamma_inc`].
 ///
 /// # Panics
 ///
-/// Panics on a [`BetaIncError`]. Use [`try_beta_inc`] for the fallible
-/// form.
+/// Panics on a [`BetaIncError`] (a nonzero CDFLIB `ierr`). Use
+/// [`try_beta_inc`] for the fallible form.
 ///
 /// # Example
 ///
@@ -995,7 +1300,8 @@ pub fn beta_inc(a: f64, b: f64, x: f64, y: f64) -> (f64, f64) {
     try_beta_inc(a, b, x, y).unwrap_or_else(|e| panic!("beta_inc({a}, {b}, {x}, {y}): {e}"))
 }
 
-/// Fallible form of [`beta_inc`]: returns [`BetaIncError`] on invalid input.
+/// Fallible form of [`beta_inc`]: returns a [`BetaIncError`] where CDFLIB's
+/// `beta_inc` sets a nonzero `ierr`.
 ///
 /// # Example
 ///
@@ -1012,204 +1318,327 @@ pub fn beta_inc(a: f64, b: f64, x: f64, y: f64) -> (f64, f64) {
 ///
 /// [`BetaIncError`]: crate::special::BetaIncError
 #[inline]
-#[allow(clippy::manual_range_contains)]
+// The F90 initialisation w = 0 is never read, since every error return is
+// an Err; w1 = 0 is read by the direct go to 150 (cdflib.f90:1164).
+#[allow(unused_assignments, clippy::manual_swap)]
 pub fn try_beta_inc(a: f64, b: f64, x: f64, y: f64) -> Result<(f64, f64), BetaIncError> {
-    let eps = f64::EPSILON;
+    let mut eps = f64::EPSILON;
+    let mut w = 0.0;
+    let mut w1 = 0.0;
+
     if a < 0.0 || b < 0.0 {
+        // ierr = 1, mapped onto BetaIncError.
         return Err(BetaIncError::NegativeParameter { a, b });
     }
+
     if a == 0.0 && b == 0.0 {
+        // ierr = 2, mapped onto BetaIncError.
         return Err(BetaIncError::BothZero);
     }
-    // Mirror CDFLIB's x < 0 || x > 1 form, not RangeInclusive::contains:
-    // with NaN inputs, both comparisons return false, so NaN passes
-    // through here and the x == 0 / y == 0 short-circuits below get a
-    // chance to fire, matching CDFLIB's behavior for e.g. cumt with
-    // extreme |t|.
-    if x < 0.0 || x > 1.0 {
+
+    // A NaN x or y passes these two tests, as in the F90.
+    if x < 0.0 || 1.0 < x {
+        // ierr = 3, mapped onto BetaIncError.
         return Err(BetaIncError::XOutOfRange(x));
     }
-    if y < 0.0 || y > 1.0 {
+
+    if y < 0.0 || 1.0 < y {
+        // ierr = 4, mapped onto BetaIncError.
         return Err(BetaIncError::YOutOfRange(y));
     }
-    let z = x + y - 0.5 - 0.5;
-    if z.abs() > 3.0 * eps {
+
+    let z = ((x + y) - 0.5) - 0.5;
+
+    if 3.0 * eps < z.abs() {
+        // ierr = 5, mapped onto BetaIncError.
         return Err(BetaIncError::InconsistentSum { x, y });
     }
+
     if x == 0.0 {
+        w = 0.0;
+        w1 = 1.0;
         if a == 0.0 {
+            // ierr = 6, mapped onto BetaIncError.
             return Err(BetaIncError::XZeroAndAZero);
         }
-        return Ok((0.0, 1.0));
+        return Ok((w, w1));
     }
+
     if y == 0.0 {
         if b == 0.0 {
+            // ierr = 7, mapped onto BetaIncError.
             return Err(BetaIncError::YZeroAndBZero);
         }
-        return Ok((1.0, 0.0));
+        w = 1.0;
+        w1 = 0.0;
+        return Ok((w, w1));
     }
+
     if a == 0.0 {
-        return Ok((1.0, 0.0));
+        w = 1.0;
+        w1 = 0.0;
+        return Ok((w, w1));
     }
+
     if b == 0.0 {
-        return Ok((0.0, 1.0));
-    }
-    // A NaN that survives the short-circuits above would make the series
-    // loops below diverge (their exit tolerances never compare true);
-    // return the natural NaN instead.
-    if a.is_nan() || b.is_nan() || x.is_nan() || y.is_nan() {
-        return Ok((f64::NAN, f64::NAN));
+        w = 0.0;
+        w1 = 1.0;
+        return Ok((w, w1));
     }
 
-    let eps = eps.max(1e-15);
-    if a.max(b) < 1e-3 * eps {
-        return Ok((b / (a + b), a / (a + b)));
-    }
+    eps = eps.max(1.0e-15);
 
-    let mut ind = 0;
-    let mut a0 = a;
-    let mut b0 = b;
-    let mut x0 = x;
-    let mut y0 = y;
-
-    let (w, w1) = if a0.min(b0) <= 1.0 {
-        // Procedure for a0 ≤ 1 or b0 ≤ 1.
-        if x > 0.5 {
-            ind = 1;
-            a0 = b;
-            b0 = a;
-            x0 = y;
-            y0 = x;
+    'l260: {
+        if a.max(b) < 0.001 * eps {
+            break 'l260;
         }
-        // Note: variables now refer to (a0, b0, x0, y0).
-        small_branch(a0, b0, x0, y0, eps)
-    } else {
-        // a0 > 1 and b0 > 1.
-        let lambda = if a > b {
-            (a + b) * y - b
-        } else {
-            a - (a + b) * x
-        };
-        let (lambda, ind_flip) = if lambda < 0.0 {
-            (lambda.abs(), true)
-        } else {
-            (lambda, false)
-        };
-        if ind_flip {
-            ind = 1;
-            a0 = b;
-            b0 = a;
-            x0 = y;
-            y0 = x;
+
+        // Rust only: past this point a NaN argument reaches a series,
+        // continued fraction or expansion that either never exits its loop
+        // or returns NaN; return NaN.
+        if a.is_nan() || b.is_nan() || x.is_nan() || y.is_nan() {
+            return Ok((f64::NAN, f64::NAN));
         }
-        large_branch(a0, b0, x0, y0, lambda, eps)
-    };
 
-    Ok(if ind == 0 { (w, w1) } else { (w1, w) })
-}
+        let mut ind = 0;
+        let mut a0 = a;
+        let mut b0 = b;
+        let mut x0 = x;
+        let mut y0 = y;
+        let n;
 
-fn small_branch(a0: f64, b0: f64, x0: f64, y0: f64, eps: f64) -> (f64, f64) {
-    // S10 in CDFLIB.
-    if b0 < eps.min(eps * a0) {
-        let w = fpser(a0, b0, x0, eps);
-        return (w, 0.5 + (0.5 - w));
-    }
-    if a0 < eps.min(eps * b0) && b0 * x0 <= 1.0 {
-        let w1 = apser(a0, b0, x0, eps);
-        return (0.5 + (0.5 - w1), w1);
-    }
-    if a0.max(b0) > 1.0 {
-        // Falls into b0 > 1 path
-        if b0 <= 1.0 {
+        // Each go to 90 ... 200 below calls the fn for that label, which
+        // returns (w, w1); the go to 250 that ends every label is the break
+        // out of 'l250 carrying that pair.
+        (w, w1) = 'l250: {
+            'l40: {
+                if 1.0 < a0.min(b0) {
+                    break 'l40;
+                }
+
+                // Procedure for A0 <= 1 or B0 <= 1.
+                if 0.5 < x {
+                    ind = 1;
+                    a0 = b;
+                    b0 = a;
+                    x0 = y;
+                    y0 = x;
+                }
+
+                if b0 < eps.min(eps * a0) {
+                    break 'l250 label_90(a0, b0, x0, eps);
+                }
+
+                if a0 < eps.min(eps * b0) && b0 * x0 <= 1.0 {
+                    break 'l250 label_100(a0, b0, x0, eps);
+                }
+
+                'l20: {
+                    if 1.0 < a0.max(b0) {
+                        break 'l20;
+                    }
+
+                    if 0.2_f64.min(b0) <= a0 {
+                        break 'l250 label_110(a0, b0, x0, eps);
+                    }
+
+                    if x0.powf(a0) <= 0.9 {
+                        break 'l250 label_110(a0, b0, x0, eps);
+                    }
+
+                    if 0.3 <= x0 {
+                        break 'l250 label_120(a0, b0, y0, eps);
+                    }
+
+                    n = 20;
+                    break 'l250 label_140(a0, b0, x0, y0, n, eps);
+                }
+
+                // Label 20.
+                if b0 <= 1.0 {
+                    break 'l250 label_110(a0, b0, x0, eps);
+                }
+
+                if 0.3 <= x0 {
+                    break 'l250 label_120(a0, b0, y0, eps);
+                }
+
+                'l30: {
+                    if 0.1 <= x0 {
+                        break 'l30;
+                    }
+
+                    if (x0 * b0).powf(a0) <= 0.7 {
+                        break 'l250 label_110(a0, b0, x0, eps);
+                    }
+                }
+
+                // Label 30.
+                if 15.0 < b0 {
+                    // w1 is still the 0 of cdflib.f90:1007.
+                    break 'l250 label_150(a0, b0, x0, y0, w1, eps);
+                }
+
+                n = 20;
+                break 'l250 label_140(a0, b0, x0, y0, n, eps);
+            }
+
+            // Label 40: procedure for 1 < A0 and 1 < B0.
+            let mut lambda = if a <= b {
+                a - (a + b) * x
+            } else {
+                (a + b) * y - b
+            };
+
+            if lambda < 0.0 {
+                ind = 1;
+                a0 = b;
+                b0 = a;
+                x0 = y;
+                y0 = x;
+                lambda = lambda.abs();
+            }
+
+            if b0 < 40.0 && b0 * x0 <= 0.7 {
+                break 'l250 label_110(a0, b0, x0, eps);
+            }
+
+            if b0 < 40.0 {
+                break 'l250 label_160(a0, b0, x0, y0, eps);
+            }
+
+            'l80: {
+                if b0 < a0 {
+                    break 'l80;
+                }
+
+                if a0 <= 100.0 {
+                    break 'l250 label_130(a0, b0, x0, y0, lambda, eps);
+                }
+
+                if 0.03 * a0 < lambda {
+                    break 'l250 label_130(a0, b0, x0, y0, lambda, eps);
+                }
+
+                break 'l250 label_200(a0, b0, lambda, eps);
+            }
+
+            // Label 80.
+            if b0 <= 100.0 {
+                break 'l250 label_130(a0, b0, x0, y0, lambda, eps);
+            }
+
+            if 0.03 * b0 < lambda {
+                break 'l250 label_130(a0, b0, x0, y0, lambda, eps);
+            }
+
+            break 'l250 label_200(a0, b0, lambda, eps);
+        };
+
+        // Evaluation of the appropriate algorithm.
+
+        // Label 90 (cdflib.f90:1227-1231).
+        fn label_90(a0: f64, b0: f64, x0: f64, eps: f64) -> (f64, f64) {
+            let w = fpser(a0, b0, x0, eps);
+            let w1 = 0.5 + (0.5 - w);
+            (w, w1)
+        }
+
+        // Label 100 (cdflib.f90:1233-1237).
+        fn label_100(a0: f64, b0: f64, x0: f64, eps: f64) -> (f64, f64) {
+            let w1 = apser(a0, b0, x0, eps);
+            let w = 0.5 + (0.5 - w1);
+            (w, w1)
+        }
+
+        // Label 110 (cdflib.f90:1239-1243).
+        fn label_110(a0: f64, b0: f64, x0: f64, eps: f64) -> (f64, f64) {
             let w = beta_pser(a0, b0, x0, eps);
-            return (w, 0.5 + (0.5 - w));
+            let w1 = 0.5 + (0.5 - w);
+            (w, w1)
         }
-        if x0 >= 0.3 {
+
+        // Label 120 (cdflib.f90:1245-1249).
+        fn label_120(a0: f64, b0: f64, y0: f64, eps: f64) -> (f64, f64) {
             let w1 = beta_pser(b0, a0, y0, eps);
-            return (0.5 + (0.5 - w1), w1);
+            let w = 0.5 + (0.5 - w1);
+            (w, w1)
         }
-        if x0 < 0.1 && (x0 * b0).powf(a0) <= 0.7 {
-            let w = beta_pser(a0, b0, x0, eps);
-            return (w, 0.5 + (0.5 - w));
-        }
-        if b0 > 15.0 {
-            // S150: beta_grat with b0 ≤ 1; but b0 > 15 here, so we have
-            // to swap into beta_grat-on-(b0, a0, y0, x0) territory. The
-            // CDFLIB code uses beta_up + beta_grat composition.
-            let w1_grat = beta_grat(b0, a0, y0, x0, 0.0, 15.0 * eps).unwrap_or(0.0);
-            let w = 0.5 + (0.5 - w1_grat);
-            return (w, w1_grat);
-        }
-        let n = 20;
-        let w1 = beta_up(b0, a0, y0, x0, n, eps);
-        let b0_shifted = b0 + n as f64;
-        let w1_total = beta_grat(b0_shifted, a0, y0, x0, w1, 15.0 * eps).unwrap_or(w1);
-        return (0.5 + (0.5 - w1_total), w1_total);
-    }
-    // a0.max(b0) ≤ 1.
-    if a0 >= 0.2_f64.min(b0) {
-        let w = beta_pser(a0, b0, x0, eps);
-        return (w, 0.5 + (0.5 - w));
-    }
-    if x0.powf(a0) <= 0.9 {
-        let w = beta_pser(a0, b0, x0, eps);
-        return (w, 0.5 + (0.5 - w));
-    }
-    if x0 >= 0.3 {
-        let w1 = beta_pser(b0, a0, y0, eps);
-        return (0.5 + (0.5 - w1), w1);
-    }
-    let n = 20;
-    let w1 = beta_up(b0, a0, y0, x0, n, eps);
-    let b0_shifted = b0 + n as f64;
-    let w1_total = beta_grat(b0_shifted, a0, y0, x0, w1, 15.0 * eps).unwrap_or(w1);
-    (0.5 + (0.5 - w1_total), w1_total)
-}
 
-fn large_branch(a0: f64, b0: f64, x0: f64, y0: f64, lambda: f64, eps: f64) -> (f64, f64) {
-    // a0, b0 > 1.
-    if b0 < 40.0 && b0 * x0 <= 0.7 {
-        let w = beta_pser(a0, b0, x0, eps);
-        return (w, 0.5 + (0.5 - w));
-    }
-    if b0 < 40.0 {
-        // S160: reduce b0 to an integer + frac.
-        let n = b0 as i32;
-        let mut b0r = b0 - n as f64;
-        let mut n_use = n;
-        if b0r == 0.0 {
-            n_use -= 1;
-            b0r = 1.0;
-        }
-        let mut w = beta_up(b0r, a0, y0, x0, n_use, eps);
-        if x0 <= 0.7 {
-            w += beta_pser(a0, b0r, x0, eps);
-            return (w, 0.5 + (0.5 - w));
-        }
-        let mut a0r = a0;
-        if a0 <= 15.0 {
-            let nn = 20;
-            w += beta_up(a0r, b0r, x0, y0, nn, eps);
-            a0r += nn as f64;
-        }
-        let w_total = beta_grat(a0r, b0r, x0, y0, w, 15.0 * eps).unwrap_or(w);
-        return (w_total, 0.5 + (0.5 - w_total));
-    }
-    // b0 ≥ 40.
-    if a0 <= b0 {
-        if a0 <= 100.0 || lambda > 0.03 * a0 {
+        // Label 130 (cdflib.f90:1251-1255).
+        fn label_130(a0: f64, b0: f64, x0: f64, y0: f64, lambda: f64, eps: f64) -> (f64, f64) {
             let w = beta_frac(a0, b0, x0, y0, lambda, 15.0 * eps);
-            return (w, 0.5 + (0.5 - w));
+            let w1 = 0.5 + (0.5 - w);
+            (w, w1)
         }
-        let w = beta_asym(a0, b0, lambda, 100.0 * eps);
-        return (w, 0.5 + (0.5 - w));
+
+        // Label 140 (cdflib.f90:1257-1260), which falls through to label 150.
+        fn label_140(a0: f64, mut b0: f64, x0: f64, y0: f64, n: i32, eps: f64) -> (f64, f64) {
+            let w1 = beta_up(b0, a0, y0, x0, n, eps);
+            b0 += n as f64;
+            label_150(a0, b0, x0, y0, w1, eps)
+        }
+
+        // Label 150 (cdflib.f90:1262-1266). The F90 does not test ierr1: on
+        // failure beta_grat leaves w1 unchanged.
+        fn label_150(a0: f64, b0: f64, x0: f64, y0: f64, mut w1: f64, eps: f64) -> (f64, f64) {
+            w1 = beta_grat(b0, a0, y0, x0, w1, 15.0 * eps).unwrap_or(w1);
+            let w = 0.5 + (0.5 - w1);
+            (w, w1)
+        }
+
+        // Label 160 (cdflib.f90:1268-1298). The F90 does not test ierr1: on
+        // failure beta_grat leaves w unchanged.
+        fn label_160(mut a0: f64, mut b0: f64, x0: f64, y0: f64, eps: f64) -> (f64, f64) {
+            let mut n = b0 as i32;
+            b0 -= n as f64;
+
+            if b0 == 0.0 {
+                n -= 1;
+                b0 = 1.0;
+            }
+
+            let mut w = beta_up(b0, a0, y0, x0, n, eps);
+
+            if x0 <= 0.7 {
+                w += beta_pser(a0, b0, x0, eps);
+                let w1 = 0.5 + (0.5 - w);
+                return (w, w1);
+            }
+
+            if a0 <= 15.0 {
+                n = 20;
+                w += beta_up(a0, b0, x0, y0, n, eps);
+                a0 += n as f64;
+            }
+
+            w = beta_grat(a0, b0, x0, y0, w, 15.0 * eps).unwrap_or(w);
+            let w1 = 0.5 + (0.5 - w);
+            (w, w1)
+        }
+
+        // Label 200 (cdflib.f90:1300-1304).
+        fn label_200(a0: f64, b0: f64, lambda: f64, eps: f64) -> (f64, f64) {
+            let w = beta_asym(a0, b0, lambda, 100.0 * eps);
+            let w1 = 0.5 + (0.5 - w);
+            (w, w1)
+        }
+
+        // Label 250: termination of the procedure.
+        if ind != 0 {
+            let t = w;
+            w = w1;
+            w1 = t;
+        }
+
+        return Ok((w, w1));
     }
-    if b0 <= 100.0 || lambda > 0.03 * b0 {
-        let w = beta_frac(a0, b0, x0, y0, lambda, 15.0 * eps);
-        return (w, 0.5 + (0.5 - w));
-    }
-    let w = beta_asym(a0, b0, lambda, 100.0 * eps);
-    (w, 0.5 + (0.5 - w))
+
+    // Label 260: procedure for A and B < 0.001 * EPS.
+    w = b / (a + b);
+    w1 = a / (a + b);
+
+    Ok((w, w1))
 }
 
 #[cfg(test)]
@@ -1222,17 +1651,17 @@ mod tests {
     // miri's soft-float ln pushes it over. Skipped under miri.
     #[cfg(not(miri))]
     #[test]
-    fn dbetrm_matches_beta_log_minus_stirling() {
-        // For each (a, b), dbetrm should equal ln Β(a, b) − Stirling decomposition.
+    fn dbetrm_matches_beta_log_minus_sterling() {
+        // For each (a, b), dbetrm should equal ln Β(a, b) − Sterling decomposition.
         const HLN2PI: f64 = 0.91893853320467274178;
-        fn stirling(z: f64) -> f64 {
+        fn sterling(z: f64) -> f64 {
             HLN2PI + (z - 0.5) * z.ln() - z
         }
         for &(a, b) in &[(2.5_f64, 3.5), (10.0, 20.0), (50.0, 60.0), (100.0, 100.0)] {
             let r = dbetrm(a, b);
             let lnb = beta_log(a, b);
-            let stirling_sum = stirling(a) + stirling(b) - stirling(a + b);
-            let expected = lnb - stirling_sum;
+            let sterling_sum = sterling(a) + sterling(b) - sterling(a + b);
+            let expected = lnb - sterling_sum;
             assert!(
                 (r - expected).abs() < 1e-12,
                 "a={a}, b={b}: dbetrm={r}, expected={expected}"
@@ -1242,7 +1671,7 @@ mod tests {
 
     #[test]
     fn dbetrm_decreases_for_large_args() {
-        // The Stirling remainder shrinks as a, b grow.
+        // The Sterling remainder shrinks as a, b grow.
         let r10 = dbetrm(10.0, 10.0);
         let r100 = dbetrm(100.0, 100.0);
         assert!(r100.abs() < r10.abs());
@@ -1263,7 +1692,8 @@ mod tests {
 
     #[test]
     fn beta_inc_at_x_half_with_a_b_equal() {
-        // I_{0.5}(a, a) = 0.5 by symmetry.
+        // The incomplete Β function at x = 0.5 with a = b is 0.5 by
+        // symmetry.
         for &a in &[0.5, 1.0, 2.0, 5.0, 30.0] {
             let (w, w1) = beta_inc(a, a, 0.5, 0.5);
             assert!((w - 0.5).abs() < 1e-10, "a={a}: w={w}");
@@ -1370,7 +1800,7 @@ mod tests {
 
     #[test]
     fn beta_inc_both_tiny_a_b() {
-        // a.max(b) < 1e-3 * eps path → return (b/(a+b), a/(a+b)).
+        // max(a, b) < 0.001 * eps: label 260 returns (b/(a+b), a/(a+b)).
         let tiny = 1e-20;
         let (w, w1) = beta_inc(tiny, tiny, 0.5, 0.5);
         // Both ratios equal 0.5 by symmetry.
@@ -1382,7 +1812,7 @@ mod tests {
 
     #[test]
     fn beta_inc_small_a_large_b_uses_grat_path() {
-        // a0 ≤ 1, b0 > 15: small_branch's beta_grat composition.
+        // a0 ≤ 1 and 15 < b0: label 30 goes to label 150 (beta_grat).
         let (w, w1) = beta_inc(0.5, 30.0, 0.05, 0.95);
         // Sanity: numerically plausible.
         assert!(w > 0.0 && w < 1.0 && (w + w1 - 1.0).abs() < 1e-10);
@@ -1390,8 +1820,9 @@ mod tests {
 
     #[test]
     fn beta_inc_both_moderate_uses_frac_path() {
-        // a, b both ≥ 8, b ≥ 40: large_branch → beta_frac → beta_rcomp's a0≥8 path.
-        let (w, w1) = beta_inc(10.0, 60.0, 0.15, 0.85);
+        // lambda > 0 at label 40, 40 ≤ b0 and a0 ≤ 100: label 130 (beta_frac,
+        // through beta_rcomp's 8 ≤ a0 path).
+        let (w, w1) = beta_inc(10.0, 60.0, 0.1, 0.9);
         assert!((w + w1 - 1.0).abs() < 1e-10);
     }
 
@@ -1407,45 +1838,57 @@ mod tests {
 
     #[test]
     fn beta_inc_a_large_b_moderate() {
-        // Swap territory: a > b, swap so b becomes the larger.
+        // b < a with 0 ≤ lambda: no swap at label 40, and b0 < 40 goes to
+        // label 160 (beta_grat with 15 < a0).
         let (w, w1) = beta_inc(60.0, 10.0, 0.85, 0.15);
         assert!((w + w1 - 1.0).abs() < 1e-10);
-        // Symmetric to the previous: I_x(a,b) = 1 - I_{1-x}(b,a).
+        // Symmetric to the test above, since Ix(a, b) = 1 - Iy(b, a) with
+        // y = 1 - x. Here lambda < 0, so label 40 swaps into the same
+        // label 160 call.
         let (w2, _) = beta_inc(10.0, 60.0, 0.15, 0.85);
         assert!((w - (1.0 - w2)).abs() < 1e-10);
     }
 
     #[test]
     fn beta_inc_extreme_lambda_asym_path() {
-        // a, b ≥ 100 with lambda ≤ 0.03*a: triggers beta_asym.
+        // 100 < a0, b0 with lambda ≤ 0.03 * min(a0, b0): label 200 (beta_asym).
         // Two parameter orderings to cover both branches of beta_asym.
-        // a > b case (b0 > 100 after swap → uses else branch).
+        // lambda < 0 at label 40 swaps to b0 < a0, so label 80 goes to
+        // label 200 with a0 > b0 (beta_asym else branch).
         let (w, w1) = beta_inc(150.0, 200.0, 150.0 / 350.0 + 0.001, 200.0 / 350.0 - 0.001);
         assert!((w + w1 - 1.0).abs() < 1e-8);
-        // a < b case (a0 > 100, lambda < 0.03*a0).
+        // No swap, a0 ≤ b0, 100 < a0 and lambda ≤ 0.03 * a0.
         // mean = 150/550 ≈ 0.2727; x just below mean → lambda small positive.
         let (w, w1) = beta_inc(150.0, 400.0, 0.272, 0.728);
         assert!((w + w1 - 1.0).abs() < 1e-8);
     }
 
+    // The bit-for-bit comparison needs two evaluations of the same libm
+    // calls to agree, which miri's soft-float libm does not guarantee.
+    // Skipped under miri.
+    #[cfg(not(miri))]
     #[test]
     fn beta_inc_a_below_eps_uses_apser() {
-        // a < eps · max(a, b) AND b*x ≤ 1: triggers apser branch.
-        let a = 1e-15;
-        let b = 5.0;
-        let (w, w1) = beta_inc(a, b, 0.05, 0.95);
-        // For very small a, I_x(a, b) → 1.
-        assert!(w > 0.99 && (w + w1 - 1.0).abs() < 1e-10);
+        // With eps = 1e-15, a0 < min(eps, eps * b0) and b0 * x0 <= 1
+        // (cdflib.f90:1120): label 100 computes w1 with apser.
+        let eps = f64::EPSILON.max(1e-15);
+        let (a, b, x, y) = (1e-16, 5.0, 0.05, 0.95);
+        let w1 = apser(a, b, x, eps);
+        assert_eq!(beta_inc(a, b, x, y), (0.5 + (0.5 - w1), w1));
     }
 
+    // The bit-for-bit comparison needs two evaluations of the same libm
+    // calls to agree, which miri's soft-float libm does not guarantee.
+    // Skipped under miri.
+    #[cfg(not(miri))]
     #[test]
     fn beta_inc_b_below_eps_uses_fpser() {
-        // b < eps · max(a, b): triggers fpser branch.
-        let a = 5.0;
-        let b = 1e-15;
-        let (w, w1) = beta_inc(a, b, 0.5, 0.5);
-        // For very small b, I_x(a, b) → 0.
-        assert!(w < 0.01 && (w + w1 - 1.0).abs() < 1e-10);
+        // With eps = 1e-15, b0 < min(eps, eps * a0) (cdflib.f90:1116):
+        // label 90 computes w with fpser.
+        let eps = f64::EPSILON.max(1e-15);
+        let (a, b, x, y) = (2.0, 3e-16, 0.5, 0.5);
+        let w = fpser(a, b, x, eps);
+        assert_eq!(beta_inc(a, b, x, y), (w, 0.5 + (0.5 - w)));
     }
 
     // ===== Direct helper-function tests =====
@@ -1461,7 +1904,7 @@ mod tests {
         // x > 0, mu <= 0, mu+x >= 0: takes the early return.
         let r3 = esum(-1, 2.0);
         assert!((r3 - (1.0_f64).exp()).abs() < 1e-14);
-        // x = 0 path (covered via x <= 0).
+        // x <= 0, mu >= 0, mu+x > 0: fallthrough.
         let r4 = esum(2, -1.0);
         assert!((r4 - (1.0_f64).exp()).abs() < 1e-14);
         // x <= 0, mu < 0: fallthrough.
@@ -1471,7 +1914,7 @@ mod tests {
 
     #[test]
     fn algdiv_in_b_le_a_branch() {
-        // Force b <= a (the "swap" branch). The formula computes
+        // b < a: the first branch of cdflib.f90:71. The formula computes
         // ln(Γ(b)/Γ(a+b)) for b ≥ 8 (the precondition).
         // Compare against beta_log identity: ln Γ(b) - ln Γ(a+b).
         let a = 10.0;
@@ -1491,25 +1934,24 @@ mod tests {
 
     #[test]
     fn beta_rcomp_at_extreme_b() {
-        // At a = 41, b = 1e300, x = 0.8, y = 0.2 the intermediate 1 - x0
-        // cancels to zero, so the result has to be computed via y0
-        // directly to stay finite. Regression-guards that path.
+        // a = 41 takes the 8 <= a0 path (cdflib.f90:1957-1986) with
+        // b = 1e300, where x0 = h / (1 + h) is about 4e-299 and z
+        // underflows to 0; the result must stay finite.
         let r = beta_rcomp(41.0, 1e300, 0.8, 0.2);
         assert!(r.is_finite(), "beta_rcomp returned non-finite: {r}");
     }
 
     #[test]
-    fn beta_inc_very_small_a_small_branch_corners() {
-        // Lines 1022-1034 in small_branch require BOTH a0 ≤ 1 AND b0 ≤ 1
-        // (so a0.max(b0) ≤ 1.0). Within that, three sub-branches based on
-        // x and x^a:
-        //   line 1022: x0.powf(a0) ≤ 0.9 → beta_pser
-        //   line 1026: x0 ≥ 0.3 AND x0^a0 > 0.9 → beta_pser(b, a, y)
-        //   line 1030: x0 < 0.3 AND x0^a0 > 0.9 → beta_up + beta_grat
+    fn beta_inc_a0_b0_at_most_one_corners() {
+        // With max(a0, b0) ≤ 1 and a0 < min(0.2, b0), cdflib.f90:1132-1141
+        // choose among three evaluations by x0 and x0^a0:
+        //   x0^a0 ≤ 0.9: label 110 (beta_pser)
+        //   0.9 < x0^a0 and 0.3 ≤ x0: label 120 (beta_pser(b0, a0, y0))
+        //   0.9 < x0^a0 and x0 < 0.3: label 140 (beta_up + beta_grat)
         for &(a, b, x) in &[
-            (0.1, 0.5, 0.3),  // x^a ≈ 0.887 ≤ 0.9 → line 1022
-            (0.1, 0.5, 0.5),  // x^a ≈ 0.933 > 0.9, x ≥ 0.3 → line 1026
-            (0.01, 0.5, 0.1), // x^a ≈ 0.977 > 0.9, x < 0.3 → line 1030
+            (0.1, 0.5, 0.3),  // x^a ≈ 0.887 ≤ 0.9: label 110
+            (0.1, 0.5, 0.5),  // x^a ≈ 0.933 > 0.9, x ≥ 0.3: label 120
+            (0.01, 0.5, 0.1), // x^a ≈ 0.977 > 0.9, x < 0.3: label 140
         ] {
             let (w, w1) = beta_inc(a, b, x, 1.0 - x);
             assert!((w + w1 - 1.0).abs() < 1e-10, "a={a}, b={b}, x={x}");
@@ -1517,10 +1959,10 @@ mod tests {
     }
 
     #[test]
-    fn beta_inc_large_branch_b_moderate_x_above_0_7() {
-        // large_branch with b < 40 AND x > 0.7: triggers the a0 ≤ 15
-        // beta_up + beta_grat path (lines 1052-1064).
-        let (w, w1) = beta_inc(5.0, 10.0, 0.85, 0.15);
+    fn beta_inc_label_160_x0_above_0_7() {
+        // Label 160 with 0.7 < x0 and a0 ≤ 15: beta_up, then beta_up and
+        // beta_grat with a0 + 20 (cdflib.f90:1288-1296).
+        let (w, w1) = beta_inc(10.0, 3.0, 0.75, 0.25);
         assert!((w + w1 - 1.0).abs() < 1e-10);
     }
 
@@ -1528,8 +1970,8 @@ mod tests {
     fn fpser_apser_beta_pser_edge_cases() {
         let eps = f64::EPSILON.max(1e-15);
 
-        // fpser: a*ln(x) < NEG_EXPARG → return 0.
-        // For a=1, x = 1e-308 (denormal) makes t ≈ -709, below NEG_EXPARG ≈ -708.4.
+        // fpser: a*ln(x) < exparg(1) → return 0.
+        // For a=1, x = 1e-308 (denormal) makes t ≈ -709, below exparg(1) ≈ -708.4.
         assert_eq!(fpser(1.0, 1e-20, 1e-308, eps), 0.0);
 
         // beta_pser at x == 0: explicit early return.
@@ -1550,10 +1992,10 @@ mod tests {
 
     #[test]
     fn beta_rcomp_a0_lt_1_unreached_via_beta_inc_but_safe() {
-        // beta_inc routes a0 < 1 to small_branch (no beta_rcomp call).
-        // beta_rcomp's a0 < 1 path is reachable only if a caller invokes
-        // beta_rcomp directly. Verify those branches return a finite,
-        // non-negative value at sensible inputs.
+        // beta_inc calls beta_rcomp only through beta_frac, with a0 and b0
+        // above 1, so the a0 < 1 paths of beta_rcomp are reached only by a
+        // direct call. Verify those branches return a finite, non-negative
+        // value at sensible inputs.
         // Path b0 ≥ 8 (large b, tiny a):
         let r = beta_rcomp(0.5, 30.0, 0.05, 0.95);
         assert!(r.is_finite() && r >= 0.0);
@@ -1563,5 +2005,19 @@ mod tests {
         // Path b0 ≤ 1:
         let r = beta_rcomp(0.5, 0.7, 0.5, 0.5);
         assert!(r.is_finite() && r >= 0.0);
+    }
+
+    #[test]
+    fn beta_inc_nan_x_with_tiny_a_and_b_takes_label_260() {
+        // max(a, b) < 0.001 eps (cdflib.f90:1092-1094): label 260 gives
+        // w = b/(a+b) and w1 = a/(a+b) whatever x and y are; gfortran
+        // returns (0.5, 0.5) here.
+        assert_eq!(
+            try_beta_inc(1e-20, 1e-20, f64::NAN, f64::NAN),
+            Ok((0.5, 0.5))
+        );
+        assert_eq!(try_beta_inc(1e-20, 1e-20, 0.5, f64::NAN), Ok((0.5, 0.5)));
+        let (w, w1) = try_beta_inc(200.0, 200.0, f64::NAN, f64::NAN).unwrap();
+        assert!(w.is_nan() && w1.is_nan());
     }
 }

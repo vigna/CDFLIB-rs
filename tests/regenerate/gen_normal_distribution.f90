@@ -49,11 +49,19 @@ program gen_normal_distribution
       call cdfnor(which, p, q, xx, mm, ss, status, bound)
       if (status == 0 .and. p > 0.0_rk .and. p < 1.0_rk &
           .and. q > 0.0_rk .and. q < 1.0_rk) then
+        ! Make p and q exact complements of each other, so that the Rust
+        ! inverse_cdf(p) and inverse_ccdf(q), which derive the other one,
+        ! receive the same pair as cdfnor.
+        q = 1.0_rk - p
+        p = 1.0_rk - q
+        which = 2; status = 0; bound = 0.0_rk
+        xx = 0.0_rk; mm = mean; ss = sd
+        call cdfnor(which, p, q, xx, mm, ss, status, bound)
         call putval(unit, mean, .false.)
         call putval(unit, sd, .false.)
         call putval(unit, p, .false.)
         call putval(unit, q, .false.)
-        call putval(unit, x, .true.)
+        call putval(unit, xx, .true.)
       end if
       x = x + sd * 0.125_rk
     end do

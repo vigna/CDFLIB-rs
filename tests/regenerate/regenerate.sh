@@ -1,6 +1,6 @@
 #!/bin/sh
-# Regenerate reference tables under tests/data/ from the bundled
-# Fortran cdflib.f90 source. Run from the repository root:
+# Regenerate reference tables under tests/data/ from the Fortran source
+# refs/cdflib.f90. Run from the repository root:
 # `tests/regenerate/regenerate.sh`.
 #
 # Re-run when the parameter grid or the cdflib.f90 reference changes;
@@ -27,6 +27,9 @@ GENERATORS="
     noncentral_distributions
     dispatchers
     psi_dt1_kernels
+    kernel_coverage
+    dispatcher_calls
+    solver_traces
 "
 for name in $GENERATORS; do
     SRC="tests/regenerate/gen_${name}.f90"
@@ -39,8 +42,10 @@ for name in $GENERATORS; do
     # and 0.1 in gamma_inc_inv) to double precision; -fdefault-double-8
     # keeps D+00 literals at 8 bytes instead of letting the first flag
     # push them to 16. Together every constant is IEEE binary64, matching
-    # the Rust port.
-    gfortran -O2 -fdefault-real-8 -fdefault-double-8 \
+    # the Rust port. -ffp-contract=off forbids fused multiply-adds, which
+    # the Rust port never uses, so that the generated values are the
+    # IEEE binary64 results of the F90 expressions as written.
+    gfortran -O2 -fdefault-real-8 -fdefault-double-8 -ffp-contract=off \
         -Wall -Wno-unused-variable -Wno-unused-dummy-argument \
         -J "$BUILD_DIR" \
         -o "$BIN" "$SRC" "$REFS_DIR/cdflib.f90"

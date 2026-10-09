@@ -1,8 +1,10 @@
 //! Shared helpers for integration tests.
 //!
-//! Two things live here:
-//! - [`assert_close`] / [`assert_close_eps`], the floating-point comparison
-//!   used by every reference-table test.
+//! Three things live here:
+//! - [`assert_exact`], the bit-for-bit comparison used by every
+//!   reference-table test against the F90 fixtures.
+//! - [`assert_close`] / [`assert_close_eps`], the tolerance-based comparison
+//!   used by the round-trip tests.
 //! - [`read_csv`], a tiny line-based reader for the fixture CSVs under
 //!   `tests/data/`.
 //!
@@ -17,8 +19,9 @@ use std::path::Path;
 // ---------------------------------------------------------------------
 // Tolerance constants
 //
-// These bounds represent the empirical precision floor measured against
-// the F90 CSV fixtures under tests/data/.
+// The comparisons against the F90 fixtures under tests/data/ are exact
+// (see assert_exact). The tolerances below serve the round-trip tests,
+// which check the Rust port against itself.
 // ---------------------------------------------------------------------
 
 /// Default relative tolerance: one digit shy of `f64::EPSILON`.
@@ -28,50 +31,9 @@ pub const DEFAULT_REL_TOL: f64 = 1e-14;
 /// relative criterion is meaningless (e.g. `cdf(x) = 0.0`).
 pub const DEFAULT_ABS_TOL: f64 = 1e-300;
 
-/// Direct math routines (`error_f`, `cumnor`, `gamma_log`, `gamma`,
-/// `beta_log`, …). Compared against fixtures generated from the
-/// Fortran `cdflib.f90` via `tests/regenerate/gen_*.f90`.
-/// Measured max is `1.5e-14` (the gamma reflection row at a = −42.5,
-/// where libm differences amplify to ~65 ulps). `5e-14` leaves ~3.5x
-/// margin.
-pub const KERNEL_REL_TOL: f64 = 5e-14;
-
-/// Iterative or regime-aware routines (`gamma_inc`, `beta_inc`). These
-/// dispatch across multiple computational regimes (power series,
-/// continued fraction, Tricomi–Temme-style asymptotic expansion); the last few
-/// ULPs can shift between Rust and the committed Fortran fixtures in the
-/// deep tails. Relative error above `5e-14` occurs only on tiny tail
-/// values whose absolute error sits under [`ITERATIVE_KERNEL_ABS_TOL`].
-pub const ITERATIVE_KERNEL_REL_TOL: f64 = 5e-14;
-
-/// Absolute floor for the iterative-routine fixtures, so near-zero `P`/`Q`
-/// tail values do not spuriously fail on relative error alone.
-/// Measured max absolute difference: `5.5e-15`. `2e-14` leaves ~3.7x
-/// margin.
-pub const ITERATIVE_KERNEL_ABS_TOL: f64 = 2e-14;
-
-/// Distribution-layer methods whose CDF chains through an iterative
-/// routine (Beta, ChiSquared, Gamma, StudentsT, FisherSnedecor, plus
-/// the three discrete distributions that reduce to `beta_inc` or
-/// `gamma_inc`). Measured max: 1.2e-13 (Poisson, NegBin). Tolerance
-/// 3e-13 leaves ~2.6x margin.
-pub const DISTRIBUTION_REL_TOL: f64 = 3e-13;
-
-/// Absolute floor for the distribution reference-table tests, carrying
-/// the extreme-tail rows near 0 or 1. Measured max absolute difference:
-/// `1.6e-15`. `1e-14` leaves ~6x margin.
-pub const DISTRIBUTION_ABS_TOL: f64 = 1e-14;
-
-/// `dinvnr` (direct normal inverse) reference-table match, used as both
-/// the relative and the absolute tolerance. The absolute side is the
-/// binding one: measured max absolute difference is `8.9e-16` (relative
-/// error is meaningless on the near-zero rows at p ≈ 0.5, which the
-/// absolute floor carries). `3e-15` leaves ~3.4x margin.
-pub const DINVNR_REL_TOL: f64 = 3e-15;
-
 /// `dinvr`-driven inverses and round-trip tests where the forward CDF
 /// is computed by a direct or iterative routine. The search matches
-/// CDFLIB's `dstinv` configuration with rel_tol = 1e-8; round-trip
+/// CDFLIB's `dstinv` configuration with reltol = 1e-8; round-trip
 /// residuals are bounded by that search tolerance plus the CDF's
 /// Lipschitz factor near the queried quantile. 5e-8 leaves ~5x margin.
 pub const INVERSE_REL_TOL: f64 = 5e-8;
@@ -79,33 +41,27 @@ pub const INVERSE_REL_TOL: f64 = 5e-8;
 /// `dinvr`-driven inverses where the forward CDF chains through an
 /// iterative routine (`StudentsT::inverse_cdf`, `Beta::inverse_cdf`,
 /// `ChiSquared::inverse_cdf`, …). With the search matching CDFLIB's
-/// rel_tol = 1e-8, the worst-case projection through `1/|f'(x)|` near
+/// reltol = 1e-8, the worst-case projection through `1/|f'(x)|` near
 /// low-pdf quantiles (e.g., t(df=4) at 0.975) reaches ~5e-7.
 pub const CHAINED_INVERSE_REL_TOL: f64 = 5e-7;
 
-/// Noncentral distributions (`cumchn`). Despite CDFLIB's internal
-/// convergence tolerance of `1e-5`, the Poisson-mixture series achieves
-/// much higher accuracy in practice on the committed fixture grid.
-/// Measured max: 2.1e-14. Tolerance 5e-14 leaves ~2.4x margin.
-pub const NONCENTRAL_CHI_REL_TOL: f64 = 5e-14;
-
-/// Noncentral F (`cumfnc`). Internal tolerance `1e-4`, but measured max
-/// relative error is ~1.1e-10 on the committed fixture grid. Tolerance
-/// 2e-10 leaves <2x margin, so this is about as tight as the current
-/// series truncation allows without becoming brittle.
-pub const NONCENTRAL_F_REL_TOL: f64 = 2e-10;
-
-/// Absolute companion to [`NONCENTRAL_F_REL_TOL`]: deep-tail rows
-/// assemble the answer as `0.5 + (0.5 - sum)`, so a one-ulp libm wobble
-/// in `sum` costs ε/2 ≈ 1.1e-16 absolute regardless of how small the
-/// tail value is. 1e-15 covers ~4 ulps of that floor.
-pub const NONCENTRAL_F_ABS_TOL: f64 = 1e-15;
-
-/// Absolute floor for `stvaln`: at p ≈ 0.5 the result is the total
-/// cancellation `sgn * (y + num/den)` of two ~1.17 quantities, so a
-/// one-ulp libm wobble costs ~2.2e-16 absolute however small the result
-/// is. 1e-15 covers ~4 ulps of that floor.
-pub const STVALN_ABS_TOL: f64 = 1e-15;
+/// Assert that `got` and `expected` are the same IEEE binary64 value, bit
+/// for bit (any NaN matches any NaN). `ctx`, typically the CSV row, is
+/// printed on failure.
+///
+/// The fixtures are generated with `-ffp-contract=off`, so the F90 results
+/// contain no fused multiply-adds and the Rust port reproduces them exactly.
+#[track_caller]
+pub fn assert_exact(got: f64, expected: f64, ctx: &[f64]) {
+    if got.is_nan() && expected.is_nan() {
+        return;
+    }
+    assert_eq!(
+        got.to_bits(),
+        expected.to_bits(),
+        "got {got:e}, expected {expected:e} for {ctx:?}",
+    );
+}
 
 /// Assert that `got` is close to `expected` using the default tolerances.
 #[track_caller]

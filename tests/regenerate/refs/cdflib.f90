@@ -33,40 +33,40 @@ function algdiv ( a, b )
 !
 !  Input:
 !
-!    real ( kind = rk ) A, B, define the arguments.
+!    real ( kind = rk8 ) A, B, define the arguments.
 !
 !  Output:
 !
-!    real ( kind = rk ) ALGDIV, the value of ln(Gamma(B)/Gamma(A+B)).
+!    real ( kind = rk8 ) ALGDIV, the value of ln(Gamma(B)/Gamma(A+B)).
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) algdiv
-  real ( kind = rk ) alnrel
-  real ( kind = rk ) b
-  real ( kind = rk ) c
-  real ( kind = rk ), parameter :: c0 =  0.833333333333333D-01
-  real ( kind = rk ), parameter :: c1 = -0.277777777760991D-02
-  real ( kind = rk ), parameter :: c2 =  0.793650666825390D-03
-  real ( kind = rk ), parameter :: c3 = -0.595202931351870D-03
-  real ( kind = rk ), parameter :: c4 =  0.837308034031215D-03
-  real ( kind = rk ), parameter :: c5 = -0.165322962780713D-02
-  real ( kind = rk ) d
-  real ( kind = rk ) h
-  real ( kind = rk ) s11
-  real ( kind = rk ) s3
-  real ( kind = rk ) s5
-  real ( kind = rk ) s7
-  real ( kind = rk ) s9
-  real ( kind = rk ) t
-  real ( kind = rk ) u
-  real ( kind = rk ) v
-  real ( kind = rk ) w
-  real ( kind = rk ) x
-  real ( kind = rk ) x2
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) algdiv
+  real ( kind = rk8 ) alnrel
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) c
+  real ( kind = rk8 ), parameter :: c0 =  0.833333333333333D-01
+  real ( kind = rk8 ), parameter :: c1 = -0.277777777760991D-02
+  real ( kind = rk8 ), parameter :: c2 =  0.793650666825390D-03
+  real ( kind = rk8 ), parameter :: c3 = -0.595202931351870D-03
+  real ( kind = rk8 ), parameter :: c4 =  0.837308034031215D-03
+  real ( kind = rk8 ), parameter :: c5 = -0.165322962780713D-02
+  real ( kind = rk8 ) d
+  real ( kind = rk8 ) h
+  real ( kind = rk8 ) s11
+  real ( kind = rk8 ) s3
+  real ( kind = rk8 ) s5
+  real ( kind = rk8 ) s7
+  real ( kind = rk8 ) s9
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) u
+  real ( kind = rk8 ) v
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) x2
 
   if ( b < a ) then
     h = b / a
@@ -143,28 +143,28 @@ function alnrel ( a )
 !
 !  Input:
 !
-!    real ( kind = rk ) A, the argument.
+!    real ( kind = rk8 ) A, the argument.
 !
 !  Output:
 !
-!   real ( kind = rk ) ALNREL, the value of ln ( 1 + A ).
+!   real ( kind = rk8 ) ALNREL, the value of ln ( 1 + A ).
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) alnrel
-  real ( kind = rk ), parameter :: p1 = -0.129418923021993D+01
-  real ( kind = rk ), parameter :: p2 =  0.405303492862024D+00
-  real ( kind = rk ), parameter :: p3 = -0.178874546012214D-01
-  real ( kind = rk ), parameter :: q1 = -0.162752256355323D+01
-  real ( kind = rk ), parameter :: q2 =  0.747811014037616D+00
-  real ( kind = rk ), parameter :: q3 = -0.845104217945565D-01
-  real ( kind = rk ) t
-  real ( kind = rk ) t2
-  real ( kind = rk ) w
-  real ( kind = rk ) x
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) alnrel
+  real ( kind = rk8 ), parameter :: p1 = -0.129418923021993D+01
+  real ( kind = rk8 ), parameter :: p2 =  0.405303492862024D+00
+  real ( kind = rk8 ), parameter :: p3 = -0.178874546012214D-01
+  real ( kind = rk8 ), parameter :: q1 = -0.162752256355323D+01
+  real ( kind = rk8 ), parameter :: q2 =  0.747811014037616D+00
+  real ( kind = rk8 ), parameter :: q3 = -0.845104217945565D-01
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) t2
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) x
 
   if ( abs ( a ) <= 0.375D+00 ) then
 
@@ -178,7 +178,7 @@ function alnrel ( a )
 
   else
 
-    x = 1.0D+00 + real ( a, kind = rk )
+    x = 1.0D+00 + real ( a, kind = rk8 )
     alnrel = log ( x )
 
   end if
@@ -221,33 +221,33 @@ function apser ( a, b, x, eps )
 !
 !  Input:
 !
-!    real ( kind = rk ) A, B, X, the parameters of the
+!    real ( kind = rk8 ) A, B, X, the parameters of the
 !    incomplete beta ratio.
 !
-!    real ( kind = rk ) EPS, a tolerance.
+!    real ( kind = rk8 ) EPS, a tolerance.
 !
 !  Output:
 !
-!    real ( kind = rk ) APSER, the incomplete beta ratio.
+!    real ( kind = rk8 ) APSER, the incomplete beta ratio.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) aj
-  real ( kind = rk ) apser
-  real ( kind = rk ) b
-  real ( kind = rk ) bx
-  real ( kind = rk ) c
-  real ( kind = rk ) eps
-  real ( kind = rk ), parameter :: g = 0.577215664901533D+00
-  real ( kind = rk ) j
-  real ( kind = rk ) psi
-  real ( kind = rk ) s
-  real ( kind = rk ) t
-  real ( kind = rk ) tol
-  real ( kind = rk ) x
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) aj
+  real ( kind = rk8 ) apser
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) bx
+  real ( kind = rk8 ) c
+  real ( kind = rk8 ) eps
+  real ( kind = rk8 ), parameter :: g = 0.577215664901533D+00
+  real ( kind = rk8 ) j
+  real ( kind = rk8 ) psi
+  real ( kind = rk8 ) s
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) tol
+  real ( kind = rk8 ) x
 
   bx = b * x
   t = x - bx
@@ -319,39 +319,39 @@ function bcorr ( a0, b0 )
 !
 !  Input:
 !
-!    real ( kind = rk ) A0, B0, the arguments.
+!    real ( kind = rk8 ) A0, B0, the arguments.
 !    It is assumed that 8 <= A0 and 8 <= B0.
 !
 !  Output:
 !
-!    real ( kind = rk ) BCORR, the value of the function.
+!    real ( kind = rk8 ) BCORR, the value of the function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) a0
-  real ( kind = rk ) b
-  real ( kind = rk ) b0
-  real ( kind = rk ) bcorr
-  real ( kind = rk ) c
-  real ( kind = rk ), parameter :: c0 =  0.833333333333333D-01
-  real ( kind = rk ), parameter :: c1 = -0.277777777760991D-02
-  real ( kind = rk ), parameter :: c2 =  0.793650666825390D-03
-  real ( kind = rk ), parameter :: c3 = -0.595202931351870D-03
-  real ( kind = rk ), parameter :: c4 =  0.837308034031215D-03
-  real ( kind = rk ), parameter :: c5 = -0.165322962780713D-02
-  real ( kind = rk ) h
-  real ( kind = rk ) s11
-  real ( kind = rk ) s3
-  real ( kind = rk ) s5
-  real ( kind = rk ) s7
-  real ( kind = rk ) s9
-  real ( kind = rk ) t
-  real ( kind = rk ) w
-  real ( kind = rk ) x
-  real ( kind = rk ) x2
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) a0
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) b0
+  real ( kind = rk8 ) bcorr
+  real ( kind = rk8 ) c
+  real ( kind = rk8 ), parameter :: c0 =  0.833333333333333D-01
+  real ( kind = rk8 ), parameter :: c1 = -0.277777777760991D-02
+  real ( kind = rk8 ), parameter :: c2 =  0.793650666825390D-03
+  real ( kind = rk8 ), parameter :: c3 = -0.595202931351870D-03
+  real ( kind = rk8 ), parameter :: c4 =  0.837308034031215D-03
+  real ( kind = rk8 ), parameter :: c5 = -0.165322962780713D-02
+  real ( kind = rk8 ) h
+  real ( kind = rk8 ) s11
+  real ( kind = rk8 ) s3
+  real ( kind = rk8 ) s5
+  real ( kind = rk8 ) s7
+  real ( kind = rk8 ) s9
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) x2
 
   a = min ( a0, b0 )
   b = max ( a0, b0 )
@@ -417,20 +417,20 @@ function beta ( a, b )
 !
 !  Input:
 !
-!    real ( kind = rk ) A, B, the arguments of the beta function.
+!    real ( kind = rk8 ) A, B, the arguments of the beta function.
 !
 !  Output:
 !
-!    real ( kind = rk ) BETA, the value of the beta function.
+!    real ( kind = rk8 ) BETA, the value of the beta function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) b
-  real ( kind = rk ) beta
-  real ( kind = rk ) beta_log
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) beta
+  real ( kind = rk8 ) beta_log
 
   beta = exp ( beta_log ( a, b ) )
 
@@ -464,70 +464,70 @@ function beta_asym ( a, b, lambda, eps )
 !
 !  Input:
 !
-!    real ( kind = rk ) A, B, the parameters of the function.
+!    real ( kind = rk8 ) A, B, the parameters of the function.
 !    A and B should be nonnegative.  It is assumed that both A and B
 !    are greater than or equal to 15.
 !
-!    real ( kind = rk ) LAMBDA, the value of ( A + B ) * Y - B.
+!    real ( kind = rk8 ) LAMBDA, the value of ( A + B ) * Y - B.
 !    It is assumed that 0 <= LAMBDA.
 !
-!    real ( kind = rk ) EPS, the tolerance.
+!    real ( kind = rk8 ) EPS, the tolerance.
 !
 !  Output:
 !
-!    real ( kind = rk ) BETA_ASYM, the estimate for IX(A,B).
+!    real ( kind = rk8 ) BETA_ASYM, the estimate for IX(A,B).
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: num = 20
 
-  real ( kind = rk ) a
-  real ( kind = rk ) a0(num+1)
-  real ( kind = rk ) b
-  real ( kind = rk ) b0(num+1)
-  real ( kind = rk ) bcorr
-  real ( kind = rk ) beta_asym
-  real ( kind = rk ) bsum
-  real ( kind = rk ) c(num+1)
-  real ( kind = rk ) d(num+1)
-  real ( kind = rk ) dsum
-  real ( kind = rk ), parameter :: e0 = 1.12837916709551D+00
-  real ( kind = rk ), parameter :: e1 = 0.353553390593274D+00
-  real ( kind = rk ) eps
-  real ( kind = rk ) error_fc
-  real ( kind = rk ) f
-  real ( kind = rk ) h
-  real ( kind = rk ) h2
-  real ( kind = rk ) hn
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) a0(num+1)
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) b0(num+1)
+  real ( kind = rk8 ) bcorr
+  real ( kind = rk8 ) beta_asym
+  real ( kind = rk8 ) bsum
+  real ( kind = rk8 ) c(num+1)
+  real ( kind = rk8 ) d(num+1)
+  real ( kind = rk8 ) dsum
+  real ( kind = rk8 ), parameter :: e0 = 1.12837916709551D+00
+  real ( kind = rk8 ), parameter :: e1 = 0.353553390593274D+00
+  real ( kind = rk8 ) eps
+  real ( kind = rk8 ) error_fc
+  real ( kind = rk8 ) f
+  real ( kind = rk8 ) h
+  real ( kind = rk8 ) h2
+  real ( kind = rk8 ) hn
   integer i
   integer j
-  real ( kind = rk ) j0
-  real ( kind = rk ) j1
-  real ( kind = rk ) lambda
+  real ( kind = rk8 ) j0
+  real ( kind = rk8 ) j1
+  real ( kind = rk8 ) lambda
   integer m
   integer mm1
   integer mmj
   integer n
   integer np1
-  real ( kind = rk ) r
-  real ( kind = rk ) r0
-  real ( kind = rk ) r1
-  real ( kind = rk ) rlog1
-  real ( kind = rk ) s
-  real ( kind = rk ) sum1
-  real ( kind = rk ) t
-  real ( kind = rk ) t0
-  real ( kind = rk ) t1
-  real ( kind = rk ) u
-  real ( kind = rk ) w
-  real ( kind = rk ) w0
-  real ( kind = rk ) z
-  real ( kind = rk ) z0
-  real ( kind = rk ) z2
-  real ( kind = rk ) zn
-  real ( kind = rk ) znm1
+  real ( kind = rk8 ) r
+  real ( kind = rk8 ) r0
+  real ( kind = rk8 ) r1
+  real ( kind = rk8 ) rlog1
+  real ( kind = rk8 ) s
+  real ( kind = rk8 ) sum1
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) t0
+  real ( kind = rk8 ) t1
+  real ( kind = rk8 ) u
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) w0
+  real ( kind = rk8 ) z
+  real ( kind = rk8 ) z0
+  real ( kind = rk8 ) z2
+  real ( kind = rk8 ) zn
+  real ( kind = rk8 ) znm1
 
   beta_asym = 0.0D+00
 
@@ -651,52 +651,52 @@ function beta_frac ( a, b, x, y, lambda, eps )
 !
 !  Input:
 !
-!    real ( kind = rk ) A, B, the parameters of the function.
+!    real ( kind = rk8 ) A, B, the parameters of the function.
 !    A and B should be nonnegative.  It is assumed that both A and
 !    B are greater than 1.
 !
-!    real ( kind = rk ) X, Y.  X is the argument of the
+!    real ( kind = rk8 ) X, Y.  X is the argument of the
 !    function, and should satisy 0 <= X <= 1.  Y should equal 1 - X.
 !
-!    real ( kind = rk ) LAMBDA, the value of ( A + B ) * Y - B.
+!    real ( kind = rk8 ) LAMBDA, the value of ( A + B ) * Y - B.
 !
-!    real ( kind = rk ) EPS, a tolerance.
+!    real ( kind = rk8 ) EPS, a tolerance.
 !
 !  Output:
 !
-!    real ( kind = rk ) BETA_FRAC, the value of the continued
+!    real ( kind = rk8 ) BETA_FRAC, the value of the continued
 !    fraction approximation for IX(A,B).
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) alpha
-  real ( kind = rk ) an
-  real ( kind = rk ) anp1
-  real ( kind = rk ) b
-  real ( kind = rk ) beta
-  real ( kind = rk ) beta_frac
-  real ( kind = rk ) beta_rcomp
-  real ( kind = rk ) bn
-  real ( kind = rk ) bnp1
-  real ( kind = rk ) c
-  real ( kind = rk ) c0
-  real ( kind = rk ) c1
-  real ( kind = rk ) e
-  real ( kind = rk ) eps
-  real ( kind = rk ) lambda
-  real ( kind = rk ) n
-  real ( kind = rk ) p
-  real ( kind = rk ) r
-  real ( kind = rk ) r0
-  real ( kind = rk ) s
-  real ( kind = rk ) t
-  real ( kind = rk ) w
-  real ( kind = rk ) x
-  real ( kind = rk ) y
-  real ( kind = rk ) yp1
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) alpha
+  real ( kind = rk8 ) an
+  real ( kind = rk8 ) anp1
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) beta
+  real ( kind = rk8 ) beta_frac
+  real ( kind = rk8 ) beta_rcomp
+  real ( kind = rk8 ) bn
+  real ( kind = rk8 ) bnp1
+  real ( kind = rk8 ) c
+  real ( kind = rk8 ) c0
+  real ( kind = rk8 ) c1
+  real ( kind = rk8 ) e
+  real ( kind = rk8 ) eps
+  real ( kind = rk8 ) lambda
+  real ( kind = rk8 ) n
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) r
+  real ( kind = rk8 ) r0
+  real ( kind = rk8 ) s
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) y
+  real ( kind = rk8 ) yp1
 
   beta_frac = beta_rcomp ( a, b, x, y )
 
@@ -786,61 +786,64 @@ subroutine beta_grat ( a, b, x, y, w, eps, ierr )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) A, B, the parameters of the function.
+!    real ( kind = rk8 ) A, B, the parameters of the function.
 !    A and B should be nonnegative.  It is assumed that 15 <= A
 !    and B <= 1, and that B is less than A.
 !
-!    Input, real ( kind = rk ) X, Y.  X is the argument of the
+!    real ( kind = rk8 ) X, Y.  X is the argument of the
 !    function, and should satisy 0 <= X <= 1.  Y should equal 1 - X.
 !
-!    Input/output, real ( kind = rk ) W, a quantity to which the
-!    result of the computation is to be added on output.
+!    real ( kind = rk8 ) W: the estimated quantity.
 !
-!    Input, real ( kind = rk ) EPS, a tolerance.
+!    real ( kind = rk8 ) EPS, a tolerance.
 !
-!    Output, integer IERR, an error flag, which is 0 if no error
+!  Output:
+!
+!    real ( kind = rk8 ) W: the updated quantity.
+!
+!    integer IERR, an error flag, which is 0 if no error
 !    was detected.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) algdiv
-  real ( kind = rk ) alnrel
-  real ( kind = rk ) b
-  real ( kind = rk ) bm1
-  real ( kind = rk ) bp2n
-  real ( kind = rk ) c(30)
-  real ( kind = rk ) cn
-  real ( kind = rk ) coef
-  real ( kind = rk ) d(30)
-  real ( kind = rk ) dj
-  real ( kind = rk ) eps
-  real ( kind = rk ) gam1
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) algdiv
+  real ( kind = rk8 ) alnrel
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) bm1
+  real ( kind = rk8 ) bp2n
+  real ( kind = rk8 ) c(30)
+  real ( kind = rk8 ) cn
+  real ( kind = rk8 ) coef
+  real ( kind = rk8 ) d(30)
+  real ( kind = rk8 ) dj
+  real ( kind = rk8 ) eps
+  real ( kind = rk8 ) gam1
   integer i
   integer ierr
-  real ( kind = rk ) j
-  real ( kind = rk ) l
-  real ( kind = rk ) lnx
+  real ( kind = rk8 ) j
+  real ( kind = rk8 ) l
+  real ( kind = rk8 ) lnx
   integer n
-  real ( kind = rk ) n2
-  real ( kind = rk ) nu
-  real ( kind = rk ) p
-  real ( kind = rk ) q
-  real ( kind = rk ) r
-  real ( kind = rk ) s
-  real ( kind = rk ) sum1
-  real ( kind = rk ) t
-  real ( kind = rk ) t2
-  real ( kind = rk ) u
-  real ( kind = rk ) v
-  real ( kind = rk ) w
-  real ( kind = rk ) x
-  real ( kind = rk ) y
-  real ( kind = rk ) z
+  real ( kind = rk8 ) n2
+  real ( kind = rk8 ) nu
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) q
+  real ( kind = rk8 ) r
+  real ( kind = rk8 ) s
+  real ( kind = rk8 ) sum1
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) t2
+  real ( kind = rk8 ) u
+  real ( kind = rk8 ) v
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) y
+  real ( kind = rk8 ) z
 
   bm1 = ( b - 0.5D+00 ) - 0.5D+00
   nu = a + 0.5D+00 * bm1
@@ -950,15 +953,15 @@ subroutine beta_inc ( a, b, x, y, w, w1, ierr )
 !
 !  Input:
 !
-!    real ( kind = rk ) A, B, the parameters of the function.
+!    real ( kind = rk8 ) A, B, the parameters of the function.
 !    A and B should be nonnegative.
 !
-!    real ( kind = rk ) X, Y.  X is the argument of the
+!    real ( kind = rk8 ) X, Y.  X is the argument of the
 !    function, and should satisy 0 <= X <= 1.  Y should equal 1 - X.
 !
 !  Output:
 !
-!    real ( kind = rk ) W, W1, the values of IX(A,B) and 1-IX(A,B).
+!    real ( kind = rk8 ) W, W1, the values of IX(A,B) and 1-IX(A,B).
 !
 !    integer IERR, the error flag.
 !    0, no error was detected.
@@ -972,32 +975,32 @@ subroutine beta_inc ( a, b, x, y, w, w1, ierr )
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) a0
-  real ( kind = rk ) apser
-  real ( kind = rk ) b
-  real ( kind = rk ) b0
-  real ( kind = rk ) beta_asym
-  real ( kind = rk ) beta_frac
-  real ( kind = rk ) beta_pser
-  real ( kind = rk ) beta_up
-  real ( kind = rk ) eps
-  real ( kind = rk ) fpser
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) a0
+  real ( kind = rk8 ) apser
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) b0
+  real ( kind = rk8 ) beta_asym
+  real ( kind = rk8 ) beta_frac
+  real ( kind = rk8 ) beta_pser
+  real ( kind = rk8 ) beta_up
+  real ( kind = rk8 ) eps
+  real ( kind = rk8 ) fpser
   integer ierr
   integer ierr1
   integer ind
-  real ( kind = rk ) lambda
+  real ( kind = rk8 ) lambda
   integer n
-  real ( kind = rk ) t
-  real ( kind = rk ) w
-  real ( kind = rk ) w1
-  real ( kind = rk ) x
-  real ( kind = rk ) x0
-  real ( kind = rk ) y
-  real ( kind = rk ) y0
-  real ( kind = rk ) z
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) w1
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) x0
+  real ( kind = rk8 ) y
+  real ( kind = rk8 ) y0
+  real ( kind = rk8 ) z
 
   eps = epsilon ( eps )
   w = 0.0D+00
@@ -1370,25 +1373,29 @@ subroutine beta_inc_values ( n_data, a, b, x, fx )
 !    Tables of the Incomplete Beta Function,
 !    Cambridge University Press, 1968.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer N_DATA.  The user sets N_DATA to 0
-!    before the first call.  On each call, the routine increments N_DATA by 1,
+!    integer N_DATA.  The user sets N_DATA to 0
+!    before the first call.  
+!
+!  Output:
+!
+!    integer N_DATA: On each call, the routine increments N_DATA by 1,
 !    and returns the corresponding data; when there is no more data, the
 !    output value of N_DATA will be 0 again.
 !
-!    Output, real ( kind = rk ) A, B, X, the arguments of the function.
+!    real ( kind = rk8 ) A, B, X, the arguments of the function.
 !
-!    Output, real ( kind = rk ) FX, the value of the function.
+!    real ( kind = rk8 ) FX, the value of the function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: n_max = 30
 
-  real ( kind = rk ) a
-  real ( kind = rk ), save, dimension ( n_max ) :: a_vec = (/ &
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ), save, dimension ( n_max ) :: a_vec = (/ &
      0.5D+00,  0.5D+00,  0.5D+00,  1.0D+00, &
      1.0D+00,  1.0D+00,  1.0D+00,  1.0D+00, &
      2.0D+00,  2.0D+00,  2.0D+00,  2.0D+00, &
@@ -1397,8 +1404,8 @@ subroutine beta_inc_values ( n_data, a, b, x, fx )
     10.0D+00, 10.0D+00, 20.0D+00, 20.0D+00, &
     20.0D+00, 20.0D+00, 20.0D+00, 30.0D+00, &
     30.0D+00, 40.0D+00 /)
-  real ( kind = rk ) b
-  real ( kind = rk ), save, dimension ( n_max ) :: b_vec = (/ &
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ), save, dimension ( n_max ) :: b_vec = (/ &
      0.5D+00,  0.5D+00,  0.5D+00,  0.5D+00, &
      0.5D+00,  0.5D+00,  0.5D+00,  1.0D+00, &
      2.0D+00,  2.0D+00,  2.0D+00,  2.0D+00, &
@@ -1407,8 +1414,8 @@ subroutine beta_inc_values ( n_data, a, b, x, fx )
      5.0D+00, 10.0D+00,  5.0D+00, 10.0D+00, &
     10.0D+00, 20.0D+00, 20.0D+00, 10.0D+00, &
     10.0D+00, 20.0D+00 /)
-  real ( kind = rk ) fx
-  real ( kind = rk ), save, dimension ( n_max ) :: fx_vec = (/ &
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), save, dimension ( n_max ) :: fx_vec = (/ &
     0.0637686D+00, 0.2048328D+00, 1.0000000D+00, 0.0D+00,       &
     0.0050126D+00, 0.0513167D+00, 0.2928932D+00, 0.5000000D+00, &
     0.028D+00,     0.104D+00,     0.216D+00,     0.352D+00,     &
@@ -1418,8 +1425,8 @@ subroutine beta_inc_values ( n_data, a, b, x, fx )
     0.9507365D+00, 0.5000000D+00, 0.8979414D+00, 0.2241297D+00, &
     0.7586405D+00, 0.7001783D+00 /)
   integer n_data
-  real ( kind = rk ) x
-  real ( kind = rk ), save, dimension ( n_max ) :: x_vec = (/ &
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ), save, dimension ( n_max ) :: x_vec = (/ &
     0.01D+00, 0.10D+00, 1.00D+00, 0.0D+00,  &
     0.01D+00, 0.10D+00, 0.50D+00, 0.50D+00, &
     0.1D+00,  0.2D+00,  0.3D+00,  0.4D+00,  &
@@ -1478,37 +1485,37 @@ function beta_log ( a0, b0 )
 !
 !  Input:
 !
-!    real ( kind = rk ) A0, B0, the parameters of the function.
+!    real ( kind = rk8 ) A0, B0, the parameters of the function.
 !    A0 and B0 should be nonnegative.
 !
 !  Output:
 !
-!    real ( kind = rk ) BETA_LOG, the value of the logarithm
+!    real ( kind = rk8 ) BETA_LOG, the value of the logarithm
 !    of the Beta function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) a0
-  real ( kind = rk ) algdiv
-  real ( kind = rk ) alnrel
-  real ( kind = rk ) b
-  real ( kind = rk ) b0
-  real ( kind = rk ) bcorr
-  real ( kind = rk ) beta_log
-  real ( kind = rk ) c
-  real ( kind = rk ), parameter :: e = 0.918938533204673D+00
-  real ( kind = rk ) gamma_log
-  real ( kind = rk ) gsumln
-  real ( kind = rk ) h
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) a0
+  real ( kind = rk8 ) algdiv
+  real ( kind = rk8 ) alnrel
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) b0
+  real ( kind = rk8 ) bcorr
+  real ( kind = rk8 ) beta_log
+  real ( kind = rk8 ) c
+  real ( kind = rk8 ), parameter :: e = 0.918938533204673D+00
+  real ( kind = rk8 ) gamma_log
+  real ( kind = rk8 ) gsumln
+  real ( kind = rk8 ) h
   integer i
   integer n
-  real ( kind = rk ) u
-  real ( kind = rk ) v
-  real ( kind = rk ) w
-  real ( kind = rk ) z
+  real ( kind = rk8 ) u
+  real ( kind = rk8 ) v
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) z
 
   a = min ( a0, b0 )
   b = max ( a0, b0 )
@@ -1647,43 +1654,43 @@ function beta_pser ( a, b, x, eps )
 !
 !  Input:
 !
-!    real ( kind = rk ) A, B, the parameters.
+!    real ( kind = rk8 ) A, B, the parameters.
 !
-!    real ( kind = rk ) X, the point where the function
+!    real ( kind = rk8 ) X, the point where the function
 !    is to be evaluated.
 !
-!    real ( kind = rk ) EPS, the tolerance.
+!    real ( kind = rk8 ) EPS, the tolerance.
 !
 !  Output:
 !
-!    real ( kind = rk ) BETA_PSER, the approximate value of IX(A,B)(X).
+!    real ( kind = rk8 ) BETA_PSER, the approximate value of IX(A,B)(X).
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) a0
-  real ( kind = rk ) algdiv
-  real ( kind = rk ) apb
-  real ( kind = rk ) b
-  real ( kind = rk ) b0
-  real ( kind = rk ) beta_log
-  real ( kind = rk ) beta_pser
-  real ( kind = rk ) c
-  real ( kind = rk ) eps
-  real ( kind = rk ) gam1
-  real ( kind = rk ) gamma_ln1
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) a0
+  real ( kind = rk8 ) algdiv
+  real ( kind = rk8 ) apb
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) b0
+  real ( kind = rk8 ) beta_log
+  real ( kind = rk8 ) beta_pser
+  real ( kind = rk8 ) c
+  real ( kind = rk8 ) eps
+  real ( kind = rk8 ) gam1
+  real ( kind = rk8 ) gamma_ln1
   integer i
   integer m
-  real ( kind = rk ) n
-  real ( kind = rk ) sum1
-  real ( kind = rk ) t
-  real ( kind = rk ) tol
-  real ( kind = rk ) u
-  real ( kind = rk ) w
-  real ( kind = rk ) x
-  real ( kind = rk ) z
+  real ( kind = rk8 ) n
+  real ( kind = rk8 ) sum1
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) tol
+  real ( kind = rk8 ) u
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) z
 
   beta_pser = 0.0D+00
 
@@ -1816,49 +1823,49 @@ function beta_rcomp ( a, b, x, y )
 !
 !  Input:
 !
-!    real ( kind = rk ) A, B, the parameters of the Beta function.
+!    real ( kind = rk8 ) A, B, the parameters of the Beta function.
 !    A and B should be nonnegative.
 !
-!    real ( kind = rk ) X, Y, define the numerator of the fraction.
+!    real ( kind = rk8 ) X, Y, define the numerator of the fraction.
 !
 !  Output:
 !
-!    real ( kind = rk ) BETA_RCOMP, the value of X^A * Y^B / Beta(A,B).
+!    real ( kind = rk8 ) BETA_RCOMP, the value of X^A * Y^B / Beta(A,B).
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) a0
-  real ( kind = rk ) algdiv
-  real ( kind = rk ) alnrel
-  real ( kind = rk ) apb
-  real ( kind = rk ) b
-  real ( kind = rk ) b0
-  real ( kind = rk ) bcorr
-  real ( kind = rk ) beta_log
-  real ( kind = rk ) beta_rcomp
-  real ( kind = rk ) c
-  real ( kind = rk ), parameter :: const = 0.398942280401433D+00
-  real ( kind = rk ) e
-  real ( kind = rk ) gam1
-  real ( kind = rk ) gamma_ln1
-  real ( kind = rk ) h
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) a0
+  real ( kind = rk8 ) algdiv
+  real ( kind = rk8 ) alnrel
+  real ( kind = rk8 ) apb
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) b0
+  real ( kind = rk8 ) bcorr
+  real ( kind = rk8 ) beta_log
+  real ( kind = rk8 ) beta_rcomp
+  real ( kind = rk8 ) c
+  real ( kind = rk8 ), parameter :: const = 0.398942280401433D+00
+  real ( kind = rk8 ) e
+  real ( kind = rk8 ) gam1
+  real ( kind = rk8 ) gamma_ln1
+  real ( kind = rk8 ) h
   integer i
-  real ( kind = rk ) lambda
-  real ( kind = rk ) lnx
-  real ( kind = rk ) lny
+  real ( kind = rk8 ) lambda
+  real ( kind = rk8 ) lnx
+  real ( kind = rk8 ) lny
   integer n
-  real ( kind = rk ) rlog1
-  real ( kind = rk ) t
-  real ( kind = rk ) u
-  real ( kind = rk ) v
-  real ( kind = rk ) x
-  real ( kind = rk ) x0
-  real ( kind = rk ) y
-  real ( kind = rk ) y0
-  real ( kind = rk ) z
+  real ( kind = rk8 ) rlog1
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) u
+  real ( kind = rk8 ) v
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) x0
+  real ( kind = rk8 ) y
+  real ( kind = rk8 ) y0
+  real ( kind = rk8 ) z
 
   beta_rcomp = 0.0D+00
   if ( x == 0.0D+00 .or. y == 0.0D+00 ) then
@@ -2012,53 +2019,53 @@ function beta_rcomp1 ( mu, a, b, x, y )
 !
 !    integer MU, ?
 !
-!    real ( kind = rk ) A, B, the parameters of the Beta function.
+!    real ( kind = rk8 ) A, B, the parameters of the Beta function.
 !    A and B should be nonnegative.
 !
-!    real ( kind = rk ) X, Y, quantities whose powers form part of
+!    real ( kind = rk8 ) X, Y, quantities whose powers form part of
 !    the expression.
 !
 !  Output:
 !
-!    real ( kind = rk ) BETA_RCOMP1, the value of
+!    real ( kind = rk8 ) BETA_RCOMP1, the value of
 !    exp(MU) * X^A * Y^B / Beta(A,B).
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) a0
-  real ( kind = rk ) algdiv
-  real ( kind = rk ) alnrel
-  real ( kind = rk ) apb
-  real ( kind = rk ) b
-  real ( kind = rk ) b0
-  real ( kind = rk ) bcorr
-  real ( kind = rk ) beta_log
-  real ( kind = rk ) beta_rcomp1
-  real ( kind = rk ) c
-  real ( kind = rk ), parameter :: const = 0.398942280401433D+00
-  real ( kind = rk ) e
-  real ( kind = rk ) esum
-  real ( kind = rk ) gam1
-  real ( kind = rk ) gamma_ln1
-  real ( kind = rk ) h
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) a0
+  real ( kind = rk8 ) algdiv
+  real ( kind = rk8 ) alnrel
+  real ( kind = rk8 ) apb
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) b0
+  real ( kind = rk8 ) bcorr
+  real ( kind = rk8 ) beta_log
+  real ( kind = rk8 ) beta_rcomp1
+  real ( kind = rk8 ) c
+  real ( kind = rk8 ), parameter :: const = 0.398942280401433D+00
+  real ( kind = rk8 ) e
+  real ( kind = rk8 ) esum
+  real ( kind = rk8 ) gam1
+  real ( kind = rk8 ) gamma_ln1
+  real ( kind = rk8 ) h
   integer i
-  real ( kind = rk ) lambda
-  real ( kind = rk ) lnx
-  real ( kind = rk ) lny
+  real ( kind = rk8 ) lambda
+  real ( kind = rk8 ) lnx
+  real ( kind = rk8 ) lny
   integer mu
   integer n
-  real ( kind = rk ) rlog1
-  real ( kind = rk ) t
-  real ( kind = rk ) u
-  real ( kind = rk ) v
-  real ( kind = rk ) x
-  real ( kind = rk ) x0
-  real ( kind = rk ) y
-  real ( kind = rk ) y0
-  real ( kind = rk ) z
+  real ( kind = rk8 ) rlog1
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) u
+  real ( kind = rk8 ) v
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) x0
+  real ( kind = rk8 ) y
+  real ( kind = rk8 ) y0
+  real ( kind = rk8 ) z
 
   a0 = min ( a, b )
 !
@@ -2172,7 +2179,7 @@ function beta_rcomp1 ( mu, a, b, x, y )
       if ( apb <= 1.0D+00 ) then
         z = 1.0D+00 + gam1 ( apb )
       else
-        u = real ( a, kind = rk ) + real ( b, kind = rk ) - 1.0D+00
+        u = real ( a, kind = rk8 ) + real ( b, kind = rk8 ) - 1.0D+00
         z = ( 1.0D+00 + gam1 ( u )) / apb
       end if
 
@@ -2214,42 +2221,42 @@ function beta_up ( a, b, x, y, n, eps )
 !
 !  Input:
 !
-!    real ( kind = rk ) A, B, the parameters of the function.
+!    real ( kind = rk8 ) A, B, the parameters of the function.
 !    A and B should be nonnegative.
 !
-!    real ( kind = rk ) X, Y, ?
+!    real ( kind = rk8 ) X, Y, ?
 !
 !    integer N, the increment to the first argument of IX.
 !
-!    real ( kind = rk ) EPS, the tolerance.
+!    real ( kind = rk8 ) EPS, the tolerance.
 !
 !  Output:
 !
-!    real ( kind = rk ) BETA_UP, the value of IX(A,B) - IX(A+N,B).
+!    real ( kind = rk8 ) BETA_UP, the value of IX(A,B) - IX(A+N,B).
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) ap1
-  real ( kind = rk ) apb
-  real ( kind = rk ) b
-  real ( kind = rk ) beta_rcomp1
-  real ( kind = rk ) beta_up
-  real ( kind = rk ) d
-  real ( kind = rk ) eps
-  real ( kind = rk ) exparg
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) ap1
+  real ( kind = rk8 ) apb
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) beta_rcomp1
+  real ( kind = rk8 ) beta_up
+  real ( kind = rk8 ) d
+  real ( kind = rk8 ) eps
+  real ( kind = rk8 ) exparg
   integer i
   integer k
-  real ( kind = rk ) l
+  real ( kind = rk8 ) l
   integer mu
   integer n
-  real ( kind = rk ) r
-  real ( kind = rk ) t
-  real ( kind = rk ) w
-  real ( kind = rk ) x
-  real ( kind = rk ) y
+  real ( kind = rk8 ) r
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) y
 !
 !  Obtain the scaling factor EXP(-MU) AND
 !  EXP(MU) * ( X^A * Y^B / BETA(A,B) ) / A
@@ -2368,21 +2375,25 @@ subroutine binomial_cdf_values ( n_data, a, b, x, fx )
 !    CRC Standard Mathematical Tables and Formulae,
 !    30th Edition, CRC Press, 1996, pages 651-652.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer N_DATA.  The user sets N_DATA to 0
-!    before the first call.  On each call, the routine increments N_DATA by 1,
+!    integer N_DATA.  The user sets N_DATA to 0
+!    before the first call.  
+!
+!  Output:
+!
+!    integer N_DATA: On each call, the routine increments N_DATA by 1,
 !    and returns the corresponding data; when there is no more data, the
 !    output value of N_DATA will be 0 again.
 !
-!    Output, integer A, real ( kind = rk ) B, integer X, the
+!    integer A, real ( kind = rk8 ) B, integer X, the
 !    arguments of the function.
 !
-!    Output, real ( kind = rk ) FX, the value of the function.
+!    real ( kind = rk8 ) FX, the value of the function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: n_max = 17
 
@@ -2393,15 +2404,15 @@ subroutine binomial_cdf_values ( n_data, a, b, x, fx )
      4, 10, 10, 10, &
     10, 10, 10, 10, &
     10 /)
-  real ( kind = rk ) b
-  real ( kind = rk ), save, dimension ( n_max ) :: b_vec = (/ &
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ), save, dimension ( n_max ) :: b_vec = (/ &
     0.05D+00, 0.05D+00, 0.05D+00, 0.50D+00, &
     0.50D+00, 0.25D+00, 0.25D+00, 0.25D+00, &
     0.25D+00, 0.05D+00, 0.10D+00, 0.15D+00, &
     0.20D+00, 0.25D+00, 0.30D+00, 0.40D+00, &
     0.50D+00 /)
-  real ( kind = rk ) fx
-  real ( kind = rk ), save, dimension ( n_max ) :: fx_vec = (/ &
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), save, dimension ( n_max ) :: fx_vec = (/ &
     0.9025D+00, 0.9975D+00, 1.0000D+00, 0.2500D+00, &
     0.7500D+00, 0.3164D+00, 0.7383D+00, 0.9492D+00, &
     0.9961D+00, 0.9999D+00, 0.9984D+00, 0.9901D+00, &
@@ -2477,40 +2488,58 @@ subroutine cdfbet ( which, p, q, x, y, a, b, status, bound )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, integer WHICH, indicates which of the next four 
+!    integer WHICH, indicates which of the next four 
 !    argument values is to be calculated from the others.
 !    1: Calculate P and Q from X, Y, A and B;
 !    2: Calculate X and Y from P, Q, A and B;
 !    3: Calculate A from P, Q, X, Y and B;
 !    4: Calculate B from P, Q, X, Y and A.
 !
-!    Input/output, real ( kind = rk ) P, the integral from 0 to X of the
+!    real ( kind = rk8 ) P, the integral from 0 to X of the
 !    chi-square distribution.  Input range: [0, 1].
 !
-!    Input/output, real ( kind = rk ) Q, equals 1-P.  Input range: [0, 1].
+!    real ( kind = rk8 ) Q, equals 1-P.  Input range: [0, 1].
 !
-!    Input/output, real ( kind = rk ) X, the upper limit of integration
+!    real ( kind = rk8 ) X, the upper limit of integration
 !    of the beta density.  If it is an input value, it should lie in
-!    the range [0,1].  If it is an output value, it will be searched for
+!    the range [0,1].  
+!
+!    real ( kind = rk8 ) Y, equal to 1-X.  If it is an input
+!    value, it should lie in the range [0,1].
+!
+!    real ( kind = rk8 ) A, the first parameter of the beta
+!    density.  If it is an input value, it should lie in the range
+!    (0, +infinity).
+!
+!    real ( kind = rk8 ) B, the second parameter of the beta
+!    density.  If it is an input value, it should lie in the range
+!    (0, +infinity).
+!
+!  Output:
+!
+!    real ( kind = rk8 ) P, the integral from 0 to X of the
+!    chi-square distribution.
+!
+!    real ( kind = rk8 ) Q, equals 1-P.
+!
+!    real ( kind = rk8 ) X, the upper limit of integration
+!    of the beta density.  If it is an output value, it will be searched for
 !    in the range [0,1].
 !
-!    Input/output, real ( kind = rk ) Y, equal to 1-X.  If it is an input
-!    value, it should lie in the range [0,1].  If it is an output value,
+!    real ( kind = rk8 ) Y, equal to 1-X.  If it is an output value,
 !    it will be searched for in the range [0,1].
 !
-!    Input/output, real ( kind = rk ) A, the first parameter of the beta
-!    density.  If it is an input value, it should lie in the range
-!    (0, +infinity).  If it is an output value, it will be searched
+!    real ( kind = rk8 ) A, the first parameter of the beta
+!    density.  If it is an output value, it will be searched
 !    for in the range [1D-300,1D300].
 !
-!    Input/output, real ( kind = rk ) B, the second parameter of the beta
-!    density.  If it is an input value, it should lie in the range
-!    (0, +infinity).  If it is an output value, it will be searched
+!    real ( kind = rk8 ) B, the second parameter of the beta
+!    density.  If it is an output value, it will be searched
 !    for in the range [1D-300,1D300].
 !
-!    Output, integer STATUS, reports the status of the computation.
+!    integer STATUS, reports the status of the computation.
 !     0, if the calculation completed correctly;
 !    -I, if the input parameter number I is out of range;
 !    +1, if the answer appears to be lower than lowest search bound;
@@ -2518,33 +2547,33 @@ subroutine cdfbet ( which, p, q, x, y, a, b, status, bound )
 !    +3, if P + Q /= 1;
 !    +4, if X + Y /= 1.
 !
-!    Output, real ( kind = rk ) BOUND, is only defined if STATUS is nonzero.
+!    real ( kind = rk8 ) BOUND, is only defined if STATUS is nonzero.
 !    If STATUS is negative, then this is the value exceeded by parameter I.
 !    if STATUS is 1 or 2, this is the search bound that was exceeded.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ), parameter :: atol = 1.0D-10
-  real ( kind = rk ) b
-  real ( kind = rk ) bound
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) fx
-  real ( kind = rk ), parameter :: inf = 1.0D+300
-  real ( kind = rk ) p
-  real ( kind = rk ) q
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ), parameter :: atol = 1.0D-10
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) bound
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), parameter :: inf = 1.0D+300
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) q
   logical qhi
   logical qleft
   integer status
-  real ( kind = rk ), parameter :: tol = 1.0D-08
+  real ( kind = rk8 ), parameter :: tol = 1.0D-08
   integer which
-  real ( kind = rk ) x
-  real ( kind = rk ) xhi
-  real ( kind = rk ) xlo
-  real ( kind = rk ) y
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) xhi
+  real ( kind = rk8 ) xlo
+  real ( kind = rk8 ) y
 
   status = 0
   bound = 0.0D+00
@@ -2897,41 +2926,62 @@ subroutine cdfbin ( which, p, q, s, xn, pr, ompr, status, bound )
 !    Handbook of Mathematical Functions
 !    1966, Formula 26.5.24.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, integer WHICH, indicates which of argument values is to
+!    integer WHICH, indicates which of argument values is to
 !    be calculated from the others.
 !    1: Calculate P and Q from S, XN, PR and OMPR;
 !    2: Calculate S from P, Q, XN, PR and OMPR;
 !    3: Calculate XN from P, Q, S, PR and OMPR;
 !    4: Calculate PR and OMPR from P, Q, S and XN.
 !
-!    Input/output, real ( kind = rk ) P, the cumulation, from 0 to S,
+!    real ( kind = rk8 ) P, the cumulation, from 0 to S,
 !    of the binomial distribution.  If P is an input value, it should
 !    lie in the range [0,1].
 !
-!    Input/output, real ( kind = rk ) Q, equal to 1-P.  If Q is an input
-!    value, it should lie in the range [0,1].  If Q is an output value,
-!    it will lie in the range [0,1].
+!    real ( kind = rk8 ) Q, equal to 1-P.  If Q is an input
+!    value, it should lie in the range [0,1].  
 !
-!    Input/output, real ( kind = rk ) S, the number of successes observed.
-!    Whether this is an input or output value, it should lie in the
+!    real ( kind = rk8 ) S, the number of successes observed.
+!    If this is an input value, it should lie in the
 !    range [0,XN].
 !
-!    Input/output, real ( kind = rk ) XN, the number of binomial trials.
+!    real ( kind = rk8 ) XN, the number of binomial trials.
 !    If this is an input value it should lie in the range: (0, +infinity).
+!
+!    real ( kind = rk8 ) PR, the probability of success in each
+!    binomial trial.  If this is an input value, it should
+!    lie in the range: [0,1].
+!
+!    real ( kind = rk8 ) OMPR, equal to 1-PR.  If this is an
+!    input output value, it should lie in the range [0,1].  Also, it should
+!    be the case that PR + OMPR = 1.
+!
+!  Output:
+!
+!    real ( kind = rk8 ) P, the cumulation, from 0 to S,
+!    of the binomial distribution.
+!
+!    real ( kind = rk8 ) Q, equal to 1-P.  If Q is an output value,
+!    it will lie in the range [0,1].
+!
+!    real ( kind = rk8 ) S, the number of successes observed.
+!    If this is an  output value, it should lie in the
+!    range [0,XN].
+!
+!    real ( kind = rk8 ) XN, the number of binomial trials.
 !    If it is an output value it will be searched for in the
 !    range [1.0D-300, 1.0D+300].
 !
-!    Input/output, real ( kind = rk ) PR, the probability of success in each
-!    binomial trial.  Whether this is an input or output value, it should
+!    real ( kind = rk8 ) PR, the probability of success in each
+!    binomial trial.  If this is an output value, it should
 !    lie in the range: [0,1].
 !
-!    Input/output, real ( kind = rk ) OMPR, equal to 1-PR.  Whether this is an
-!    input or output value, it should lie in the range [0,1].  Also, it should
+!    real ( kind = rk8 ) OMPR, equal to 1-PR.  If this is an
+!    output value, it should lie in the range [0,1].  Also, it should
 !    be the case that PR + OMPR = 1.
 !
-!    Output, integer STATUS, reports the status of the computation.
+!    integer STATUS, reports the status of the computation.
 !     0, if the calculation completed correctly;
 !    -I, if the input parameter number I is out of range;
 !    +1, if the answer appears to be lower than lowest search bound;
@@ -2939,33 +2989,33 @@ subroutine cdfbin ( which, p, q, s, xn, pr, ompr, status, bound )
 !    +3, if P + Q /= 1;
 !    +4, if PR + OMPR /= 1.
 !
-!    Output, real ( kind = rk ) BOUND, is only defined if STATUS is nonzero.
+!    real ( kind = rk8 ) BOUND, is only defined if STATUS is nonzero.
 !    If STATUS is negative, then this is the value exceeded by parameter I.
 !    if STATUS is 1 or 2, this is the search bound that was exceeded.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ), parameter :: atol = 1.0D-10
-  real ( kind = rk ) bound
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) fx
-  real ( kind = rk ), parameter :: inf = 1.0D+300
-  real ( kind = rk ) ompr
-  real ( kind = rk ) p
-  real ( kind = rk ) pr
-  real ( kind = rk ) q
+  real ( kind = rk8 ), parameter :: atol = 1.0D-10
+  real ( kind = rk8 ) bound
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), parameter :: inf = 1.0D+300
+  real ( kind = rk8 ) ompr
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) pr
+  real ( kind = rk8 ) q
   logical qhi
   logical qleft
-  real ( kind = rk ) s
+  real ( kind = rk8 ) s
   integer status
-  real ( kind = rk ), parameter :: tol = 1.0D-08
+  real ( kind = rk8 ), parameter :: tol = 1.0D-08
   integer which
-  real ( kind = rk ) xhi
-  real ( kind = rk ) xlo
-  real ( kind = rk ) xn
+  real ( kind = rk8 ) xhi
+  real ( kind = rk8 ) xlo
+  real ( kind = rk8 ) xn
 
   status = 0
   bound = 0.0D+00
@@ -3334,33 +3384,46 @@ subroutine cdfchi ( which, p, q, x, df, status, bound )
 !    Fourth Edition,
 !    Wolfram Media / Cambridge University Press, 1999.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, integer WHICH, indicates which argument is to be
+!    integer WHICH, indicates which argument is to be
 !    calculated from the others.
 !    1: Calculate P and Q from X and DF;
 !    2: Calculate X from P, Q and DF;
 !    3: Calculate DF from P, Q and X.
 !
-!    Input/output, real ( kind = rk ) P, the integral from 0 to X of
+!    real ( kind = rk8 ) P, the integral from 0 to X of
 !    the chi-square distribution.  If this is an input value, it should
 !    lie in the range [0,1].
 !
-!    Input/output, real ( kind = rk ) Q, equal to 1-P.  If Q is an input
-!    value, it should lie in the range [0,1].  If Q is an output value,
+!    real ( kind = rk8 ) Q, equal to 1-P.  If Q is an input
+!    value, it should lie in the range [0,1]. 
+!
+!    real ( kind = rk8 ) X, the upper limit of integration
+!    of the chi-square distribution.  If this is an input
+!    value, it should lie in the range: [0, +infinity). 
+!
+!    real ( kind = rk8 ) DF, the degrees of freedom of the
+!    chi-square distribution.  If this is an input value, it should lie
+!    in the range: (0, +infinity). 
+!
+!  Output:
+!
+!    real ( kind = rk8 ) P, the integral from 0 to X of
+!    the chi-square distribution.
+!
+!    real ( kind = rk8 ) Q, equal to 1-P.  If Q is an output value,
 !    it will lie in the range [0,1].
 !
-!    Input/output, real ( kind = rk ) X, the upper limit of integration
-!    of the chi-square distribution.  If this is an input
-!    value, it should lie in the range: [0, +infinity).  If it is an output
+!    real ( kind = rk8 ) X, the upper limit of integration
+!    of the chi-square distribution.  If it is an output
 !    value, it will be searched for in the range: [0,1.0D+300].
 !
-!    Input/output, real ( kind = rk ) DF, the degrees of freedom of the
-!    chi-square distribution.  If this is an input value, it should lie
-!    in the range: (0, +infinity).  If it is an output value, it will be
+!    real ( kind = rk8 ) DF, the degrees of freedom of the
+!    chi-square distribution.  If it is an output value, it will be
 !    searched for in the range: [ 1.0D-300, 1.0D+300].
 !
-!    Output, integer STATUS, reports the status of the computation.
+!    integer STATUS, reports the status of the computation.
 !     0, if the calculation completed correctly;
 !    -I, if the input parameter number I is out of range;
 !    +1, if the answer appears to be lower than lowest search bound;
@@ -3368,30 +3431,30 @@ subroutine cdfchi ( which, p, q, x, df, status, bound )
 !    +3, if P + Q /= 1;
 !    +10, an error was returned from CUMGAM.
 !
-!    Output, real ( kind = rk ) BOUND, is only defined if STATUS is nonzero.
+!    real ( kind = rk8 ) BOUND, is only defined if STATUS is nonzero.
 !    If STATUS is negative, then this is the value exceeded by parameter I.
 !    if STATUS is 1 or 2, this is the search bound that was exceeded.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ), parameter :: atol = 1.0D-10
-  real ( kind = rk ) bound
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) df
-  real ( kind = rk ) fx
-  real ( kind = rk ), parameter :: inf = 1.0D+300
-  real ( kind = rk ) p
-  real ( kind = rk ) porq
-  real ( kind = rk ) q
+  real ( kind = rk8 ), parameter :: atol = 1.0D-10
+  real ( kind = rk8 ) bound
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) df
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), parameter :: inf = 1.0D+300
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) porq
+  real ( kind = rk8 ) q
   logical qhi
   logical qleft
   integer status
-  real ( kind = rk ), parameter :: tol = 1.0D-08
+  real ( kind = rk8 ), parameter :: tol = 1.0D-08
   integer which
-  real ( kind = rk ) x
+  real ( kind = rk8 ) x
 
   status = 0
   bound = 0.0D+00
@@ -3669,70 +3732,89 @@ subroutine cdfchn ( which, p, q, x, df, pnonc, status, bound )
 !    Fourth Edition,
 !    Wolfram Media / Cambridge University Press, 1999.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, integer WHICH, indicates which argument is to be
+!    integer WHICH, indicates which argument is to be
 !    calculated from the others.
 !    1: Calculate P and Q from X, DF and PNONC;
 !    2: Calculate X from P, DF and PNONC;
 !    3: Calculate DF from P, X and PNONC;
 !    4: Calculate PNONC from P, X and DF.
 !
-!    Input/output, real ( kind = rk ) P, the integral from 0 to X of
+!    real ( kind = rk8 ) P, the integral from 0 to X of
 !    the noncentral chi-square distribution.  If this is an input
 !    value, it should lie in the range: [0, 1.0-1.0D-16).
 !
-!    Input/output, real ( kind = rk ) Q, is generally not used by this
+!    real ( kind = rk8 ) Q, is generally not used by this
 !    subroutine and is only included for similarity with other routines.
 !    However, if P is to be computed, then a value will also be computed
 !    for Q.
 !
-!    Input, real ( kind = rk ) X, the upper limit of integration of the
+!    real ( kind = rk8 ) X, the upper limit of integration of the
 !    noncentral chi-square distribution.  If this is an input value, it
-!    should lie in the range: [0, +infinity).  If it is an output value,
+!    should lie in the range: [0, +infinity).
+!
+!    real ( kind = rk8 ) DF, the number of degrees of freedom
+!    of the noncentral chi-square distribution.  If this is an input value,
+!    it should lie in the range: (0, +infinity).
+!
+!    real ( kind = rk8 ) PNONC, the noncentrality parameter of
+!    the noncentral chi-square distribution.  If this is an input value, it
+!    should lie in the range: [0, +infinity).
+!
+!  Output:
+!
+!    real ( kind = rk8 ) P, the integral from 0 to X of
+!    the noncentral chi-square distribution.
+!
+!    real ( kind = rk8 ) Q, is generally not used by this
+!    subroutine and is only included for similarity with other routines.
+!    However, if P is to be computed, then a value will also be computed
+!    for Q.
+!
+!    real ( kind = rk8 ) X, the upper limit of integration of the
+!    noncentral chi-square distribution.  If it is an output value,
 !    it will be sought in the range: [0,1.0D+300].
 !
-!    Input/output, real ( kind = rk ) DF, the number of degrees of freedom
-!    of the noncentral chi-square distribution.  If this is an input value,
-!    it should lie in the range: (0, +infinity).  If it is an output value,
+!    real ( kind = rk8 ) DF, the number of degrees of freedom
+!    of the noncentral chi-square distribution.  If it is an output value,
 !    it will be searched for in the range: [ 1.0D-300, 1.0D+300].
 !
-!    Input/output, real ( kind = rk ) PNONC, the noncentrality parameter of
-!    the noncentral chi-square distribution.  If this is an input value, it
-!    should lie in the range: [0, +infinity).  If it is an output value,
+!    real ( kind = rk8 ) PNONC, the noncentrality parameter of
+!    the noncentral chi-square distribution.  If it is an output value,
 !    it will be searched for in the range: [0,1.0D+4]
 !
-!    Output, integer STATUS, reports on the calculation.
+!    integer STATUS, reports on the calculation.
 !    0, if calculation completed correctly;
 !    -I, if input parameter number I is out of range;
 !    1, if the answer appears to be lower than the lowest search bound;
 !    2, if the answer appears to be higher than the greatest search bound.
 !
-!    Output, real ( kind = rk ) BOUND, is only defined if STATUS is nonzero.
+!    real ( kind = rk8 ) BOUND, is only defined if STATUS is nonzero.
 !    If STATUS is negative, then this is the value exceeded by parameter I.
 !    if STATUS is 1 or 2, this is the search bound that was exceeded.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ), parameter :: atol=1.0D-50
-  real ( kind = rk ) bound
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) df
-  real ( kind = rk ) fx
-  real ( kind = rk ), parameter :: inf=1.0D+300
-  real ( kind = rk ) p
-  real ( kind = rk ) pnonc
-  real ( kind = rk ) q
+  real ( kind = rk8 ), parameter :: atol=1.0D-50
+  real ( kind = rk8 ) bound
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) df
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), parameter :: inf=1.0D+300
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) pnonc
+  real ( kind = rk8 ) q
   logical qhi
   logical qleft
   integer status
-  real ( kind = rk ), parameter :: tent4=1.0D+04
-  real ( kind = rk ), parameter :: tol=1.0D-08
+  real ( kind = rk8 ), parameter :: tent4=1.0D+04
+  real ( kind = rk8 ), parameter :: tol=1.0D-08
   integer which
-  real ( kind = rk ) x
+  real ( kind = rk8 ) x
 
   status = 0
   bound = 0.0D+00
@@ -3984,70 +4066,86 @@ subroutine cdff ( which, p, q, f, dfn, dfd, status, bound )
 !    Handbook of Mathematical Functions
 !    1966, Formula 26.6.2.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, integer WHICH, indicates which argument is to be
+!    integer WHICH, indicates which argument is to be
 !    calculated from the others.
 !    1: Calculate P and Q from F, DFN and DFD;
 !    2: Calculate F from P, Q, DFN and DFD;
 !    3: Calculate DFN from P, Q, F and DFD;
 !    4: Calculate DFD from P, Q, F and DFN.
 !
-!    Input/output, real ( kind = rk ) P, the integral from 0 to F of
+!    real ( kind = rk8 ) P, the integral from 0 to F of
 !    the F-density.  If it is an input value, it should lie in the
 !    range [0,1].
 !
-!    Input/output, real ( kind = rk ) Q, equal to 1-P.  If Q is an input
-!    value, it should lie in the range [0,1].  If Q is an output value,
+!    real ( kind = rk8 ) Q, equal to 1-P.  If Q is an input
+!    value, it should lie in the range [0,1].
+!
+!    real ( kind = rk8 ) F, the upper limit of integration
+!    of the F-density.  If this is an input value, it should lie in the
+!    range [0, +infinity).
+!
+!    real ( kind = rk8 ) DFN, the number of degrees of
+!    freedom of the numerator sum of squares.  If this is an input value,
+!    it should lie in the range: (0, +infinity).
+!
+!    real ( kind = rk8 ) DFD, the number of degrees of freedom
+!    of the denominator sum of squares.  If this is an input value, it should
+!    lie in the range: (0, +infinity).
+!
+!  Output:
+!
+!    real ( kind = rk8 ) P, the integral from 0 to F of
+!    the F-density.
+!
+!    real ( kind = rk8 ) Q, equal to 1-P.  If Q is an output value,
 !    it will lie in the range [0,1].
 !
-!    Input/output, real ( kind = rk ) F, the upper limit of integration
-!    of the F-density.  If this is an input value, it should lie in the
-!    range [0, +infinity).  If it is an output value, it will be searched
+!    real ( kind = rk8 ) F, the upper limit of integration
+!    of the F-density.  If it is an output value, it will be searched
 !    for in the range [0,1.0D+300].
 !
-!    Input/output, real ( kind = rk ) DFN, the number of degrees of
-!    freedom of the numerator sum of squares.  If this is an input value,
-!    it should lie in the range: (0, +infinity).  If it is an output value,
+!    real ( kind = rk8 ) DFN, the number of degrees of
+!    freedom of the numerator sum of squares.  If it is an output value,
 !    it will be searched for in the range: [ 1.0D-300, 1.0D+300].
 !
-!    Input/output, real ( kind = rk ) DFD, the number of degrees of freedom
-!    of the denominator sum of squares.  If this is an input value, it should
-!    lie in the range: (0, +infinity).  If it is an output value, it will
+!    real ( kind = rk8 ) DFD, the number of degrees of freedom
+!    of the denominator sum of squares.  If it is an output value, it will
 !    be searched for in the  range: [ 1.0D-300, 1.0D+300].
 !
-!    Output, integer STATUS, reports the status of the computation.
+!    integer STATUS, reports the status of the computation.
 !     0, if the calculation completed correctly;
 !    -I, if the input parameter number I is out of range;
 !    +1, if the answer appears to be lower than lowest search bound;
 !    +2, if the answer appears to be higher than greatest search bound;
 !    +3, if P + Q /= 1.
 !
-!    Output, real ( kind = rk ) BOUND, is only defined if STATUS is nonzero.
+!    real ( kind = rk8 ) BOUND, is only defined if STATUS is nonzero.
 !    If STATUS is negative, then this is the value exceeded by parameter I.
 !    if STATUS is 1 or 2, this is the search bound that was exceeded.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ), parameter :: atol = 1.0D-10
-  real ( kind = rk ) bound
-  real ( kind = rk ) bound_hi
-  real ( kind = rk ) bound_lo
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) dfd
-  real ( kind = rk ) dfn
-  real ( kind = rk ) f
-  real ( kind = rk ) fx
-  real ( kind = rk ), parameter :: inf = 1.0D+300
-  real ( kind = rk ) p
-  real ( kind = rk ) q
+  real ( kind = rk8 ), parameter :: atol = 1.0D-10
+  real ( kind = rk8 ) bound
+  real ( kind = rk8 ) bound_hi
+  real ( kind = rk8 ) bound_lo
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) dfd
+  real ( kind = rk8 ) dfn
+  real ( kind = rk8 ) f
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), parameter :: inf = 1.0D+300
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) q
   logical qhi
   logical qleft
   integer status
-  real ( kind = rk ), parameter :: tol = 1.0D-08
+  real ( kind = rk8 ), parameter :: tol = 1.0D-08
   integer which
 
   status = 0
@@ -4396,9 +4494,9 @@ subroutine cdffnc ( which, p, q, f, dfn, dfd, pnonc, status, bound )
 !    Fourth Edition,
 !    Wolfram Media / Cambridge University Press, 1999.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, integer WHICH, indicates which argument is to be
+!    integer WHICH, indicates which argument is to be
 !    calculated from the others.
 !    1: Calculate P and Q from F, DFN, DFD and PNONC;
 !    2: Calculate F from P, Q, DFN, DFD and PNONC;
@@ -4406,66 +4504,87 @@ subroutine cdffnc ( which, p, q, f, dfn, dfd, pnonc, status, bound )
 !    4: Calculate DFD from P, Q, F, DFN and PNONC;
 !    5: Calculate PNONC from P, Q, F, DFN and DFD.
 !
-!    Input/output, real ( kind = rk ) P, the integral from 0 to F of
+!    real ( kind = rk8 ) P, the integral from 0 to F of
 !    the noncentral F-density.  If P is an input value it should
 !    lie in the range [0,1) (Not including 1!).
 !
-!    Dummy, real ( kind = rk ) Q, is not used by this subroutine,
+!    real ( kind = rk8 ) Q, is not used by this subroutine,
 !    and is only included for similarity with the other routines.
 !    Its input value is not checked.  If P is to be computed, the
 !    Q is set to 1 - P.
 !
-!    Input/output, real ( kind = rk ) F, the upper limit of integration
+!     real ( kind = rk8 ) F, the upper limit of integration
 !    of the noncentral F-density.  If this is an input value, it should
-!    lie in the range: [0, +infinity).  If it is an output value, it
+!    lie in the range: [0, +infinity).
+!
+!    real ( kind = rk8 ) DFN, the number of degrees of freedom
+!    of the numerator sum of squares.  If this is an input value, it should
+!    lie in the range: (0, +infinity).  
+!
+!    real ( kind = rk8 ) DFD, the number of degrees of freedom
+!    of the denominator sum of squares.  If this is an input value, it should
+!    be in range: (0, +infinity).
+!
+!    real ( kind = rk8 ) PNONC, the noncentrality parameter
+!    If this is an input value, it should be nonnegative.
+!
+!  Output:
+!
+!    real ( kind = rk8 ) P, the integral from 0 to F of
+!    the noncentral F-density.
+!
+!    real ( kind = rk8 ) Q, is not used by this subroutine,
+!    and is only included for similarity with the other routines.
+!    If P is to be computed, the
+!    Q is set to 1 - P.
+!
+!    real ( kind = rk8 ) F, the upper limit of integration
+!    of the noncentral F-density.  If it is an output value, it
 !    will be searched for in the range: [0,1.0D+30].
 !
-!    Input/output, real ( kind = rk ) DFN, the number of degrees of freedom
-!    of the numerator sum of squares.  If this is an input value, it should
-!    lie in the range: (0, +infinity).  If it is an output value, it will
+!    real ( kind = rk8 ) DFN, the number of degrees of freedom
+!    of the numerator sum of squares.  If it is an output value, it will
 !    be searched for in the range: [ 1.0, 1.0D+30].
 !
-!    Input/output, real ( kind = rk ) DFD, the number of degrees of freedom
-!    of the denominator sum of squares.  If this is an input value, it should
-!    be in range: (0, +infinity).  If it is an output value, it will be
+!    real ( kind = rk8 ) DFD, the number of degrees of freedom
+!    of the denominator sum of squares.  If it is an output value, it will be
 !    searched for in the range [1.0, 1.0D+30].
 !
-!    Input/output, real ( kind = rk ) PNONC, the noncentrality parameter
-!    If this is an input value, it should be nonnegative.
+!    real ( kind = rk8 ) PNONC, the noncentrality parameter
 !    If it is an output value, it will be searched for in the range: [0,1.0D+4].
 !
-!    Output, integer STATUS, reports the status of the computation.
+!    integer STATUS, reports the status of the computation.
 !     0, if the calculation completed correctly;
 !    -I, if the input parameter number I is out of range;
 !    +1, if the answer appears to be lower than lowest search bound;
 !    +2, if the answer appears to be higher than greatest search bound;
 !    +3, if P + Q /= 1.
 !
-!    Output, real ( kind = rk ) BOUND, is only defined if STATUS is nonzero.
+!    real ( kind = rk8 ) BOUND, is only defined if STATUS is nonzero.
 !    If STATUS is negative, then this is the value exceeded by parameter I.
 !    if STATUS is 1 or 2, this is the search bound that was exceeded.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ), parameter :: atol = 1.0D-10
-  real ( kind = rk ) bound
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) dfd
-  real ( kind = rk ) dfn
-  real ( kind = rk ) f
-  real ( kind = rk ) fx
-  real ( kind = rk ), parameter :: inf = 1.0D+30
-  real ( kind = rk ) p
-  real ( kind = rk ) pnonc
-  real ( kind = rk ) q
+  real ( kind = rk8 ), parameter :: atol = 1.0D-10
+  real ( kind = rk8 ) bound
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) dfd
+  real ( kind = rk8 ) dfn
+  real ( kind = rk8 ) f
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), parameter :: inf = 1.0D+30
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) pnonc
+  real ( kind = rk8 ) q
   logical qhi
   logical qleft
   integer status
-  real ( kind = rk ), parameter :: tent4 = 1.0D+04
-  real ( kind = rk ), parameter :: tol = 1.0D-08
+  real ( kind = rk8 ), parameter :: tent4 = 1.0D+04
+  real ( kind = rk8 ), parameter :: tol = 1.0D-08
   integer which
 
   status = 0
@@ -4771,39 +4890,55 @@ subroutine cdfgam ( which, p, q, x, shape, scale, status, bound )
 !    ACM Transactions on Mathematical Software,
 !    Volume 12, 1986, pages 377-393.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, integer WHICH, indicates which argument is to be
+!    integer WHICH, indicates which argument is to be
 !    calculated from the others.
 !    1: Calculate P and Q from X, SHAPE and SCALE;
 !    2: Calculate X from P, Q, SHAPE and SCALE;
 !    3: Calculate SHAPE from P, Q, X and SCALE;
 !    4: Calculate SCALE from P, Q, X and SHAPE.
 !
-!    Input/output, real ( kind = rk ) P, the integral from 0 to X of the
+!    real ( kind = rk8 ) P, the integral from 0 to X of the
 !    Gamma density.  If this is an input value, it should lie in the
 !    range: [0,1].
 !
-!    Input/output, real ( kind = rk ) Q, equal to 1-P.  If Q is an input
-!    value, it should lie in the range [0,1].  If Q is an output value,
+!    real ( kind = rk8 ) Q, equal to 1-P.  If Q is an input
+!    value, it should lie in the range [0,1].  
+!
+!    real ( kind = rk8 ) X, the upper limit of integration of
+!    the Gamma density.  If this is an input value, it should lie in the
+!    range: [0, +infinity).  
+!
+!    real ( kind = rk8 ) SHAPE, the shape parameter of the
+!    Gamma density.  If this is an input value, it should lie in the range:
+!    (0, +infinity).  
+!
+!    real ( kind = rk8 ) SCALE, the scale parameter of the
+!    Gamma density.  If this is an input value, it should lie in the range
+!    (0, +infinity).  
+!
+!  Output:
+!
+!    real ( kind = rk8 ) P, the integral from 0 to X of the
+!    Gamma density.
+!
+!    real ( kind = rk8 ) Q, equal to 1-P.  If Q is an output value,
 !    it will lie in the range [0,1].
 !
-!    Input/output, real ( kind = rk ) X, the upper limit of integration of
-!    the Gamma density.  If this is an input value, it should lie in the
-!    range: [0, +infinity).  If it is an output value, it will lie in
+!    real ( kind = rk8 ) X, the upper limit of integration of
+!    the Gamma density.  If it is an output value, it will lie in
 !    the range: [0,1E300].
 !
-!    Input/output, real ( kind = rk ) SHAPE, the shape parameter of the
-!    Gamma density.  If this is an input value, it should lie in the range:
-!    (0, +infinity).  If it is an output value, it will be searched for
+!    real ( kind = rk8 ) SHAPE, the shape parameter of the
+!    Gamma density.  If it is an output value, it will be searched for
 !    in the range: [1.0D-300,1.0D+300].
 !
-!    Input/output, real ( kind = rk ) SCALE, the scale parameter of the
-!    Gamma density.  If this is an input value, it should lie in the range
-!    (0, +infinity).  If it is an output value, it will be searched for
+!    real ( kind = rk8 ) SCALE, the scale parameter of the
+!    Gamma density.  If it is an output value, it will be searched for
 !    in the range: (1.0D-300,1.0D+300].
 !
-!    Output, integer STATUS, reports the status of the computation.
+!    integer STATUS, reports the status of the computation.
 !     0, if the calculation completed correctly;
 !    -I, if the input parameter number I is out of range;
 !    +1, if the answer appears to be lower than lowest search bound;
@@ -4812,33 +4947,33 @@ subroutine cdfgam ( which, p, q, x, shape, scale, status, bound )
 !    +10, if the Gamma or inverse Gamma routine cannot compute the answer.
 !    This usually happens only for X and SHAPE very large (more than 1.0D+10.
 !
-!    Output, real ( kind = rk ) BOUND, is only defined if STATUS is nonzero.
+!    real ( kind = rk8 ) BOUND, is only defined if STATUS is nonzero.
 !    If STATUS is negative, then this is the value exceeded by parameter I.
 !    if STATUS is 1 or 2, this is the search bound that was exceeded.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ), parameter :: atol = 1.0D-10
-  real ( kind = rk ) bound
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) fx
+  real ( kind = rk8 ), parameter :: atol = 1.0D-10
+  real ( kind = rk8 ) bound
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) fx
   integer ierr
-  real ( kind = rk ), parameter :: inf=1.0D+300
-  real ( kind = rk ) p
-  real ( kind = rk ) porq
-  real ( kind = rk ) q
+  real ( kind = rk8 ), parameter :: inf=1.0D+300
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) porq
+  real ( kind = rk8 ) q
   logical qhi
   logical qleft
-  real ( kind = rk ) scale
-  real ( kind = rk ) shape
-  real ( kind = rk ), parameter :: tol = 1.0D-08
+  real ( kind = rk8 ) scale
+  real ( kind = rk8 ) shape
+  real ( kind = rk8 ), parameter :: tol = 1.0D-08
   integer status,which
-  real ( kind = rk ) x
-  real ( kind = rk ) xscale
-  real ( kind = rk ) xx
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) xscale
+  real ( kind = rk8 ) xx
 
   status = 0
   bound = 0.0D+00
@@ -5101,42 +5236,60 @@ subroutine cdfnbn ( which, p, q, f, s, pr, ompr, status, bound )
 !    Handbook of Mathematical Functions
 !    1966, Formula 26.5.26.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, integer WHICH, indicates which argument is to be
+!    integer WHICH, indicates which argument is to be
 !    calculated from the others.
 !    1: Calculate P and Q from F, S, PR and OMPR;
 !    2: Calculate F from P, Q, S, PR and OMPR;
 !    3: Calculate S from P, Q, F, PR and OMPR;
 !    4: Calculate PR and OMPR from P, Q, F and S.
 !
-!    Input/output, real ( kind = rk ) P, the cumulation from 0 to F of
+!    real ( kind = rk8 ) P, the cumulation from 0 to F of
 !    the negative binomial distribution.  If P is an input value, it
 !    should lie in the range [0,1].
 !
-!    Input/output, real ( kind = rk ) Q, equal to 1-P.  If Q is an input
-!    value, it should lie in the range [0,1].  If Q is an output value,
-!    it will lie in the range [0,1].
+!    real ( kind = rk8 ) Q, equal to 1-P.  If Q is an input
+!    value, it should lie in the range [0,1].
 !
-!    Input/output, real ( kind = rk ) F, the upper limit of cumulation of
+!    real ( kind = rk8 ) F, the upper limit of cumulation of
 !    the binomial distribution.  There are F or fewer failures before
 !    the S-th success.  If this is an input value, it may lie in the
-!    range [0,+infinity), and if it is an output value, it will be searched
+!    range [0,+infinity).
+!
+!    real ( kind = rk8 ) S, the number of successes.
+!    If this is an input value, it should lie in the range: [0, +infinity).
+!
+!    real ( kind = rk8 ) PR, the probability of success in each
+!    binomial trial.  It should lie in the
+!    range [0,1].
+!
+!    real ( kind = rk8 ) OMPR, the value of (1-PR).  It should lie in the range [0,1].
+!
+!  Output:
+!
+!    real ( kind = rk8 ) P, the cumulation from 0 to F of
+!    the negative binomial distribution.  
+!
+!    real ( kind = rk8 ) Q, equal to 1-P.  If Q is an output value,
+!    it will lie in the range [0,1].
+!
+!    real ( kind = rk8 ) F, the upper limit of cumulation of
+!    the binomial distribution.  There are F or fewer failures before
+!    the S-th success.  If it is an output value, it will be searched
 !    for in the range [0,1.0D+300].
 !
-!    Input/output, real ( kind = rk ) S, the number of successes.
-!    If this is an input value, it should lie in the range: [0, +infinity).
+!    real ( kind = rk8 ) S, the number of successes.
 !    If it is an output value, it will be searched for in the range:
 !    [0, 1.0D+300].
 !
-!    Input/output, real ( kind = rk ) PR, the probability of success in each
-!    binomial trial.  Whether an input or output value, it should lie in the
+!    real ( kind = rk8 ) PR, the probability of success in each
+!    binomial trial.  It should lie in the
 !    range [0,1].
 !
-!    Input/output, real ( kind = rk ) OMPR, the value of (1-PR).  Whether an
-!    input or output value, it should lie in the range [0,1].
+!    real ( kind = rk8 ) OMPR, the value of (1-PR).  It should lie in the range [0,1].
 !
-!    Output, integer STATUS, reports the status of the computation.
+!    integer STATUS, reports the status of the computation.
 !     0, if the calculation completed correctly;
 !    -I, if the input parameter number I is out of range;
 !    +1, if the answer appears to be lower than lowest search bound;
@@ -5144,33 +5297,33 @@ subroutine cdfnbn ( which, p, q, f, s, pr, ompr, status, bound )
 !    +3, if P + Q /= 1;
 !    +4, if PR + OMPR /= 1.
 !
-!    Output, real ( kind = rk ) BOUND, is only defined if STATUS is nonzero.
+!    real ( kind = rk8 ) BOUND, is only defined if STATUS is nonzero.
 !    If STATUS is negative, then this is the value exceeded by parameter I.
 !    if STATUS is 1 or 2, this is the search bound that was exceeded.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ), parameter :: atol = 1.0D-10
-  real ( kind = rk ) bound
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) f
-  real ( kind = rk ) fx
-  real ( kind = rk ), parameter :: inf = 1.0D+300
-  real ( kind = rk ) ompr
-  real ( kind = rk ) p
-  real ( kind = rk ) pr
-  real ( kind = rk ) q
+  real ( kind = rk8 ), parameter :: atol = 1.0D-10
+  real ( kind = rk8 ) bound
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) f
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), parameter :: inf = 1.0D+300
+  real ( kind = rk8 ) ompr
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) pr
+  real ( kind = rk8 ) q
   logical qhi
   logical qleft
-  real ( kind = rk ) s
+  real ( kind = rk8 ) s
   integer status
-  real ( kind = rk ), parameter :: tol = 1.0D-08
+  real ( kind = rk8 ), parameter :: tol = 1.0D-08
   integer which
-  real ( kind = rk ) xhi
-  real ( kind = rk ) xlo
+  real ( kind = rk8 ) xhi
+  real ( kind = rk8 ) xlo
 
   status = 0
   bound = 0.0D+00
@@ -5536,57 +5689,73 @@ subroutine cdfnor ( which, p, q, x, mean, sd, status, bound )
 !    Marcel Dekker, NY, 1980,
 !    QA276.4 K46
 !
-!  Parameters:
+!  Input:
 !
-!    Input, integer WHICH, indicates which argument is to be
+!    integer WHICH, indicates which argument is to be
 !    calculated from the others.
 !    1: Calculate P and Q from X, MEAN and SD;
 !    2: Calculate X from P, Q, MEAN and SD;
 !    3: Calculate MEAN from P, Q, X and SD;
 !    4: Calculate SD from P, Q, X and MEAN.
 !
-!    Input/output, real ( kind = rk ) P, the integral from -infinity to X
-!    of the Normal density.  If this is an input or output value, it will
+!    real ( kind = rk8 ) P, the integral from -infinity to X
+!    of the Normal density.  It will
 !    lie in the range [0,1].
 !
-!    Input/output, real ( kind = rk ) Q, equal to 1-P.  If Q is an input
-!    value, it should lie in the range [0,1].  If Q is an output value,
-!    it will lie in the range [0,1].
+!    real ( kind = rk8 ) Q, equal to 1-P.  If Q is an input
+!    value, it should lie in the range [0,1].
 !
-!    Input/output, real ( kind = rk ) X, the upper limit of integration of
+!    real ( kind = rk8 ) X, the upper limit of integration of
 !    the Normal density.
 !
-!    Input/output, real ( kind = rk ) MEAN, the mean of the Normal density.
+!    real ( kind = rk8 ) MEAN, the mean of the Normal density.
 !
-!    Input/output, real ( kind = rk ) SD, the standard deviation of the
+!    real ( kind = rk8 ) SD, the standard deviation of the
 !    Normal density.  If this is an input value, it should lie in the
 !    range (0,+infinity).
 !
-!    Output, integer STATUS, the status of the calculation.
+!  Output:
+!
+!    real ( kind = rk8 ) P, the integral from -infinity to X
+!    of the Normal density.  It will
+!    lie in the range [0,1].
+!
+!    real ( kind = rk8 ) Q, equal to 1-P.  If Q is an output value,
+!    it will lie in the range [0,1].
+!
+!    real ( kind = rk8 ) X, the upper limit of integration of
+!    the Normal density.
+!
+!    real ( kind = rk8 ) MEAN, the mean of the Normal density.
+!
+!    real ( kind = rk8 ) SD, the standard deviation of the
+!    Normal density.
+!
+!    integer STATUS, the status of the calculation.
 !    0, if calculation completed correctly;
 !    -I, if input parameter number I is out of range;
 !    1, if answer appears to be lower than lowest search bound;
 !    2, if answer appears to be higher than greatest search bound;
 !    3, if P + Q /= 1.
 !
-!    Output, real ( kind = rk ) BOUND, is only defined if STATUS is nonzero.
+!    real ( kind = rk8 ) BOUND, is only defined if STATUS is nonzero.
 !    If STATUS is negative, then this is the value exceeded by parameter I.
 !    if STATUS is 1 or 2, this is the search bound that was exceeded.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) bound
-  real ( kind = rk ) dinvnr
-  real ( kind = rk ) mean
-  real ( kind = rk ) p
-  real ( kind = rk ) q
-  real ( kind = rk ) sd
+  real ( kind = rk8 ) bound
+  real ( kind = rk8 ) dinvnr
+  real ( kind = rk8 ) mean
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) q
+  real ( kind = rk8 ) sd
   integer status
   integer which
-  real ( kind = rk ) x
-  real ( kind = rk ) z
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) z
 
   status = 0
   bound = 0.0D+00
@@ -5744,62 +5913,76 @@ subroutine cdfpoi ( which, p, q, s, xlam, status, bound )
 !    Handbook of Mathematical Functions
 !    1966, Formula 26.4.21.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, integer WHICH, indicates which argument is to be
+!    integer WHICH, indicates which argument is to be
 !    calculated from the others.
 !    1: Calculate P and Q from S and XLAM;
 !    2: Calculate A from P, Q and XLAM;
 !    3: Calculate XLAM from P, Q and S.
 !
-!    Input/output, real ( kind = rk ) P, the cumulation from 0 to S of the
-!    Poisson density.  Whether this is an input or output value, it will
+!    real ( kind = rk8 ) P, the cumulation from 0 to S of the
+!    Poisson density.  It will
 !    lie in the range [0,1].
 !
-!    Input/output, real ( kind = rk ) Q, equal to 1-P.  If Q is an input
-!    value, it should lie in the range [0,1].  If Q is an output value,
+!    real ( kind = rk8 ) Q, equal to 1-P.  If Q is an input
+!    value, it should lie in the range [0,1].  
+!
+!    real ( kind = rk8 ) S, the upper limit of cumulation of
+!    the Poisson CDF.  If this is an input value, it should lie in
+!    the range: [0, +infinity).
+!
+!    real ( kind = rk8 ) XLAM, the mean of the Poisson
+!    distribution.  If this is an input value, it should lie in the range
+!    [0, +infinity).
+!
+!  Output:
+!
+!    real ( kind = rk8 ) P, the cumulation from 0 to S of the
+!    Poisson density.  It will
+!    lie in the range [0,1].
+!
+!    real ( kind = rk8 ) Q, equal to 1-P.  If Q is an output value,
 !    it will lie in the range [0,1].
 !
-!    Input/output, real ( kind = rk ) S, the upper limit of cumulation of
-!    the Poisson CDF.  If this is an input value, it should lie in
-!    the range: [0, +infinity).  If it is an output value, it will be
+!    real ( kind = rk8 ) S, the upper limit of cumulation of
+!    the Poisson CDF.  If it is an output value, it will be
 !    searched for in the range: [0,1.0D+300].
 !
-!    Input/output, real ( kind = rk ) XLAM, the mean of the Poisson
-!    distribution.  If this is an input value, it should lie in the range
-!    [0, +infinity).  If it is an output value, it will be searched for
+!    real ( kind = rk8 ) XLAM, the mean of the Poisson
+!    distribution.  If it is an output value, it will be searched for
 !    in the range: [0,1E300].
 !
-!    Output, integer STATUS, reports the status of the computation.
+!    integer STATUS, reports the status of the computation.
 !     0, if the calculation completed correctly;
 !    -I, if the input parameter number I is out of range;
 !    +1, if the answer appears to be lower than lowest search bound;
 !    +2, if the answer appears to be higher than greatest search bound;
 !    +3, if P + Q /= 1.
 !
-!    Output, real ( kind = rk ) BOUND, is only defined if STATUS is nonzero.
+!    real ( kind = rk8 ) BOUND, is only defined if STATUS is nonzero.
 !    If STATUS is negative, then this is the value exceeded by parameter I.
 !    if STATUS is 1 or 2, this is the search bound that was exceeded.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ), parameter :: atol = 1.0D-10
-  real ( kind = rk ) bound
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) fx
-  real ( kind = rk ), parameter :: inf = 1.0D+300
-  real ( kind = rk ) p
-  real ( kind = rk ) q
+  real ( kind = rk8 ), parameter :: atol = 1.0D-10
+  real ( kind = rk8 ) bound
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), parameter :: inf = 1.0D+300
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) q
   logical qhi
   logical qleft
-  real ( kind = rk ) s
+  real ( kind = rk8 ) s
   integer status
-  real ( kind = rk ), parameter :: tol = 1.0D-08
+  real ( kind = rk8 ), parameter :: tol = 1.0D-08
   integer which
-  real ( kind = rk ) xlam
+  real ( kind = rk8 ) xlam
 
   status = 0
   bound = 0.0D+00
@@ -6043,63 +6226,79 @@ subroutine cdft ( which, p, q, t, df, status, bound )
 !    Handbook of Mathematical Functions
 !    1966, Formula 26.5.27.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, integer WHICH, indicates which argument is to be
+!    integer WHICH, indicates which argument is to be
 !    calculated from the others.
 !    1 : Calculate P and Q from T and DF;
 !    2 : Calculate T from P, Q and DF;
 !    3 : Calculate DF from P, Q and T.
 !
-!    Input/output, real ( kind = rk ) P, the integral from -infinity to T of
-!    the T-density.  Whether an input or output value, this will lie in the
+!    real ( kind = rk8 ) P, the integral from -infinity to T of
+!    the T-density.  This will lie in the
 !    range [0,1].
 !
-!    Input/output, real ( kind = rk ) Q, equal to 1-P.  If Q is an input
-!    value, it should lie in the range [0,1].  If Q is an output value,
-!    it will lie in the range [0,1].
+!    real ( kind = rk8 ) Q, equal to 1-P.  If Q is an input
+!    value, it should lie in the range [0,1]. 
 !
-!    Input/output, real ( kind = rk ) T, the upper limit of integration of
-!    the T-density.  If this is an input value, it may have any value.
+!    real ( kind = rk8 ) T, the upper limit of integration of
+!    the T-density.  
 !    It it is an output value, it will be searched for in the range
 !    [ -1.0D+30, 1.0D+30 ].
 !
-!    Input/output, real ( kind = rk ) DF, the number of degrees of freedom
+!    real ( kind = rk8 ) DF, the number of degrees of freedom
 !    of the T distribution.  If this is an input value, it should lie
-!    in the range: (0 , +infinity).  If it is an output value, it will be
+!    in the range: (0 , +infinity).  
+!
+!  Output:
+!
+!    real ( kind = rk8 ) P, the integral from -infinity to T of
+!    the T-density.  This will lie in the
+!    range [0,1].
+!
+!    real ( kind = rk8 ) Q, equal to 1-P.  If Q is an output value,
+!    it will lie in the range [0,1].
+!
+!    real ( kind = rk8 ) T, the upper limit of integration of
+!    the T-density.  
+!    It it is an output value, it will be searched for in the range
+!    [ -1.0D+30, 1.0D+30 ].
+!
+!    real ( kind = rk8 ) DF, the number of degrees of freedom
+!    of the T distribution.  If it is an output value, it will be
 !    searched for in the range: [1, 1.0D+10].
 !
-!    Output, integer STATUS, reports the status of the computation.
+!    integer STATUS, reports the status of the computation.
 !     0, if the calculation completed correctly;
 !    -I, if the input parameter number I is out of range;
 !    +1, if the answer appears to be lower than lowest search bound;
 !    +2, if the answer appears to be higher than greatest search bound;
 !    +3, if P + Q /= 1.
 !
-!    Output, real ( kind = rk ) BOUND, is only defined if STATUS is nonzero.
+!    real ( kind = rk8 ) BOUND, is only defined if STATUS is nonzero.
 !    If STATUS is negative, then this is the value exceeded by parameter I.
 !    if STATUS is 1 or 2, this is the search bound that was exceeded.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ), parameter :: atol = 1.0D-10
-  real ( kind = rk ) bound
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) df
-  real ( kind = rk ) dt1
-  real ( kind = rk ) fx
-  real ( kind = rk ), parameter :: inf = 1.0D+30
-  real ( kind = rk ), parameter :: maxdf = 1.0D+10
-  real ( kind = rk ) p
-  real ( kind = rk ) q
+  real ( kind = rk8 ), parameter :: atol = 1.0D-10
+  real ( kind = rk8 ) bound
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) df
+  real ( kind = rk8 ) dt1
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), parameter :: inf = 1.0D+30
+  real ( kind = rk8 ), parameter :: maxdf = 1.0D+10
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) q
   logical qhi
   logical qleft
   integer status
-  real ( kind = rk ) t
-  real ( kind = rk ), parameter :: tol = 1.0D-08
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ), parameter :: tol = 1.0D-08
   integer which
 
   status = 0
@@ -6325,29 +6524,33 @@ subroutine chi_noncentral_cdf_values ( n_data, x, lambda, df, cdf )
 !    Fourth Edition,
 !    Wolfram Media / Cambridge University Press, 1999.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer N_DATA.  The user sets N_DATA to 0
-!    before the first call.  On each call, the routine increments N_DATA by 1,
+!    integer N_DATA.  The user sets N_DATA to 0
+!    before the first call.  
+!
+!  Output:
+!
+!    integer N_DATA: On each call, the routine increments N_DATA by 1,
 !    and returns the corresponding data; when there is no more data, the
 !    output value of N_DATA will be 0 again.
 !
-!    Output, real ( kind = rk ) X, the argument of the function.
+!    real ( kind = rk8 ) X, the argument of the function.
 !
-!    Output, real ( kind = rk ) LAMBDA, the noncentrality parameter.
+!    real ( kind = rk8 ) LAMBDA, the noncentrality parameter.
 !
-!    Output, integer DF, the number of degrees of freedom.
+!    integer DF, the number of degrees of freedom.
 !
-!    Output, real ( kind = rk ) CDF, the noncentral chi CDF.
+!    real ( kind = rk8 ) CDF, the noncentral chi CDF.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: n_max = 27
 
-  real ( kind = rk ) cdf
-  real ( kind = rk ), save, dimension ( n_max ) :: cdf_vec = (/ &
+  real ( kind = rk8 ) cdf
+  real ( kind = rk8 ), save, dimension ( n_max ) :: cdf_vec = (/ &
     0.839944D+00, 0.695906D+00, 0.535088D+00, &
     0.764784D+00, 0.620644D+00, 0.469167D+00, &
     0.307088D+00, 0.220382D+00, 0.150025D+00, &
@@ -6368,8 +6571,8 @@ subroutine chi_noncentral_cdf_values ( n_data, x, lambda, df, cdf )
      10,  10,  10, &
      10,  10,  10, &
      10,  10,  10 /)
-  real ( kind = rk ) lambda
-  real ( kind = rk ), save, dimension ( n_max ) :: lambda_vec = (/ &
+  real ( kind = rk8 ) lambda
+  real ( kind = rk8 ), save, dimension ( n_max ) :: lambda_vec = (/ &
      0.5D+00,  0.5D+00,  0.5D+00, &
      1.0D+00,  1.0D+00,  1.0D+00, &
      5.0D+00,  5.0D+00,  5.0D+00, &
@@ -6380,8 +6583,8 @@ subroutine chi_noncentral_cdf_values ( n_data, x, lambda, df, cdf )
      2.0D+00,  3.0D+00,  4.0D+00, &
      2.0D+00,  3.0D+00,  4.0D+00 /)
   integer n_data
-  real ( kind = rk ) x
-  real ( kind = rk ), save, dimension ( n_max ) :: x_vec = (/ &
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ), save, dimension ( n_max ) :: x_vec = (/ &
      3.000D+00,  3.000D+00,  3.000D+00, &
      3.000D+00,  3.000D+00,  3.000D+00, &
      3.000D+00,  3.000D+00,  3.000D+00, &
@@ -6450,21 +6653,25 @@ subroutine chi_square_cdf_values ( n_data, a, x, fx )
 !    Fourth Edition,
 !    Wolfram Media / Cambridge University Press, 1999.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer N_DATA.  The user sets N_DATA to 0
-!    before the first call.  On each call, the routine increments N_DATA by 1,
+!    integer N_DATA.  The user sets N_DATA to 0
+!    before the first call.  
+!
+!  Output:
+!
+!    integer N_DATA: On each call, the routine increments N_DATA by 1,
 !    and returns the corresponding data; when there is no more data, the
 !    output value of N_DATA will be 0 again.
 !
-!    Output, integer A, real ( kind = rk ) X, the arguments of
+!    integer A, real ( kind = rk8 ) X, the arguments of
 !    the function.
 !
-!    Output, real ( kind = rk ) FX, the value of the function.
+!    real ( kind = rk8 ) FX, the value of the function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: n_max = 21
 
@@ -6476,8 +6683,8 @@ subroutine chi_square_cdf_values ( n_data, a, x, fx )
      5,  3,  3,  3, &
      3,  3, 10, 10, &
     10 /)
-  real ( kind = rk ) fx
-  real ( kind = rk ), save, dimension ( n_max ) :: fx_vec = (/ &
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), save, dimension ( n_max ) :: fx_vec = (/ &
     0.0796557D+00, 0.00498752D+00, 0.112463D+00,    0.00995017D+00, &
     0.472911D+00,  0.181269D+00,   0.0597575D+00,   0.0175231D+00, &
     0.682689D+00,  0.393469D+00,   0.198748D+00,    0.090204D+00, &
@@ -6485,8 +6692,8 @@ subroutine chi_square_cdf_values ( n_data, a, x, fx )
     0.828203D+00,  0.88839D+00,    0.000172116D+00, 0.00365985D+00, &
     0.0185759D+00 /)
   integer n_data
-  real ( kind = rk ) x
-  real ( kind = rk ), save, dimension ( n_max ) :: x_vec = (/ &
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ), save, dimension ( n_max ) :: x_vec = (/ &
     0.01D+00, 0.01D+00, 0.02D+00, 0.02D+00, &
     0.40D+00, 0.40D+00, 0.40D+00, 0.40D+00, &
     1.00D+00, 1.00D+00, 1.00D+00, 1.00D+00, &
@@ -6537,28 +6744,30 @@ subroutine cumbet ( x, y, a, b, cum, ccum )
 !
 !    Barry Brown, James Lovato, Kathy Russell
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) X, the upper limit of integration.
+!    real ( kind = rk8 ) X, the upper limit of integration.
 !
-!    Input, real ( kind = rk ) Y, the value of 1-X.
+!    real ( kind = rk8 ) Y, the value of 1-X.
 !
-!    Input, real ( kind = rk ) A, B, the parameters of the distribution.
+!    real ( kind = rk8 ) A, B, the parameters of the distribution.
 !
-!    Output, real ( kind = rk ) CUM, CCUM, the values of the cumulative
+!  Output:
+!
+!    real ( kind = rk8 ) CUM, CCUM, the values of the cumulative
 !    density function and complementary cumulative density function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) b
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
   integer ierr
-  real ( kind = rk ) x
-  real ( kind = rk ) y
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) y
 
   if ( x <= 0.0D+00 ) then
 
@@ -6607,31 +6816,33 @@ subroutine cumbin ( s, xn, pr, ompr, cum, ccum )
 !    Handbook of Mathematical Functions
 !    1966, Formula 26.5.24.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) S, the upper limit of summation.
+!    real ( kind = rk8 ) S, the upper limit of summation.
 !
-!    Input, real ( kind = rk ) XN, the number of trials.
+!    real ( kind = rk8 ) XN, the number of trials.
 !
-!    Input, real ( kind = rk ) PR, the probability of success in one trial.
+!    real ( kind = rk8 ) PR, the probability of success in one trial.
 !
-!    Input, real ( kind = rk ) OMPR, equals ( 1 - PR ).
+!    real ( kind = rk8 ) OMPR, equals ( 1 - PR ).
 !
-!    Output, real ( kind = rk ) CUM, the cumulative binomial distribution.
+!  Output:
 !
-!    Output, real ( kind = rk ) CCUM, the complement of the cumulative
+!    real ( kind = rk8 ) CUM, the cumulative binomial distribution.
+!
+!    real ( kind = rk8 ) CCUM, the complement of the cumulative
 !    binomial distribution.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) ompr
-  real ( kind = rk ) pr
-  real ( kind = rk ) s
-  real ( kind = rk ) xn
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) ompr
+  real ( kind = rk8 ) pr
+  real ( kind = rk8 ) s
+  real ( kind = rk8 ) xn
 
   if ( s < xn ) then
 
@@ -6664,28 +6875,30 @@ subroutine cumchi ( x, df, cum, ccum )
 !
 !    Barry Brown, James Lovato, Kathy Russell
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) X, the upper limit of integration.
+!    real ( kind = rk8 ) X, the upper limit of integration.
 !
-!    Input, real ( kind = rk ) DF, the degrees of freedom of the
+!    real ( kind = rk8 ) DF, the degrees of freedom of the
 !    chi-square distribution.
 !
-!    Output, real ( kind = rk ) CUM, the cumulative chi-square distribution.
+!  Output:
 !
-!    Output, real ( kind = rk ) CCUM, the complement of the cumulative
+!    real ( kind = rk8 ) CUM, the cumulative chi-square distribution.
+!
+!    real ( kind = rk8 ) CCUM, the complement of the cumulative
 !    chi-square distribution.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) df
-  real ( kind = rk ) x
-  real ( kind = rk ) xx
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) df
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) xx
 
   a = df * 0.5D+00
   xx = x * 0.5D+00
@@ -6726,66 +6939,68 @@ subroutine cumchn ( x, df, pnonc, cum, ccum )
 !    Handbook of Mathematical Functions
 !    1966, Formula 26.4.25.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) X, the upper limit of integration.
+!    real ( kind = rk8 ) X, the upper limit of integration.
 !
-!    Input, real ( kind = rk ) DF, the number of degrees of freedom.
+!    real ( kind = rk8 ) DF, the number of degrees of freedom.
 !
-!    Input, real ( kind = rk ) PNONC, the noncentrality parameter of
+!    real ( kind = rk8 ) PNONC, the noncentrality parameter of
 !    the noncentral chi-square distribution.
 !
-!    Output, real ( kind = rk ) CUM, CCUM, the CDF and complementary
+!  Output:
+!
+!    real ( kind = rk8 ) CUM, CCUM, the CDF and complementary
 !    CDF of the noncentral chi-square distribution.
 !
 !  Local:
 !
-!    Local, real ( kind = rk ) EPS, the convergence criterion.  The sum
+!    real ( kind = rk8 ) EPS, the convergence criterion.  The sum
 !    stops when a term is less than EPS * SUM.
 !
-!    Local, integer NTIRED, the maximum number of terms to be evaluated
+!    integer NTIRED, the maximum number of terms to be evaluated
 !    in each sum.
 !
-!    Local, logical QCONV, is TRUE if convergence was achieved, that is,
+!    logical QCONV, is TRUE if convergence was achieved, that is,
 !    the program did not stop on NTIRED criterion.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) adj
-  real ( kind = rk ) ccum
-  real ( kind = rk ) centaj
-  real ( kind = rk ) centwt
-  real ( kind = rk ) chid2
-  real ( kind = rk ) cum
-  real ( kind = rk ) df
-  real ( kind = rk ) dfd2
-  real ( kind = rk ) dg
-  real ( kind = rk ), parameter :: eps = 0.00001D+00
-  real ( kind = rk ) gamma_log
+  real ( kind = rk8 ) adj
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) centaj
+  real ( kind = rk8 ) centwt
+  real ( kind = rk8 ) chid2
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) df
+  real ( kind = rk8 ) dfd2
+  real ( kind = rk8 ) dg
+  real ( kind = rk8 ), parameter :: eps = 0.00001D+00
+  real ( kind = rk8 ) gamma_log
   integer i
   integer icent
   integer iterb
   integer iterf
-  real ( kind = rk ) lcntaj
-  real ( kind = rk ) lcntwt
-  real ( kind = rk ) lfact
+  real ( kind = rk8 ) lcntaj
+  real ( kind = rk8 ) lcntwt
+  real ( kind = rk8 ) lfact
   integer, parameter :: ntired = 1000
-  real ( kind = rk ) pcent
-  real ( kind = rk ) pnonc
-  real ( kind = rk ) pterm
+  real ( kind = rk8 ) pcent
+  real ( kind = rk8 ) pnonc
+  real ( kind = rk8 ) pterm
   logical qsmall
-  real ( kind = rk ) sum1
-  real ( kind = rk ) sumadj
-  real ( kind = rk ) term
-  real ( kind = rk ) wt
-  real ( kind = rk ) x
-  real ( kind = rk ) xnonc
-  real ( kind = rk ) xx
+  real ( kind = rk8 ) sum1
+  real ( kind = rk8 ) sumadj
+  real ( kind = rk8 ) term
+  real ( kind = rk8 ) wt
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) xnonc
+  real ( kind = rk8 ) xx
 
   qsmall ( xx ) = sum1 < 1.0D-20 .or. xx < eps * sum1
-  dg(i) = df +  2.0D+00  * real ( i, kind = rk )
+  dg(i) = df +  2.0D+00  * real ( i, kind = rk8 )
 
   if ( x <= 0.0D+00 ) then
     cum = 0.0D+00
@@ -6819,7 +7034,7 @@ subroutine cumchn ( x, df, pnonc, cum, ccum )
 !
 !  Calculate central weight term.
 !
-  lfact = gamma_log ( real ( icent + 1, kind = rk ) )
+  lfact = gamma_log ( real ( icent + 1, kind = rk8 ) )
   lcntwt = - xnonc + icent * log ( xnonc ) - lfact
   centwt = exp ( lcntwt )
 !
@@ -6945,30 +7160,32 @@ subroutine cumf ( f, dfn, dfd, cum, ccum )
 !    Handbook of Mathematical Functions
 !    1966, Formula 26.5.28.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) F, the upper limit of integration.
+!    real ( kind = rk8 ) F, the upper limit of integration.
 !
-!    Input, real ( kind = rk ) DFN, DFD, the number of degrees of
+!    real ( kind = rk8 ) DFN, DFD, the number of degrees of
 !    freedom for the numerator and denominator.
 !
-!    Output, real ( kind = rk ) CUM, CCUM, the value of the F CDF and
+!  Output:
+!
+!    real ( kind = rk8 ) CUM, CCUM, the value of the F CDF and
 !    the complementary F CDF.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) dfd
-  real ( kind = rk ) dfn
-  real ( kind = rk ) dsum
-  real ( kind = rk ) f
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) dfd
+  real ( kind = rk8 ) dfn
+  real ( kind = rk8 ) dsum
+  real ( kind = rk8 ) f
   integer ierr
-  real ( kind = rk ) prod
-  real ( kind = rk ) xx
-  real ( kind = rk ) yy
+  real ( kind = rk8 ) prod
+  real ( kind = rk8 ) xx
+  real ( kind = rk8 ) yy
 
   if ( f <= 0.0D+00 ) then
     cum = 0.0D+00
@@ -7041,53 +7258,55 @@ subroutine cumfnc ( f, dfn, dfd, pnonc, cum, ccum )
 !    Handbook of Mathematical Functions
 !    1966, Formula 26.5.16, 26.6.17, 26.6.18, 26.6.20.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) F, the upper limit of integration.
+!    real ( kind = rk8 ) F, the upper limit of integration.
 !
-!    Input, real ( kind = rk ) DFN, DFD, the number of degrees of freedom
+!    real ( kind = rk8 ) DFN, DFD, the number of degrees of freedom
 !    in the numerator and denominator.  Both DFN and DFD must be positive,
 !    and normally would be integers.  This routine requires that they
 !    be no less than 1.
 !
-!    Input, real ( kind = rk ) PNONC, the noncentrality parameter.
+!    real ( kind = rk8 ) PNONC, the noncentrality parameter.
 !
-!    Output, real ( kind = rk ) CUM, CCUM, the noncentral F CDF and
+!  Output:
+!
+!    real ( kind = rk8 ) CUM, CCUM, the noncentral F CDF and
 !    complementary CDF.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) adn
-  real ( kind = rk ) arg1
-  real ( kind = rk ) aup
-  real ( kind = rk ) b
-  real ( kind = rk ) betdn
-  real ( kind = rk ) betup
-  real ( kind = rk ) centwt
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) dfd
-  real ( kind = rk ) dfn
-  real ( kind = rk ) dnterm
-  real ( kind = rk ) dsum
-  real ( kind = rk ) dummy
-  real ( kind = rk ), parameter :: eps = 0.0001D+00
-  real ( kind = rk ) expon
-  real ( kind = rk ) f
-  real ( kind = rk ) gamma_log
+  real ( kind = rk8 ) adn
+  real ( kind = rk8 ) arg1
+  real ( kind = rk8 ) aup
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) betdn
+  real ( kind = rk8 ) betup
+  real ( kind = rk8 ) centwt
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) dfd
+  real ( kind = rk8 ) dfn
+  real ( kind = rk8 ) dnterm
+  real ( kind = rk8 ) dsum
+  real ( kind = rk8 ) dummy
+  real ( kind = rk8 ), parameter :: eps = 0.0001D+00
+  real ( kind = rk8 ) expon
+  real ( kind = rk8 ) f
+  real ( kind = rk8 ) gamma_log
   integer i
   integer icent
   integer ierr
-  real ( kind = rk ) pnonc
-  real ( kind = rk ) prod
-  real ( kind = rk ) sum1
-  real ( kind = rk ) upterm
-  real ( kind = rk ) xmult
-  real ( kind = rk ) xnonc
-  real ( kind = rk ) xx
-  real ( kind = rk ) yy
+  real ( kind = rk8 ) pnonc
+  real ( kind = rk8 ) prod
+  real ( kind = rk8 ) sum1
+  real ( kind = rk8 ) upterm
+  real ( kind = rk8 ) xmult
+  real ( kind = rk8 ) xnonc
+  real ( kind = rk8 ) xx
+  real ( kind = rk8 ) yy
 
   if ( f <= 0.0D+00 ) then
     cum = 0.0D+00
@@ -7129,7 +7348,7 @@ subroutine cumfnc ( f, dfn, dfd, pnonc, cum, ccum )
 !  Compute central weight term.
 !
   centwt = exp ( -xnonc + icent * log ( xnonc ) &
-    - gamma_log ( real ( icent + 1, kind = rk  ) ) )
+    - gamma_log ( real ( icent + 1, kind = rk8  ) ) )
 !
 !  Compute central incomplete beta term.
 !  Ensure that minimum of arg to beta and 1 - arg is computed accurately.
@@ -7145,10 +7364,10 @@ subroutine cumfnc ( f, dfn, dfd, pnonc, cum, ccum )
     xx = 1.0D+00 - yy
   end if
 
-  arg1 = 0.5D+00 * dfn + real ( icent, kind = rk )
+  arg1 = 0.5D+00 * dfn + real ( icent, kind = rk8 )
   call beta_inc ( arg1, 0.5D+00*dfd, xx, yy, betdn, dummy, ierr )
 
-  adn = dfn / 2.0D+00 + real ( icent, kind = rk )
+  adn = dfn / 2.0D+00 + real ( icent, kind = rk8 )
   aup = adn
   b = dfd / 2.0D+00
   betup = betdn
@@ -7173,7 +7392,7 @@ subroutine cumfnc ( f, dfn, dfd, pnonc, cum, ccum )
       exit
     end if
 
-    xmult = xmult * ( real ( i, kind = rk ) / xnonc )
+    xmult = xmult * ( real ( i, kind = rk8 ) / xnonc )
     i = i - 1
     adn = adn - 1.0D+00
     dnterm = ( adn + 1.0D+00 ) / ( ( adn + b ) * xx ) * dnterm
@@ -7215,7 +7434,7 @@ subroutine cumfnc ( f, dfn, dfd, pnonc, cum, ccum )
 
   do
 
-    xmult = xmult * ( xnonc / real ( i, kind = rk ) )
+    xmult = xmult * ( xnonc / real ( i, kind = rk8 ) )
     i = i + 1
     aup = aup + 1.0D+00
     upterm = ( aup + b -  2.0D+00  ) * xx / ( aup - 1.0D+00 ) * upterm
@@ -7262,24 +7481,26 @@ subroutine cumgam ( x, a, cum, ccum )
 !
 !    Barry Brown, James Lovato, Kathy Russell
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) X, the upper limit of integration.
+!    real ( kind = rk8 ) X, the upper limit of integration.
 !
-!    Input, real ( kind = rk ) A, the shape parameter of the incomplete
+!    real ( kind = rk8 ) A, the shape parameter of the incomplete
 !    Gamma distribution.
 !
-!    Output, real ( kind = rk ) CUM, CCUM, the incomplete Gamma CDF and
+!  Output:
+!
+!    real ( kind = rk8 ) CUM, CCUM, the incomplete Gamma CDF and
 !    complementary CDF.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) x
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) x
 
   if ( x <= 0.0D+00 ) then
 
@@ -7329,28 +7550,30 @@ subroutine cumnbn ( f, s, pr, ompr, cum, ccum )
 !    Handbook of Mathematical Functions
 !    1966, Formula 26.5.26.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) F, the number of failures.
+!    real ( kind = rk8 ) F, the number of failures.
 !
-!    Input, real ( kind = rk ) S, the number of successes.
+!    real ( kind = rk8 ) S, the number of successes.
 !
-!    Input, real ( kind = rk ) PR, OMPR, the probability of success on
+!    real ( kind = rk8 ) PR, OMPR, the probability of success on
 !    each binomial trial, and the value of (1-PR).
 !
-!    Output, real ( kind = rk ) CUM, CCUM, the negative binomial CDF,
+!  Output:
+!
+!    real ( kind = rk8 ) CUM, CCUM, the negative binomial CDF,
 !    and the complementary CDF.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) f
-  real ( kind = rk ) ompr
-  real ( kind = rk ) pr
-  real ( kind = rk ) s
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) f
+  real ( kind = rk8 ) ompr
+  real ( kind = rk8 ) pr
+  real ( kind = rk8 ) s
 
   call cumbet ( pr, ompr, s, f+1.D+00, cum, ccum )
 
@@ -7405,37 +7628,39 @@ subroutine cumnor ( arg, cum, ccum )
 !    ACM Transactions on Mathematical Software,
 !    Volume 19, Number 1, 1993, pages 22-32.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) ARG, the upper limit of integration.
+!    real ( kind = rk8 ) ARG, the upper limit of integration.
 !
-!    Output, real ( kind = rk ) CUM, CCUM, the Normal density CDF and
+!  Output:
+!
+!    real ( kind = rk8 ) CUM, CCUM, the Normal density CDF and
 !    complementary CDF.
 !
 !  Local:
 !
-!    Local, real ( kind = rk ) EPS, the argument below which anorm(x)
+!    real ( kind = rk8 ) EPS, the argument below which anorm(x)
 !    may be represented by 0.5 and above which  x*x  will not underflow.
 !    A conservative value is the largest machine number X
 !    such that   1.0D+00 + X = 1.0D+00   to machine precision.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ), parameter, dimension ( 5 ) :: a = (/ &
+  real ( kind = rk8 ), parameter, dimension ( 5 ) :: a = (/ &
     2.2352520354606839287D+00, &
     1.6102823106855587881D+02, &
     1.0676894854603709582D+03, &
     1.8154981253343561249D+04, &
     6.5682337918207449113D-02 /)
-  real ( kind = rk ) arg
-  real ( kind = rk ), parameter, dimension ( 4 ) :: b = (/ &
+  real ( kind = rk8 ) arg
+  real ( kind = rk8 ), parameter, dimension ( 4 ) :: b = (/ &
     4.7202581904688241870D+01, &
     9.7609855173777669322D+02, &
     1.0260932208618978205D+04, &
     4.5507789335026729956D+04 /)
-  real ( kind = rk ), parameter, dimension ( 9 ) :: c = (/ &
+  real ( kind = rk8 ), parameter, dimension ( 9 ) :: c = (/ &
     3.9894151208813466764D-01, &
     8.8831497943883759412D+00, &
     9.3506656132177855979D+01, &
@@ -7445,9 +7670,9 @@ subroutine cumnor ( arg, cum, ccum )
     1.1602651437647350124D+04, &
     9.8427148383839780218D+03, &
     1.0765576773720192317D-08 /)
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ), parameter, dimension ( 8 ) :: d = (/ &
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ), parameter, dimension ( 8 ) :: d = (/ &
     2.2266688044328115691D+01, &
     2.3538790178262499861D+02, &
     1.5193775994075548050D+03, &
@@ -7456,32 +7681,32 @@ subroutine cumnor ( arg, cum, ccum )
     3.4900952721145977266D+04, &
     3.8912003286093271411D+04, &
     1.9685429676859990727D+04 /)
-  real ( kind = rk ) del
-  real ( kind = rk ) eps
+  real ( kind = rk8 ) del
+  real ( kind = rk8 ) eps
   integer i
-  real ( kind = rk ), parameter, dimension ( 6 ) :: p = (/ &
+  real ( kind = rk8 ), parameter, dimension ( 6 ) :: p = (/ &
     2.1589853405795699D-01, &
     1.274011611602473639D-01, &
     2.2235277870649807D-02, &
     1.421619193227893466D-03, &
     2.9112874951168792D-05, &
     2.307344176494017303D-02 /)
-  real ( kind = rk ), parameter, dimension ( 5 ) :: q = (/ &
+  real ( kind = rk8 ), parameter, dimension ( 5 ) :: q = (/ &
     1.28426009614491121D+00, &
     4.68238212480865118D-01, &
     6.59881378689285515D-02, &
     3.78239633202758244D-03, &
     7.29751555083966205D-05 /)
-  real ( kind = rk ), parameter :: root32 = 5.656854248D+00
-  real ( kind = rk ), parameter :: sixten = 16.0D+00
-  real ( kind = rk ) temp
-  real ( kind = rk ), parameter :: sqrpi = 3.9894228040143267794D-01
-  real ( kind = rk ), parameter :: thrsh = 0.66291D+00
-  real ( kind = rk ) x
-  real ( kind = rk ) xden
-  real ( kind = rk ) xnum
-  real ( kind = rk ) y
-  real ( kind = rk ) xsq
+  real ( kind = rk8 ), parameter :: root32 = 5.656854248D+00
+  real ( kind = rk8 ), parameter :: sixten = 16.0D+00
+  real ( kind = rk8 ) temp
+  real ( kind = rk8 ), parameter :: sqrpi = 3.9894228040143267794D-01
+  real ( kind = rk8 ), parameter :: thrsh = 0.66291D+00
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) xden
+  real ( kind = rk8 ) xnum
+  real ( kind = rk8 ) y
+  real ( kind = rk8 ) xsq
 !
 !  Machine dependent constants
 !
@@ -7597,26 +7822,28 @@ subroutine cumpoi ( s, xlam, cum, ccum )
 !    Handbook of Mathematical Functions,
 !    Formula 26.4.21.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) S, the upper limit of cumulation of the
+!    real ( kind = rk8 ) S, the upper limit of cumulation of the
 !    Poisson density function.
 !
-!    Input, real ( kind = rk ) XLAM, the mean of the Poisson distribution.
+!    real ( kind = rk8 ) XLAM, the mean of the Poisson distribution.
 !
-!    Output, real ( kind = rk ) CUM, CCUM, the Poisson density CDF and
+!  Output:
+!
+!    real ( kind = rk8 ) CUM, CCUM, the Poisson density CDF and
 !    complementary CDF.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) ccum
-  real ( kind = rk ) chi
-  real ( kind = rk ) cum
-  real ( kind = rk ) df
-  real ( kind = rk ) s
-  real ( kind = rk ) xlam
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) chi
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) df
+  real ( kind = rk8 ) s
+  real ( kind = rk8 ) xlam
 
   df =  2.0D+00  * ( s + 1.0D+00 )
   chi =  2.0D+00  * xlam
@@ -7649,28 +7876,30 @@ subroutine cumt ( t, df, cum, ccum )
 !    Handbook of Mathematical Functions,
 !    Formula 26.5.27.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) T, the upper limit of integration.
+!    real ( kind = rk8 ) T, the upper limit of integration.
 !
-!    Input, real ( kind = rk ) DF, the number of degrees of freedom of
+!    real ( kind = rk8 ) DF, the number of degrees of freedom of
 !    the T distribution.
 !
-!    Output, real ( kind = rk ) CUM, CCUM, the T distribution CDF and
+!  Output:
+!
+!    real ( kind = rk8 ) CUM, CCUM, the T distribution CDF and
 !    complementary CDF.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) df
-  real ( kind = rk ) oma
-  real ( kind = rk ) t
-  real ( kind = rk ) xx
-  real ( kind = rk ) yy
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) df
+  real ( kind = rk8 ) oma
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) xx
+  real ( kind = rk8 ) yy
 
   xx = df / ( df + t**2 )
   yy = t**2 / ( df + t**2 )
@@ -7713,20 +7942,22 @@ function dbetrm ( a, b )
 !
 !    15 February 2021
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) A, B, the parameters of the Beta function.
+!    real ( kind = rk8 ) A, B, the parameters of the Beta function.
 !
-!    Output, real ( kind = rk ) DBETRM, the Sterling remainder.
+!  Output:
+!
+!    real ( kind = rk8 ) DBETRM, the Sterling remainder.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) b
-  real ( kind = rk ) dbetrm
-  real ( kind = rk ) dstrem
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) dbetrm
+  real ( kind = rk8 ) dstrem
 !
 !  Try to sum from smallest to largest.
 !
@@ -7740,7 +7971,7 @@ function dexpm1 ( x )
 
 !*****************************************************************************80
 !
-!! DEXPM1 evaluates the function EXP(X) - 1.
+!! dexpm1() evaluates the function EXP(X) - 1.
 !
 !  Licensing:
 !
@@ -7762,27 +7993,29 @@ function dexpm1 ( x )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) X, the value at which exp(X)-1 is desired.
+!    real ( kind = rk8 ) X, the value at which exp(X)-1 is desired.
 !
-!    Output, real ( kind = rk ) DEXPM1, the value of exp(X)-1.
+!  Output:
+!
+!    real ( kind = rk8 ) DEXPM1, the value of exp(X)-1.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) bot
-  real ( kind = rk ) dexpm1
-  real ( kind = rk ), parameter :: p1 =  0.914041914819518D-09
-  real ( kind = rk ), parameter :: p2 =  0.238082361044469D-01
-  real ( kind = rk ), parameter :: q1 = -0.499999999085958D+00
-  real ( kind = rk ), parameter :: q2 =  0.107141568980644D+00
-  real ( kind = rk ), parameter :: q3 = -0.119041179760821D-01
-  real ( kind = rk ), parameter :: q4 =  0.595130811860248D-03
-  real ( kind = rk ) top
-  real ( kind = rk ) w
-  real ( kind = rk ) x
+  real ( kind = rk8 ) bot
+  real ( kind = rk8 ) dexpm1
+  real ( kind = rk8 ), parameter :: p1 =  0.914041914819518D-09
+  real ( kind = rk8 ), parameter :: p2 =  0.238082361044469D-01
+  real ( kind = rk8 ), parameter :: q1 = -0.499999999085958D+00
+  real ( kind = rk8 ), parameter :: q2 =  0.107141568980644D+00
+  real ( kind = rk8 ), parameter :: q3 = -0.119041179760821D-01
+  real ( kind = rk8 ), parameter :: q4 =  0.595130811860248D-03
+  real ( kind = rk8 ) top
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) x
 
   if ( abs ( x ) <= 0.15D+00 ) then
 
@@ -7809,7 +8042,7 @@ function dinvnr ( p, q )
 
 !*****************************************************************************80
 !
-!! DINVNR computes the inverse of the normal distribution.
+!! dinvnr() computes the inverse of the normal distribution.
 !
 !  Discussion:
 !
@@ -7839,32 +8072,34 @@ function dinvnr ( p, q )
 !    Marcel Dekker, NY, 1980,
 !    QA276.4 K46
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) P, Q, the probability, and the complementary
+!    real ( kind = rk8 ) P, Q, the probability, and the complementary
 !    probability.
 !
-!    Output, real ( kind = rk ) DINVNR, the argument X for which the
+!  Output:
+!
+!    real ( kind = rk8 ) DINVNR, the argument X for which the
 !    Normal CDF has the value P.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) ccum
-  real ( kind = rk ) cum
-  real ( kind = rk ) dinvnr
-  real ( kind = rk ) dx
-  real ( kind = rk ), parameter :: eps = 1.0D-13
+  real ( kind = rk8 ) ccum
+  real ( kind = rk8 ) cum
+  real ( kind = rk8 ) dinvnr
+  real ( kind = rk8 ) dx
+  real ( kind = rk8 ), parameter :: eps = 1.0D-13
   integer i
   integer, parameter :: maxit = 100
-  real ( kind = rk ) p
-  real ( kind = rk ) pp
-  real ( kind = rk ) q
-  real ( kind = rk ), parameter :: r2pi = 0.3989422804014326D+00
-  real ( kind = rk ) strtx
-  real ( kind = rk ) stvaln
-  real ( kind = rk ) xcur
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) pp
+  real ( kind = rk8 ) q
+  real ( kind = rk8 ), parameter :: r2pi = 0.3989422804014326D+00
+  real ( kind = rk8 ) strtx
+  real ( kind = rk8 ) stvaln
+  real ( kind = rk8 ) xcur
 
   pp = min ( p, q )
   strtx = stvaln ( pp )
@@ -7901,7 +8136,7 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
 
 !*****************************************************************************80
 !
-!! DINVR bounds the zero of the function and invokes DZROR.
+!! dinvr() bounds the zero of the function and invokes DZROR.
 !
 !  Discussion:
 !
@@ -7925,42 +8160,45 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
 !    ACM Transactions on Mathematical Software,
 !    Volume 1, Number 4, pages 330-345, 1975.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer STATUS.  At the beginning of a zero
+!    integer STATUS.  At the beginning of a zero
 !    finding problem, STATUS should be set to 0 and this routine invoked.
 !    The value of parameters other than X will be ignored on this call.
-!    If this routine needs the function to be evaluated, it will set STATUS
-!    to 1 and return.  The value of the function should be set in FX and
+!
+!    real ( kind = rk8 ) FX, the value of F(X) calculated by the user
+!    on the previous call, when this routine returned with STATUS = 1.
+!
+!  Output:
+!
+!    integer STATUS: If this routine needs the function to be evaluated, it will 
+!    set STATUS to 1 and return.  The value of the function should be set in FX and
 !    this routine again called without changing any of its other parameters.
 !    If this routine finishes without error, it returns with STATUS 0,
 !    and X an approximate root of F(X).
 !    If this routine cannot bound the function, it returns a negative STATUS and
 !    sets QLEFT and QHI.
 !
-!    Output, real ( kind = rk ) X, the value at which F(X) is to be evaluated.
+!    real ( kind = rk8 ) X, the value at which F(X) is to be evaluated.
 !
-!    Input, real ( kind = rk ) FX, the value of F(X) calculated by the user
-!    on the previous call, when this routine returned with STATUS = 1.
-!
-!    Output, logical QLEFT, is defined only if QMFINV returns FALSE.  In that
+!    logical QLEFT, is defined only if QMFINV returns FALSE.  In that
 !    case, QLEFT is TRUE if the stepping search terminated unsucessfully
 !    at SMALL, and FALSE if the search terminated unsucessfully at BIG.
 !
-!    Output, logical QHI, is defined only if QMFINV returns FALSE.  In that
+!    logical QHI, is defined only if QMFINV returns FALSE.  In that
 !    case, it is TRUE if Y < F(X) at the termination of the search and FALSE
 !    if F(X) < Y.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) :: absstp
-  real ( kind = rk ) :: abstol
-  real ( kind = rk ) :: big
-  real ( kind = rk ) fbig
-  real ( kind = rk ) fsmall
-  real ( kind = rk ) fx
+  real ( kind = rk8 ) :: absstp
+  real ( kind = rk8 ) :: abstol
+  real ( kind = rk8 ) :: big
+  real ( kind = rk8 ) fbig
+  real ( kind = rk8 ) fsmall
+  real ( kind = rk8 ) fx
   integer i99999
   logical qbdd
   logical qcond
@@ -7971,26 +8209,26 @@ subroutine dinvr ( status, x, fx, qleft, qhi )
   logical qleft
   logical qlim
   logical qup
-  real ( kind = rk ) :: relstp
-  real ( kind = rk ) :: reltol
-  real ( kind = rk ) :: small
+  real ( kind = rk8 ) :: relstp
+  real ( kind = rk8 ) :: reltol
+  real ( kind = rk8 ) :: small
   integer status
-  real ( kind = rk ) step
-  real ( kind = rk ) :: stpmul
-  real ( kind = rk ) x
-  real ( kind = rk ) xhi
-  real ( kind = rk ) xlb
-  real ( kind = rk ) xlo
-  real ( kind = rk ) xsave
-  real ( kind = rk ) xub
-  real ( kind = rk ) yy
-  real ( kind = rk ) zabsst
-  real ( kind = rk ) zabsto
-  real ( kind = rk ) zbig
-  real ( kind = rk ) zrelst
-  real ( kind = rk ) zrelto
-  real ( kind = rk ) zsmall
-  real ( kind = rk ) zstpmu
+  real ( kind = rk8 ) step
+  real ( kind = rk8 ) :: stpmul
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) xhi
+  real ( kind = rk8 ) xlb
+  real ( kind = rk8 ) xlo
+  real ( kind = rk8 ) xsave
+  real ( kind = rk8 ) xub
+  real ( kind = rk8 ) yy
+  real ( kind = rk8 ) zabsst
+  real ( kind = rk8 ) zabsto
+  real ( kind = rk8 ) zbig
+  real ( kind = rk8 ) zrelst
+  real ( kind = rk8 ) zrelto
+  real ( kind = rk8 ) zsmall
+  real ( kind = rk8 ) zstpmu
 
   save
 
@@ -8257,7 +8495,7 @@ entry dstinv ( zsmall, zbig, zabsst, zrelst, zstpmu, zabsto, zrelto )
 
 !*****************************************************************************80
 !
-!! DSTINV SeT INverse finder - Reverse Communication
+!! dstinv() SeT INverse finder - Reverse Communication
 !
 !  Discussion:
 !
@@ -8318,19 +8556,19 @@ entry dstinv ( zsmall, zbig, zabsst, zrelst, zstpmu, zabsto, zrelto )
 !    ACM Transactions on Mathematical Software,
 !    Volume 1, Number 4, pages 330-345, 1975.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) ZSMALL, ZBIG, the left and right endpoints
+!    real ( kind = rk8 ) ZSMALL, ZBIG, the left and right endpoints
 !    of the interval to be searched for a solution.
 !
-!    Input, real ( kind = rk ) ZABSST, ZRELSTP, the initial step size in
+!    real ( kind = rk8 ) ZABSST, ZRELSTP, the initial step size in
 !    the search is max ( ZABSST, ZRELST * abs ( X ) ).
 !
-!    Input, real ( kind = rk ) STPMUL.  When a step doesn't bound the zero,
+!    real ( kind = rk8 ) STPMUL.  When a step doesn't bound the zero,
 !    the stepsize is multiplied by STPMUL and another step taken.  A
 !    popular value is 2.0.
 !
-!    Input, real ( kind = rk ) ABSTOL, RELTOL, two numbers that determine
+!    real ( kind = rk8 ) ABSTOL, RELTOL, two numbers that determine
 !    the accuracy of the solution
 !
   small = zsmall
@@ -8347,7 +8585,7 @@ function dlanor ( x )
 
 !*****************************************************************************80
 !
-!! DLANOR evaluates the logarithm of the asymptotic Normal CDF.
+!! dlanor() evaluates the logarithm of the asymptotic Normal CDF.
 !
 !  Discussion:
 !
@@ -8370,31 +8608,33 @@ function dlanor ( x )
 !    Handbook of Mathematical Functions
 !    1966, Formula 26.2.12.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) X, the value at which the Normal CDF is to be
+!    real ( kind = rk8 ) X, the value at which the Normal CDF is to be
 !    evaluated.  It is assumed that 5 <= abs ( X ).
 !
-!    Output, real ( kind = rk ) DLANOR, the logarithm of the asymptotic
+!  Output:
+!
+!    real ( kind = rk8 ) DLANOR, the logarithm of the asymptotic
 !    Normal CDF.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) alnrel
-  real ( kind = rk ) approx
-  real ( kind = rk ), save, dimension ( 0:11 ) :: coef = (/ &
+  real ( kind = rk8 ) alnrel
+  real ( kind = rk8 ) approx
+  real ( kind = rk8 ), save, dimension ( 0:11 ) :: coef = (/ &
     -1.0D+00,  3.0D+00,  -15.0D+00,  105.0D+00,  -945.0D+00,  &
     10395.0D+00, -135135.0D+00,  2027025.0D+00,  -34459425.0D+00, &
     654729075.0D+00, -13749310575D+00,  316234143225.0D+00 /)
-  real ( kind = rk ) correc
-  real ( kind = rk ), parameter :: dlsqpi = 0.91893853320467274177D+00
-  real ( kind = rk ) eval_pol
-  real ( kind = rk ) dlanor
-  real ( kind = rk ) x
-  real ( kind = rk ) xx
-  real ( kind = rk ) xx2
+  real ( kind = rk8 ) correc
+  real ( kind = rk8 ), parameter :: dlsqpi = 0.91893853320467274177D+00
+  real ( kind = rk8 ) eval_pol
+  real ( kind = rk8 ) dlanor
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) xx
+  real ( kind = rk8 ) xx2
 
   xx = abs ( x )
 
@@ -8418,7 +8658,7 @@ function dstrem ( z )
 
 !*****************************************************************************80
 !
-!! DSTREM computes the Sterling remainder ln ( Gamma ( Z ) ) - Sterling ( Z ).
+!! dstrem() computes the Sterling remainder ln ( Gamma ( Z ) ) - Sterling ( Z ).
 !
 !  Discussion:
 !
@@ -8443,20 +8683,22 @@ function dstrem ( z )
 !
 !    15 February 2021
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) Z, the value at which the Sterling
+!    real ( kind = rk8 ) Z, the value at which the Sterling
 !    remainder is to be calculated.  Z must be positive.
 !
-!    Output, real ( kind = rk ) DSTREM, the Sterling remainder.
+!  Output:
+!
+!    real ( kind = rk8 ) DSTREM, the Sterling remainder.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: ncoef = 9
 
-  real ( kind = rk ), parameter, dimension ( 0:ncoef ) :: coef = (/ &
+  real ( kind = rk8 ), parameter, dimension ( 0:ncoef ) :: coef = (/ &
     0.0D+00, &
     0.0833333333333333333333333333333D+00, &
     -0.00277777777777777777777777777778D+00, &
@@ -8467,12 +8709,12 @@ function dstrem ( z )
     0.00641025641025641025641025641026D+00, &
     -0.0295506535947712418300653594771D+00, &
     0.179644372368830573164938490016D+00 /)
-  real ( kind = rk ) dstrem
-  real ( kind = rk ) eval_pol
-  real ( kind = rk ) gamma_log
-  real ( kind = rk ), parameter :: hln2pi = 0.91893853320467274178D+00
-  real ( kind = rk ) sterl
-  real ( kind = rk ) z
+  real ( kind = rk8 ) dstrem
+  real ( kind = rk8 ) eval_pol
+  real ( kind = rk8 ) gamma_log
+  real ( kind = rk8 ), parameter :: hln2pi = 0.91893853320467274178D+00
+  real ( kind = rk8 ) sterl
+  real ( kind = rk8 ) z
 
   if ( z <= 0.0D+00 ) then
     write ( *, '(a)' ) ' '
@@ -8494,7 +8736,7 @@ function dt1 ( p, q, df )
 
 !*****************************************************************************80
 !
-!! DT1 computes an approximate inverse of the cumulative T distribution.
+!! dt1() computes an approximate inverse of the cumulative T distribution.
 !
 !  Discussion:
 !
@@ -8514,42 +8756,44 @@ function dt1 ( p, q, df )
 !
 !    15 February 2021
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) P, Q, the value whose inverse from the
+!    real ( kind = rk8 ) P, Q, the value whose inverse from the
 !    T distribution CDF is desired, and the value (1-P).
 !
-!    Input, real ( kind = rk ) DF, the number of degrees of freedom of the
+!    real ( kind = rk8 ) DF, the number of degrees of freedom of the
 !    T distribution.
 !
-!    Output, real ( kind = rk ) DT1, the approximate value of X for which
+!  Output:
+!
+!    real ( kind = rk8 ) DT1, the approximate value of X for which
 !    the T density CDF with DF degrees of freedom has value P.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ), dimension(0:4,4) :: coef = reshape ( (/ &
+  real ( kind = rk8 ), dimension(0:4,4) :: coef = reshape ( (/ &
        1.0D+00,     1.0D+00,    0.0D+00,   0.0D+00,  0.0D+00, &
        3.0D+00,    16.0D+00,    5.0D+00,   0.0D+00,  0.0D+00, &
      -15.0D+00,    17.0D+00,   19.0D+00,   3.0D+00,  0.0D+00, &
     -945.0D+00, -1920.0D+00, 1482.0D+00, 776.0D+00, 79.0D+00/), (/ 5, 4 /) )
-  real ( kind = rk ), parameter, dimension ( 4 ) :: denom = (/ &
+  real ( kind = rk8 ), parameter, dimension ( 4 ) :: denom = (/ &
     4.0D+00, 96.0D+00, 384.0D+00, 92160.0D+00 /)
-  real ( kind = rk ) denpow
-  real ( kind = rk ) eval_pol
-  real ( kind = rk ) df
-  real ( kind = rk ) dinvnr
-  real ( kind = rk ) dt1
+  real ( kind = rk8 ) denpow
+  real ( kind = rk8 ) eval_pol
+  real ( kind = rk8 ) df
+  real ( kind = rk8 ) dinvnr
+  real ( kind = rk8 ) dt1
   integer i
   integer, parameter, dimension ( 4 ) :: ideg = (/ 1, 2, 3, 4 /)
-  real ( kind = rk ) p
-  real ( kind = rk ) q
-  real ( kind = rk ) sum1
-  real ( kind = rk ) term
-  real ( kind = rk ) x
-  real ( kind = rk ) xp
-  real ( kind = rk ) xx
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) q
+  real ( kind = rk8 ) sum1
+  real ( kind = rk8 ) term
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) xp
+  real ( kind = rk8 ) xx
 
   x = abs ( dinvnr ( p, q ) )
   xx = x * x
@@ -8576,7 +8820,7 @@ subroutine dzror ( status, x, fx, xlo, xhi, qleft, qhi )
 
 !*****************************************************************************80
 !
-!! DZROR seeks a zero of a function, using reverse communication.
+!! dzror() seeks a zero of a function, using reverse communication.
 !
 !  Discussion:
 !
@@ -8599,78 +8843,86 @@ subroutine dzror ( status, x, fx, xlo, xhi, qleft, qhi )
 !    ACM Transactions on Mathematical Software,
 !    Volume 1, Number 4, pages 330-345, 1975.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer STATUS.  At the beginning of a zero
+!    integer STATUS.  At the beginning of a zero
 !    finding problem, STATUS should be set to 0 and ZROR invoked.  The value
 !    of other parameters will be ignored on this call.
 !    When ZROR needs the function evaluated, it will set
 !    STATUS to 1 and return.  The value of the function
 !    should be set in FX and ZROR again called without
 !    changing any of its other parameters.
+!
+!    real ( kind = rk8 ) FX, the value of F(X), which must be calculated
+!    by the user when ZROR has returned on the previous call with STATUS = 1.
+!
+!  Output:
+!
+!    integer STATUS.
+!    When ZROR needs the function evaluated, it will set
+!    STATUS to 1 and return.  The value of the function
+!    should be set in FX and ZROR again called without
+!    changing any of its other parameters.
 !    When ZROR has finished without error, it will return
-!    with STATUS 0.  In that case (XLO,XHI) bound the answe
+!    with STATUS 0.  In that case (XLO,XHI) bound the answer
 !    If ZROR finds an error (which implies that F(XLO)-Y an
 !    F(XHI)-Y have the same sign, it returns STATUS -1.  In
 !    this case, XLO and XHI are undefined.
 !
-!    Output, real ( kind = rk ) X, the value of X at which F(X) is to
+!    real ( kind = rk8 ) X, the value of X at which F(X) is to
 !    be evaluated.
 !
-!    Input, real ( kind = rk ) FX, the value of F(X), which must be calculated
-!    by the user when ZROR has returned on the previous call with STATUS = 1.
-!
-!    Output, real ( kind = rk ) XLO, XHI, are lower and upper bounds for the
+!    real ( kind = rk8 ) XLO, XHI, are lower and upper bounds for the
 !    solution when ZROR returns with STATUS = 0.
 !
-!    Output, logical QLEFT,is TRUE if the stepping search terminated
+!    logical QLEFT,is TRUE if the stepping search terminated
 !    unsucessfully at XLO.  If it is FALSE, the search terminated
 !    unsucessfully at XHI.
 !
-!    Output, logical QHI, is TRUE if Y < F(X) at the termination of the
+!    logical QHI, is TRUE if Y < F(X) at the termination of the
 !    search and FALSE if F(X) < Y at the termination of the search.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) abstol
-  real ( kind = rk ) b
-  real ( kind = rk ) c
-  real ( kind = rk ) d
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) abstol
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) c
+  real ( kind = rk8 ) d
   integer ext
-  real ( kind = rk ) fa
-  real ( kind = rk ) fb
-  real ( kind = rk ) fc
-  real ( kind = rk ) fd
-  real ( kind = rk ) fda
-  real ( kind = rk ) fdb
+  real ( kind = rk8 ) fa
+  real ( kind = rk8 ) fb
+  real ( kind = rk8 ) fc
+  real ( kind = rk8 ) fd
+  real ( kind = rk8 ) fda
+  real ( kind = rk8 ) fdb
   logical first
-  real ( kind = rk ) ftol
-  real ( kind = rk ) fx
+  real ( kind = rk8 ) ftol
+  real ( kind = rk8 ) fx
   integer i99999
-  real ( kind = rk ) m
-  real ( kind = rk ) mb
-  real ( kind = rk ) p
-  real ( kind = rk ) q
+  real ( kind = rk8 ) m
+  real ( kind = rk8 ) mb
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) q
   logical qhi
   logical qleft
   logical qrzero
-  real ( kind = rk ) reltol
+  real ( kind = rk8 ) reltol
   integer status
-  real ( kind = rk ) tol
-  real ( kind = rk ) w
-  real ( kind = rk ) x
-  real ( kind = rk ) xhi
-  real ( kind = rk ) xlo
-  real ( kind = rk ) :: xxhi = 0.0D+00
-  real ( kind = rk ) :: xxlo = 0.0D+00
-  real ( kind = rk ) zabstl
-  real ( kind = rk ) zreltl
-  real ( kind = rk ) zx
-  real ( kind = rk ) zxhi
-  real ( kind = rk ) zxlo
+  real ( kind = rk8 ) tol
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) xhi
+  real ( kind = rk8 ) xlo
+  real ( kind = rk8 ) :: xxhi = 0.0D+00
+  real ( kind = rk8 ) :: xxlo = 0.0D+00
+  real ( kind = rk8 ) zabstl
+  real ( kind = rk8 ) zreltl
+  real ( kind = rk8 ) zx
+  real ( kind = rk8 ) zxhi
+  real ( kind = rk8 ) zxlo
 
   save
 
@@ -8879,7 +9131,7 @@ entry dstzr ( zxlo, zxhi, zabstl, zreltl )
 
 !*****************************************************************************80
 !
-!! DSTZR - SeT ZeRo finder - Reverse communication version
+!! dstzr() - SeT ZeRo finder - Reverse communication version
 !
 !  Discussion:
 !
@@ -8888,8 +9140,8 @@ entry dstzr ( zxlo, zxhi, zabstl, zreltl )
 !
 !    Given a function F, find XLO such that F(XLO) = 0.
 !
-!     Input condition. F is a real ( kind = rk ) function of a single
-!     real ( kind = rk ) argument and XLO and XHI are such that
+!     Input condition. F is a real ( kind = rk8 ) function of a single
+!     real ( kind = rk8 ) argument and XLO and XHI are such that
 !          F(XLO)*F(XHI)  <=  0.0
 !
 !     If the input condition is met, QRZERO returns .TRUE.
@@ -8920,12 +9172,12 @@ entry dstzr ( zxlo, zxhi, zabstl, zreltl )
 !    ACM Transactions on Mathematical Software,
 !    Volume 1, Number 4, pages 330-345, 1975.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) XLO, XHI, the left and right endpoints of the
+!    real ( kind = rk8 ) XLO, XHI, the left and right endpoints of the
 !    interval to be searched for a solution.
 !
-!    Input, real ( kind = rk ) ABSTOL, RELTOL, two numbers that determine
+!    real ( kind = rk8 ) ABSTOL, RELTOL, two numbers that determine
 !    the accuracy of the solution.
 !
   xxlo = zxlo
@@ -8959,7 +9211,7 @@ subroutine erf_values ( n_data, x, fx )
 
 !*****************************************************************************80
 !
-!! ERF_VALUES returns some values of the ERF or "error" function.
+!! erf_values() returns some values of the ERF or "error" function.
 !
 !  Discussion:
 !
@@ -8983,25 +9235,29 @@ subroutine erf_values ( n_data, x, fx )
 !    Handbook of Mathematical Functions,
 !    US Department of Commerce, 1964.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer N_DATA.  The user sets N_DATA to 0
-!    before the first call.  On each call, the routine increments N_DATA by 1,
+!    integer N_DATA.  The user sets N_DATA to 0
+!    before the first call.  
+!
+!  Output:
+!
+!    integer N_DATA: On each call, the routine increments N_DATA by 1,
 !    and returns the corresponding data; when there is no more data, the
 !    output value of N_DATA will be 0 again.
 !
-!    Output, real ( kind = rk ) X, the argument of the function.
+!    real ( kind = rk8 ) X, the argument of the function.
 !
-!    Output, real ( kind = rk ) FX, the value of the function.
+!    real ( kind = rk8 ) FX, the value of the function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: n_max = 21
 
-  real ( kind = rk ) fx
-  real ( kind = rk ), save, dimension ( n_max ) :: fx_vec = (/ &
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), save, dimension ( n_max ) :: fx_vec = (/ &
     0.0000000000D+00, 0.1124629160D+00, 0.2227025892D+00, 0.3286267595D+00, &
     0.4283923550D+00, 0.5204998778D+00, 0.6038560908D+00, 0.6778011938D+00, &
     0.7421009647D+00, 0.7969082124D+00, 0.8427007929D+00, 0.8802050696D+00, &
@@ -9009,8 +9265,8 @@ subroutine erf_values ( n_data, x, fx )
     0.9763483833D+00, 0.9837904586D+00, 0.9890905016D+00, 0.9927904292D+00, &
     0.9953222650D+00 /)
   integer n_data
-  real ( kind = rk ) x
-  real ( kind = rk ), save, dimension ( n_max ) :: x_vec = (/ &
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ), save, dimension ( n_max ) :: x_vec = (/ &
     0.0D+00, 0.1D+00, 0.2D+00, 0.3D+00, &
     0.4D+00, 0.5D+00, 0.6D+00, 0.7D+00, &
     0.8D+00, 0.9D+00, 1.0D+00, 1.1D+00, &
@@ -9039,7 +9295,7 @@ function error_f ( x )
 
 !*****************************************************************************80
 !
-!! ERROR_F evaluates the error function.
+!! error_f() evaluates the error function.
 !
 !  Discussion:
 !
@@ -9061,6 +9317,10 @@ function error_f ( x )
 !
 !      0.5 * ( ERF(X/sqrt(2)) + 1 ) = Normal_01_CDF(X)
 !
+!    Thanks to Sebastiano Vigna for pointing out an error in the
+!    value of one of the data values for parameter S,
+!    19 May 2026.
+!
 !  Licensing:
 !
 !    This code is distributed under the MIT license.
@@ -9081,51 +9341,53 @@ function error_f ( x )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) X, the argument.
+!    real ( kind = rk8 ) X, the argument.
 !
-!    Output, real ( kind = rk ) ERF, the value of the error function at X.
+!  Output:
+!
+!    real ( kind = rk8 ) ERF, the value of the error function at X.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ), parameter, dimension ( 5 ) :: a = (/ &
+  real ( kind = rk8 ), parameter, dimension ( 5 ) :: a = (/ &
     0.771058495001320D-04, &
     -0.133733772997339D-02, &
     0.323076579225834D-01, &
     0.479137145607681D-01, &
     0.128379167095513D+00 /)
-  real ( kind = rk ) ax
-  real ( kind = rk ), parameter, dimension ( 3 ) :: b = (/ &
+  real ( kind = rk8 ) ax
+  real ( kind = rk8 ), parameter, dimension ( 3 ) :: b = (/ &
     0.301048631703895D-02, &
     0.538971687740286D-01, &
     0.375795757275549D+00 /)
-  real ( kind = rk ) bot
-  real ( kind = rk ), parameter :: c = 0.564189583547756D+00
-  real ( kind = rk ) error_f
-  real ( kind = rk ), dimension ( 8 ) :: p = (/   &
+  real ( kind = rk8 ) bot
+  real ( kind = rk8 ), parameter :: c = 0.564189583547756D+00
+  real ( kind = rk8 ) error_f
+  real ( kind = rk8 ), dimension ( 8 ) :: p = (/   &
    -1.36864857382717D-07, 5.64195517478974D-01, &
     7.21175825088309D+00, 4.31622272220567D+01, &
     1.52989285046940D+02, 3.39320816734344D+02, &
     4.51918953711873D+02, 3.00459261020162D+02 /)
-  real ( kind = rk ), dimension ( 8 ) :: q = (/ &
+  real ( kind = rk8 ), dimension ( 8 ) :: q = (/ &
     1.00000000000000D+00, 1.27827273196294D+01, &
     7.70001529352295D+01, 2.77585444743988D+02, &
     6.38980264465631D+02, 9.31354094850610D+02, &
     7.90950925327898D+02, 3.00459260956983D+02 /)
-  real ( kind = rk ), dimension ( 5 ) :: r = (/ &
+  real ( kind = rk8 ), dimension ( 5 ) :: r = (/ &
     2.10144126479064D+00, 2.62370141675169D+01, &
     2.13688200555087D+01, 4.65807828718470D+00, &
     2.82094791773523D-01 /)
-  real ( kind = rk ), parameter, dimension ( 4 ) :: s = (/ &
+  real ( kind = rk8 ), parameter, dimension ( 4 ) :: s = (/ &
     9.41537750555460D+01, 1.87114811799590D+02, &
     9.90191814623914D+01, 1.80124575948747D+01 /)
-  real ( kind = rk ) t
-  real ( kind = rk ) top
-  real ( kind = rk ) x
-  real ( kind = rk ) x2
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) top
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) x2
 
   ax = abs ( x )
 
@@ -9189,7 +9451,17 @@ function error_fc ( ind, x )
 
 !*****************************************************************************80
 !
-!! ERROR_FC evaluates the complementary error function.
+!! error_fc() evaluates the complementary error function.
+!
+!  Discussion:
+!
+!    Since some compilers already supply a routine named ERFC which evaluates
+!    the complementary error function, this routine has been given a distinct, 
+!    if somewhat unnatural, name.
+!
+!    Thanks to Sebastiano Vigna for pointing out an error in the
+!    value of one of the data values for parameter S,
+!    19 May 2026.
 !
 !  Licensing:
 !
@@ -9211,57 +9483,59 @@ function error_fc ( ind, x )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, integer IND, chooses the scaling.
+!    integer IND, chooses the scaling.
 !    If IND is nonzero, then the value returned has been multiplied by
 !    EXP(X*X).
 !
-!    Input, real ( kind = rk ) X, the argument of the function.
+!    real ( kind = rk8 ) X, the argument of the function.
 !
-!    Output, real ( kind = rk ) ERROR_FC, the value of the complementary
+!  Output:
+!
+!    real ( kind = rk8 ) ERROR_FC, the value of the complementary
 !    error function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ), dimension ( 5 ) :: a = (/ &
+  real ( kind = rk8 ), dimension ( 5 ) :: a = (/ &
      0.771058495001320D-04,  -0.133733772997339D-02, &
      0.323076579225834D-01,   0.479137145607681D-01, &
      0.128379167095513D+00 /)
-  real ( kind = rk ) ax
-  real ( kind = rk ), dimension(3) :: b = (/ &
+  real ( kind = rk8 ) ax
+  real ( kind = rk8 ), dimension(3) :: b = (/ &
     0.301048631703895D-02, &
     0.538971687740286D-01, &
     0.375795757275549D+00 /)
-  real ( kind = rk ) bot
-  real ( kind = rk ), parameter :: c = 0.564189583547756D+00
-  real ( kind = rk ) e
-  real ( kind = rk ) error_fc
-  real ( kind = rk ) exparg
+  real ( kind = rk8 ) bot
+  real ( kind = rk8 ), parameter :: c = 0.564189583547756D+00
+  real ( kind = rk8 ) e
+  real ( kind = rk8 ) error_fc
+  real ( kind = rk8 ) exparg
   integer ind
-  real ( kind = rk ), dimension ( 8 ) :: p = (/ &
+  real ( kind = rk8 ), dimension ( 8 ) :: p = (/ &
     -1.36864857382717D-07, 5.64195517478974D-01, &
      7.21175825088309D+00, 4.31622272220567D+01, &
      1.52989285046940D+02, 3.39320816734344D+02, &
      4.51918953711873D+02, 3.00459261020162D+02 /)
-  real ( kind = rk ), dimension ( 8 ) :: q = (/  &
+  real ( kind = rk8 ), dimension ( 8 ) :: q = (/  &
     1.00000000000000D+00, 1.27827273196294D+01, &
     7.70001529352295D+01, 2.77585444743988D+02, &
     6.38980264465631D+02, 9.31354094850610D+02, &
     7.90950925327898D+02, 3.00459260956983D+02 /)
-  real ( kind = rk ), dimension ( 5 ) :: r = (/ &
+  real ( kind = rk8 ), dimension ( 5 ) :: r = (/ &
     2.10144126479064D+00, 2.62370141675169D+01, &
     2.13688200555087D+01, 4.65807828718470D+00, &
     2.82094791773523D-01 /)
-  real ( kind = rk ), dimension ( 4 ) :: s = (/ &
+  real ( kind = rk8 ), dimension ( 4 ) :: s = (/ &
     9.41537750555460D+01, 1.87114811799590D+02, &
     9.90191814623914D+01, 1.80124575948747D+01 /)
-  real ( kind = rk ) t
-  real ( kind = rk ) top
-  real ( kind = rk ) w
-  real ( kind = rk ) x
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) top
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) x
 !
 !  ABS ( X ) <= 0.5
 !
@@ -9291,8 +9565,8 @@ function error_fc ( ind, x )
 !
   if ( ax <= 4.0D+00 ) then
 
-    top = (((((( p(1) * ax + p(2)) * ax + p(3)) * ax + p(4)) * ax &
-      + p(5)) * ax + p(6)) * ax + p(7)) * ax + p(8)
+    top = (((((( p(1) * ax + p(2) ) * ax + p(3) ) * ax + p(4) ) * ax &
+      + p(5) ) * ax + p(6)) * ax + p(7)) * ax + p(8)
 
     bot = (((((( q(1) * ax + q(2)) * ax + q(3)) * ax + q(4)) * ax &
       + q(5)) * ax + q(6)) * ax + q(7)) * ax + q(8)
@@ -9368,7 +9642,7 @@ function esum ( mu, x )
 
 !*****************************************************************************80
 !
-!! ESUM evaluates exp ( MU + X ).
+!! esum() evaluates exp ( MU + X ).
 !
 !  Licensing:
 !
@@ -9394,20 +9668,20 @@ function esum ( mu, x )
 !
 !    integer MU, part of the argument.
 !
-!    real ( kind = rk ) X, part of the argument.
+!    real ( kind = rk8 ) X, part of the argument.
 !
 !  Output:
 !
-!    real ( kind = rk ) ESUM, the value of exp ( MU + X ).
+!    real ( kind = rk8 ) ESUM, the value of exp ( MU + X ).
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) esum
+  real ( kind = rk8 ) esum
   integer mu
-  real ( kind = rk ) w
-  real ( kind = rk ) x
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) x
 
   if ( x <= 0.0D+00 ) then
     if ( 0 <= mu ) then
@@ -9436,7 +9710,7 @@ function eval_pol ( a, n, x )
 
 !*****************************************************************************80
 !
-!! EVAL_POL evaluates a polynomial at X.
+!! eval_pol() evaluates a polynomial at X.
 !
 !  Discussion:
 !
@@ -9452,28 +9726,28 @@ function eval_pol ( a, n, x )
 !
 !  Input:
 !
-!    real ( kind = rk ) A(0:N), coefficients of the polynomial.
+!    real ( kind = rk8 ) A(0:N), coefficients of the polynomial.
 !
 !    integer N, length of A.
 !
-!    real ( kind = rk ) X, the point at which the polynomial
+!    real ( kind = rk8 ) X, the point at which the polynomial
 !    is to be evaluated.
 !
 !  Output:
 !
-!    real ( kind = rk ) EVAL_POL, the value of the polynomial at X.
+!    real ( kind = rk8 ) EVAL_POL, the value of the polynomial at X.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer n
 
-  real ( kind = rk ) a(0:n)
-  real ( kind = rk ) eval_pol
+  real ( kind = rk8 ) a(0:n)
+  real ( kind = rk8 ) eval_pol
   integer i
-  real ( kind = rk ) term
-  real ( kind = rk ) x
+  real ( kind = rk8 ) term
+  real ( kind = rk8 ) x
 
   term = a(n)
   do i = n - 1, 0, -1
@@ -9488,7 +9762,7 @@ function exparg ( l )
 
 !*****************************************************************************80
 !
-!! EXPARG returns the largest or smallest legal argument for EXP.
+!! exparg() returns the largest or smallest legal argument for EXP.
 !
 !  Discussion:
 !
@@ -9514,24 +9788,26 @@ function exparg ( l )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, integer L, indicates which limit is desired.
+!    integer L, indicates which limit is desired.
 !    If L = 0, then the largest positive argument for EXP is desired.
 !    Otherwise, the largest negative argument for EXP for which the
 !    result is nonzero is desired.
 !
-!    Output, real ( kind = rk ) EXPARG, the desired value.
+!  Output:
+!
+!    real ( kind = rk8 ) EXPARG, the desired value.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer b
-  real ( kind = rk ) exparg
+  real ( kind = rk8 ) exparg
   integer ipmpar
   integer l
-  real ( kind = rk ) lnb
+  real ( kind = rk8 ) lnb
   integer m
 !
 !  Get the arithmetic base.
@@ -9547,7 +9823,7 @@ function exparg ( l )
   else if ( b == 16 ) then
     lnb = 2.7725887222398D+00
   else
-    lnb = log ( real ( b, kind = rk ) )
+    lnb = log ( real ( b, kind = rk8 ) )
   end if
 
   if ( l /= 0 ) then
@@ -9564,7 +9840,7 @@ subroutine f_cdf_values ( n_data, a, b, x, fx )
 
 !*****************************************************************************80
 !
-!! F_CDF_VALUES returns some values of the F CDF test function.
+!! f_cdf_values() returns some values of the F CDF test function.
 !
 !  Discussion:
 !
@@ -9597,21 +9873,25 @@ subroutine f_cdf_values ( n_data, a, b, x, fx )
 !    Fourth Edition,
 !    Wolfram Media / Cambridge University Press, 1999.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer N_DATA.  The user sets N_DATA to 0
-!    before the first call.  On each call, the routine increments N_DATA by 1,
+!    integer N_DATA.  The user sets N_DATA to 0
+!    before the first call.  
+!
+!  Output:
+!
+!    integer N_DATA: On each call, the routine increments N_DATA by 1,
 !    and returns the corresponding data; when there is no more data, the
 !    output value of N_DATA will be 0 again.
 !
-!    Output, integer A, integer B, real ( kind = rk ) X, the
+!    integer A, integer B, real ( kind = rk8 ) X, the
 !    arguments of the function.
 !
-!    Output, real ( kind = rk ) FX, the value of the function.
+!    real ( kind = rk8 ) FX, the value of the function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: n_max = 20
 
@@ -9629,16 +9909,16 @@ subroutine f_cdf_values ( n_data, a, b, x, fx )
     16,  5, 10, 12, &
      5,  5,  5,  5, &
      5,  5,  5,  5 /)
-  real ( kind = rk ) fx
-  real ( kind = rk ), save, dimension ( n_max ) :: fx_vec = (/ &
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), save, dimension ( n_max ) :: fx_vec = (/ &
     0.500000D+00, 0.499971D+00, 0.499603D+00, 0.749699D+00, &
     0.750466D+00, 0.751416D+00, 0.899987D+00, 0.899713D+00, &
     0.900285D+00, 0.950025D+00, 0.950057D+00, 0.950193D+00, &
     0.975013D+00, 0.990002D+00, 0.994998D+00, 0.999000D+00, &
     0.568799D+00, 0.535145D+00, 0.514343D+00, 0.500000D+00 /)
   integer n_data
-  real ( kind = rk ) x
-  real ( kind = rk ), save, dimension ( n_max ) :: x_vec = (/ &
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ), save, dimension ( n_max ) :: x_vec = (/ &
     1.00D+00,  0.528D+00, 1.89D+00,  1.69D+00, &
     1.60D+00,  1.47D+00,  4.06D+00,  3.05D+00, &
     2.09D+00,  6.61D+00,  3.71D+00,  3.00D+00, &
@@ -9670,7 +9950,7 @@ subroutine f_noncentral_cdf_values ( n_data, a, b, lambda, x, fx )
 
 !*****************************************************************************80
 !
-!! F_NONCENTRAL_CDF_VALUES returns some values of the F CDF test function.
+!! f_noncentral_cdf_values() returns some values of the F CDF test function.
 !
 !  Discussion:
 !
@@ -9703,23 +9983,27 @@ subroutine f_noncentral_cdf_values ( n_data, a, b, lambda, x, fx )
 !    Fourth Edition,
 !    Wolfram Media / Cambridge University Press, 1999.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer N_DATA.  The user sets N_DATA to 0
-!    before the first call.  On each call, the routine increments N_DATA by 1,
+!    integer N_DATA.  The user sets N_DATA to 0
+!    before the first call.  
+!
+!  Output:
+!
+!    integer N_DATA: On each call, the routine increments N_DATA by 1,
 !    and returns the corresponding data; when there is no more data, the
 !    output value of N_DATA will be 0 again.
 !
-!    Output, integer A, B, real ( kind = rk ) LAMBDA, the
+!    integer A, B, real ( kind = rk8 ) LAMBDA, the
 !    parameters of the function.
 !
-!    Output, real ( kind = rk ) X, the argument of the function.
+!    real ( kind = rk8 ) X, the argument of the function.
 !
-!    Output, real ( kind = rk ) FX, the value of the function.
+!    real ( kind = rk8 ) FX, the value of the function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: n_max = 22
 
@@ -9739,16 +10023,16 @@ subroutine f_noncentral_cdf_values ( n_data, a, b, lambda, x, fx )
      5,  5,  5,  5, &
      1,  5,  6, 12, &
     16,  8 /)
-  real ( kind = rk ) fx
-  real ( kind = rk ), save, dimension ( n_max ) :: fx_vec = (/ &
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), save, dimension ( n_max ) :: fx_vec = (/ &
     0.500000D+00, 0.636783D+00, 0.584092D+00, 0.323443D+00, &
     0.450119D+00, 0.607888D+00, 0.705928D+00, 0.772178D+00, &
     0.819105D+00, 0.317035D+00, 0.432722D+00, 0.450270D+00, &
     0.426188D+00, 0.337744D+00, 0.422911D+00, 0.692767D+00, &
     0.363217D+00, 0.421005D+00, 0.426667D+00, 0.446402D+00, &
     0.844589D+00, 0.816368D+00 /)
-  real ( kind = rk ) lambda
-  real ( kind = rk ), save, dimension ( n_max ) :: lambda_vec = (/ &
+  real ( kind = rk8 ) lambda
+  real ( kind = rk8 ), save, dimension ( n_max ) :: lambda_vec = (/ &
     0.00D+00,  0.000D+00, 0.25D+00,  1.00D+00, &
     1.00D+00,  1.00D+00,  1.00D+00,  1.00D+00, &
     1.00D+00,  2.00D+00,  1.00D+00,  1.00D+00, &
@@ -9756,8 +10040,8 @@ subroutine f_noncentral_cdf_values ( n_data, a, b, lambda, x, fx )
     0.00D+00,  1.00D+00,  1.00D+00,  1.00D+00, &
     1.00D+00,  1.00D+00 /)
   integer n_data
-  real ( kind = rk ) x
-  real ( kind = rk ), save, dimension ( n_max ) :: x_vec = (/ &
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ), save, dimension ( n_max ) :: x_vec = (/ &
     1.00D+00,  1.00D+00, 1.00D+00,  0.50D+00, &
     1.00D+00,  2.00D+00, 3.00D+00,  4.00D+00, &
     5.00D+00,  1.00D+00, 1.00D+00,  1.00D+00, &
@@ -9792,7 +10076,7 @@ function fpser ( a, b, x, eps )
 
 !*****************************************************************************80
 !
-!! FPSER evaluates IX(A,B)(X) for very small B.
+!! fpser() evaluates IX(A,B)(X) for very small B.
 !
 !  Discussion:
 !
@@ -9824,32 +10108,34 @@ function fpser ( a, b, x, eps )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) A, B, parameters of the function.
+!    real ( kind = rk8 ) A, B, parameters of the function.
 !
-!    Input, real ( kind = rk ) X, the point at which the function is to
+!    real ( kind = rk8 ) X, the point at which the function is to
 !    be evaluated.
 !
-!    Input, real ( kind = rk ) EPS, a tolerance.
+!    real ( kind = rk8 ) EPS, a tolerance.
 !
-!    Output, real ( kind = rk ) FPSER, the value of IX(A,B)(X).
+!  Output:
+!
+!    real ( kind = rk8 ) FPSER, the value of IX(A,B)(X).
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) an
-  real ( kind = rk ) b
-  real ( kind = rk ) c
-  real ( kind = rk ) eps
-  real ( kind = rk ) exparg
-  real ( kind = rk ) fpser
-  real ( kind = rk ) s
-  real ( kind = rk ) t
-  real ( kind = rk ) tol
-  real ( kind = rk ) x
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) an
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) c
+  real ( kind = rk8 ) eps
+  real ( kind = rk8 ) exparg
+  real ( kind = rk8 ) fpser
+  real ( kind = rk8 ) s
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) tol
+  real ( kind = rk8 ) x
 
   fpser = 1.0D+00
 
@@ -9891,7 +10177,7 @@ function gam1 ( a )
 
 !*****************************************************************************80
 !
-!! GAM1 computes 1 / GAMMA(A+1) - 1 for -0.5 <= A <= 1.5
+!! gam1() computes 1 / GAMMA(A+1) - 1 for -0.5 <= A <= 1.5
 !
 !  Licensing:
 !
@@ -9913,40 +10199,42 @@ function gam1 ( a )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) A, forms the argument of the Gamma function.
+!    real ( kind = rk8 ) A, forms the argument of the Gamma function.
 !
-!    Output, real ( kind = rk ) GAM1, the value of 1 / GAMMA ( A + 1 ) - 1.
+!  Output:
+!
+!    real ( kind = rk8 ) GAM1, the value of 1 / GAMMA ( A + 1 ) - 1.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) bot
-  real ( kind = rk ) d
-  real ( kind = rk ) gam1
-  real ( kind = rk ), parameter, dimension ( 7 ) :: p = (/ &
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) bot
+  real ( kind = rk8 ) d
+  real ( kind = rk8 ) gam1
+  real ( kind = rk8 ), parameter, dimension ( 7 ) :: p = (/ &
      0.577215664901533D+00, -0.409078193005776D+00, &
     -0.230975380857675D+00,  0.597275330452234D-01, &
      0.766968181649490D-02, -0.514889771323592D-02, &
      0.589597428611429D-03 /)
-  real ( kind = rk ), dimension ( 5 ) :: q = (/ &
+  real ( kind = rk8 ), dimension ( 5 ) :: q = (/ &
     0.100000000000000D+01, 0.427569613095214D+00, &
     0.158451672430138D+00, 0.261132021441447D-01, &
     0.423244297896961D-02 /)
-  real ( kind = rk ), dimension ( 9 ) :: r = (/ &
+  real ( kind = rk8 ), dimension ( 9 ) :: r = (/ &
     -0.422784335098468D+00, -0.771330383816272D+00, &
     -0.244757765222226D+00,  0.118378989872749D+00, &
      0.930357293360349D-03, -0.118290993445146D-01, &
      0.223047661158249D-02,  0.266505979058923D-03, &
     -0.132674909766242D-03 /)
-  real ( kind = rk ), parameter :: s1 = 0.273076135303957D+00
-  real ( kind = rk ), parameter :: s2 = 0.559398236957378D-01
-  real ( kind = rk ) t
-  real ( kind = rk ) top
-  real ( kind = rk ) w
+  real ( kind = rk8 ), parameter :: s1 = 0.273076135303957D+00
+  real ( kind = rk8 ), parameter :: s2 = 0.559398236957378D-01
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) top
+  real ( kind = rk8 ) w
 
   d = a - 0.5D+00
 
@@ -10013,7 +10301,12 @@ function gamma_user ( a )
 
 !*****************************************************************************80
 !
-!! gamma_user evaluates the gamma function.
+!! gamma_user() evaluates the gamma function.
+!
+!  Discussion:
+!
+!    Since the compiler probably already supplies a "gamma()" function,
+!    this code has been renamed to be accessible but somewhat hidden.
 !
 !  Licensing:
 !
@@ -10037,49 +10330,51 @@ function gamma_user ( a )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) A, the argument of the Gamma function.
+!    real ( kind = rk8 ) A, the argument of the Gamma function.
 !
-!    Output, real ( kind = rk ) gamma_user, the value of the Gamma function.
+!  Output:
+!
+!    real ( kind = rk8 ) gamma_user, the value of the Gamma function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) bot
-  real ( kind = rk ), parameter :: d = 0.41893853320467274178D+00
-  real ( kind = rk ) exparg
-  real ( kind = rk ) g
-  real ( kind = rk ) gamma_user
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) bot
+  real ( kind = rk8 ), parameter :: d = 0.41893853320467274178D+00
+  real ( kind = rk8 ) exparg
+  real ( kind = rk8 ) g
+  real ( kind = rk8 ) gamma_user
   integer i
   integer j
-  real ( kind = rk ) lnx
+  real ( kind = rk8 ) lnx
   integer m
   integer n
-  real ( kind = rk ), dimension ( 7 ) :: p = (/ &
+  real ( kind = rk8 ), dimension ( 7 ) :: p = (/ &
     0.539637273585445D-03, 0.261939260042690D-02, &
     0.204493667594920D-01, 0.730981088720487D-01, &
     0.279648642639792D+00, 0.553413866010467D+00, &
     1.0D+00 /)
-  real ( kind = rk ), parameter :: pi = 3.1415926535898D+00
-  real ( kind = rk ), dimension ( 7 ) :: q = (/ &
+  real ( kind = rk8 ), parameter :: pi = 3.1415926535898D+00
+  real ( kind = rk8 ), dimension ( 7 ) :: q = (/ &
     -0.832979206704073D-03,  0.470059485860584D-02, &
      0.225211131035340D-01, -0.170458969313360D+00, &
     -0.567902761974940D-01,  0.113062953091122D+01, &
      1.0D+00 /)
-  real ( kind = rk ), parameter :: r1 =  0.820756370353826D-03
-  real ( kind = rk ), parameter :: r2 = -0.595156336428591D-03
-  real ( kind = rk ), parameter :: r3 =  0.793650663183693D-03
-  real ( kind = rk ), parameter :: r4 = -0.277777777770481D-02
-  real ( kind = rk ), parameter :: r5 =  0.833333333333333D-01
-  real ( kind = rk ) s
-  real ( kind = rk ) t
-  real ( kind = rk ) top
-  real ( kind = rk ) w
-  real ( kind = rk ) x
-  real ( kind = rk ) z
+  real ( kind = rk8 ), parameter :: r1 =  0.820756370353826D-03
+  real ( kind = rk8 ), parameter :: r2 = -0.595156336428591D-03
+  real ( kind = rk8 ), parameter :: r3 =  0.793650663183693D-03
+  real ( kind = rk8 ), parameter :: r4 = -0.277777777770481D-02
+  real ( kind = rk8 ), parameter :: r5 =  0.833333333333333D-01
+  real ( kind = rk8 ) s
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) top
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) z
 
   gamma_user = 0.0D+00
   x = a
@@ -10199,7 +10494,7 @@ function gamma_user ( a )
     g = ( d + g ) + ( z - 0.5D+00 ) &
       * ( lnx - 1.0D+00 )
     w = g
-    t = g - real ( w, kind = rk )
+    t = g - real ( w, kind = rk8 )
 
     if ( 0.99999D+00 * exparg ( 0 ) < w ) then
       return
@@ -10219,7 +10514,7 @@ subroutine gamma_inc ( a, x, ans, qans, ind )
 
 !*****************************************************************************80
 !
-!! GAMMA_INC evaluates the incomplete gamma ratio functions P(A,X) and Q(A,X).
+!! gamma_inc() evaluates the incomplete gamma ratio functions P(A,X) and Q(A,X).
 !
 !  Licensing:
 !
@@ -10233,22 +10528,24 @@ subroutine gamma_inc ( a, x, ans, qans, ind )
 !
 !    Alfred Morris
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) A, X, the arguments of the incomplete
+!    real ( kind = rk8 ) A, X, the arguments of the incomplete
 !    gamma ratio.  A and X must be nonnegative.  A and X cannot
 !    both be zero.
 !
-!    Output, real ( kind = rk ) ANS, QANS.  On normal output,
+!    integer IND, indicates the accuracy request:
+!    0, as much accuracy as possible.
+!    1, to within 1 unit of the 6-th significant digit,
+!    otherwise, to within 1 unit of the 3rd significant digit.
+!
+!  Output:
+!
+!    real ( kind = rk8 ) ANS, QANS.  On normal output,
 !    ANS = P(A,X) and QANS = Q(A,X).  However, ANS is set to 2 if
 !    A or X is negative, or both are 0, or when the answer is
 !    computationally indeterminate because A is extremely large
 !    and X is very close to A.
-!
-!    Input, integer IND, indicates the accuracy request:
-!    0, as much accuracy as possible.
-!    1, to within 1 unit of the 6-th significant digit,
-!    otherwise, to within 1 unit of the 3rd significant digit.
 !
 !  Local:
 !
@@ -10258,86 +10555,86 @@ subroutine gamma_inc ( a, x, ans, qans, ind )
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) a2n
-  real ( kind = rk ) a2nm1
-  real ( kind = rk ) acc
-  real ( kind = rk ), dimension ( 3 ) :: acc0 = (/ &
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) a2n
+  real ( kind = rk8 ) a2nm1
+  real ( kind = rk8 ) acc
+  real ( kind = rk8 ), dimension ( 3 ) :: acc0 = (/ &
     5.0D-15, 5.0D-07, 5.0D-04 /)
-  real ( kind = rk ), parameter :: alog10 = 2.30258509299405D+00
-  real ( kind = rk ) am0
-  real ( kind = rk ) amn
-  real ( kind = rk ) an
-  real ( kind = rk ) an0
-  real ( kind = rk ) ans
-  real ( kind = rk ) apn
-  real ( kind = rk ) b2n
-  real ( kind = rk ) b2nm1
-  real ( kind = rk ) big(3)
-  real ( kind = rk ) c
-  real ( kind = rk ) c0
-  real ( kind = rk ) c1
-  real ( kind = rk ) c2
-  real ( kind = rk ) c3
-  real ( kind = rk ) c4
-  real ( kind = rk ) c5
-  real ( kind = rk ) c6
-  real ( kind = rk ) cma
-  real ( kind = rk ) d0(13)
-  real ( kind = rk ) d1(12)
-  real ( kind = rk ) d2(10)
-  real ( kind = rk ) d3(8)
-  real ( kind = rk ) d4(6)
-  real ( kind = rk ) d5(4)
-  real ( kind = rk ) d6(2)
-  real ( kind = rk ) d10
-  real ( kind = rk ) d20
-  real ( kind = rk ) d30
-  real ( kind = rk ) d40
-  real ( kind = rk ) d50
-  real ( kind = rk ) d60
-  real ( kind = rk ) d70
-  real ( kind = rk ) e
-  real ( kind = rk ) e0
-  real ( kind = rk ) e00(3)
-  real ( kind = rk ) error_f
-  real ( kind = rk ) error_fc
-  real ( kind = rk ) g
-  real ( kind = rk ) gam1
-  real ( kind = rk ) gamma
-  real ( kind = rk ) h
+  real ( kind = rk8 ), parameter :: alog10 = 2.30258509299405D+00
+  real ( kind = rk8 ) am0
+  real ( kind = rk8 ) amn
+  real ( kind = rk8 ) an
+  real ( kind = rk8 ) an0
+  real ( kind = rk8 ) ans
+  real ( kind = rk8 ) apn
+  real ( kind = rk8 ) b2n
+  real ( kind = rk8 ) b2nm1
+  real ( kind = rk8 ) big(3)
+  real ( kind = rk8 ) c
+  real ( kind = rk8 ) c0
+  real ( kind = rk8 ) c1
+  real ( kind = rk8 ) c2
+  real ( kind = rk8 ) c3
+  real ( kind = rk8 ) c4
+  real ( kind = rk8 ) c5
+  real ( kind = rk8 ) c6
+  real ( kind = rk8 ) cma
+  real ( kind = rk8 ) d0(13)
+  real ( kind = rk8 ) d1(12)
+  real ( kind = rk8 ) d2(10)
+  real ( kind = rk8 ) d3(8)
+  real ( kind = rk8 ) d4(6)
+  real ( kind = rk8 ) d5(4)
+  real ( kind = rk8 ) d6(2)
+  real ( kind = rk8 ) d10
+  real ( kind = rk8 ) d20
+  real ( kind = rk8 ) d30
+  real ( kind = rk8 ) d40
+  real ( kind = rk8 ) d50
+  real ( kind = rk8 ) d60
+  real ( kind = rk8 ) d70
+  real ( kind = rk8 ) e
+  real ( kind = rk8 ) e0
+  real ( kind = rk8 ) e00(3)
+  real ( kind = rk8 ) error_f
+  real ( kind = rk8 ) error_fc
+  real ( kind = rk8 ) g
+  real ( kind = rk8 ) gam1
+  real ( kind = rk8 ) gamma_user
+  real ( kind = rk8 ) h
   integer i
   integer ind
   integer iop
-  real ( kind = rk ) j
-  real ( kind = rk ) l
+  real ( kind = rk8 ) j
+  real ( kind = rk8 ) l
   integer m
   integer n
   integer n_max
-  real ( kind = rk ) qans
-  real ( kind = rk ) r
-  real ( kind = rk ) rexp
-  real ( kind = rk ) rlog
-  real ( kind = rk ), parameter :: rt2pin = 0.398942280401433D+00
-  real ( kind = rk ) rta
-  real ( kind = rk ), parameter :: rtpi = 1.77245385090552D+00
-  real ( kind = rk ) rtx
-  real ( kind = rk ) s
-  real ( kind = rk ) sum1
-  real ( kind = rk ) t
-  real ( kind = rk ) t1
-  real ( kind = rk ) tol
-  real ( kind = rk ) twoa
-  real ( kind = rk ) u
-  real ( kind = rk ) w
-  real ( kind = rk ) wk(20)
-  real ( kind = rk ) x
-  real ( kind = rk ) x0
-  real ( kind = rk ) x00(3)
-  real ( kind = rk ) y
-  real ( kind = rk ) z
+  real ( kind = rk8 ) qans
+  real ( kind = rk8 ) r
+  real ( kind = rk8 ) rexp
+  real ( kind = rk8 ) rlog
+  real ( kind = rk8 ), parameter :: rt2pin = 0.398942280401433D+00
+  real ( kind = rk8 ) rta
+  real ( kind = rk8 ), parameter :: rtpi = 1.77245385090552D+00
+  real ( kind = rk8 ) rtx
+  real ( kind = rk8 ) s
+  real ( kind = rk8 ) sum1
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) t1
+  real ( kind = rk8 ) tol
+  real ( kind = rk8 ) twoa
+  real ( kind = rk8 ) u
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) wk(20)
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) x0
+  real ( kind = rk8 ) x00(3)
+  real ( kind = rk8 ) y
+  real ( kind = rk8 ) z
 
   data big(1)/20.0D+00/,big(2)/14.0D+00/,big(3)/10.0D+00/
   data e00(1)/0.25D-03/,e00(2)/0.25D-01/,e00(3)/0.14D+00/
@@ -10447,9 +10744,9 @@ subroutine gamma_inc ( a, x, ans, qans, ind )
   twoa = a + a
   m = int ( twoa )
 
-  if ( twoa == real ( m, kind = rk ) ) then
+  if ( twoa == real ( m, kind = rk8 ) ) then
     i = m / 2
-    if ( a == real ( i, kind = rk ) ) then
+    if ( a == real ( i, kind = rk8 ) ) then
       go to 210
     end if
     go to 220
@@ -10458,7 +10755,7 @@ subroutine gamma_inc ( a, x, ans, qans, ind )
    20 continue
 
   t1 = a * log ( x ) - x
-  r = exp ( t1 ) / gamma ( a )
+  r = exp ( t1 ) / gamma_user ( a )
   go to 40
 
    30 continue
@@ -11010,7 +11307,7 @@ subroutine gamma_inc_inv ( a, x, x0, p, q, ierr )
 
 !*****************************************************************************80
 !
-!! GAMMA_INC_INV computes the inverse incomplete gamma ratio function.
+!! gamma_inc_inv() computes the inverse incomplete gamma ratio function.
 !
 !  Discussion:
 !
@@ -11032,23 +11329,25 @@ subroutine gamma_inc_inv ( a, x, x0, p, q, ierr )
 !
 !    Alfred Morris
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) A, the parameter in the incomplete gamma
+!    real ( kind = rk8 ) A, the parameter in the incomplete gamma
 !    ratio.  A must be positive.
 !
-!    Output, real ( kind = rk ) X, the computed point for which the
-!    incomplete gamma functions have the values P and Q.
-!
-!    Input, real ( kind = rk ) X0, an optional initial approximation
+!    real ( kind = rk8 ) X0, an optional initial approximation
 !    for the solution X.  If the user does not want to supply an
 !    initial approximation, then X0 should be set to 0, or a negative
 !    value.
 !
-!    Input, real ( kind = rk ) P, Q, the values of the incomplete gamma
+!    real ( kind = rk8 ) P, Q, the values of the incomplete gamma
 !    functions, for which the corresponding argument is desired.
 !
-!    Output, integer IERR, error flag.
+!  Output:
+!
+!    real ( kind = rk8 ) X, the computed point for which the
+!    incomplete gamma functions have the values P and Q.
+!
+!    integer IERR, error flag.
 !    0, the solution was obtained. Iteration was not used.
 !    0 < K, The solution was obtained. IERR iterations were performed.
 !    -2, A <= 0
@@ -11066,75 +11365,75 @@ subroutine gamma_inc_inv ( a, x, x0, p, q, ierr )
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ), parameter :: a0 = 3.31125922108741D+00
-  real ( kind = rk ), parameter :: a1 = 11.6616720288968D+00
-  real ( kind = rk ), parameter :: a2 = 4.28342155967104D+00
-  real ( kind = rk ), parameter :: a3 = 0.213623493715853D+00
-  real ( kind = rk ) alnrel
-  real ( kind = rk ) am1
-  real ( kind = rk ) amax
-  real ( kind = rk ), dimension(2) :: amin = (/ &
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ), parameter :: a0 = 3.31125922108741D+00
+  real ( kind = rk8 ), parameter :: a1 = 11.6616720288968D+00
+  real ( kind = rk8 ), parameter :: a2 = 4.28342155967104D+00
+  real ( kind = rk8 ), parameter :: a3 = 0.213623493715853D+00
+  real ( kind = rk8 ) alnrel
+  real ( kind = rk8 ) am1
+  real ( kind = rk8 ) amax
+  real ( kind = rk8 ), dimension(2) :: amin = (/ &
     500.0D+00, 100.0D+00 /)
-  real ( kind = rk ) ap1
-  real ( kind = rk ) ap2
-  real ( kind = rk ) ap3
-  real ( kind = rk ) apn
-  real ( kind = rk ) b
-  real ( kind = rk ), parameter :: b1 = 6.61053765625462D+00
-  real ( kind = rk ), parameter :: b2 = 6.40691597760039D+00
-  real ( kind = rk ), parameter :: b3 = 1.27364489782223D+00
-  real ( kind = rk ), parameter :: b4 = .036117081018842D+00
-  real ( kind = rk ), dimension ( 2 ) :: bmin = (/ &
+  real ( kind = rk8 ) ap1
+  real ( kind = rk8 ) ap2
+  real ( kind = rk8 ) ap3
+  real ( kind = rk8 ) apn
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ), parameter :: b1 = 6.61053765625462D+00
+  real ( kind = rk8 ), parameter :: b2 = 6.40691597760039D+00
+  real ( kind = rk8 ), parameter :: b3 = 1.27364489782223D+00
+  real ( kind = rk8 ), parameter :: b4 = .036117081018842D+00
+  real ( kind = rk8 ), dimension ( 2 ) :: bmin = (/ &
     1.0D-28, 1.0D-13 /)
-  real ( kind = rk ), parameter :: c = 0.577215664901533D+00
-  real ( kind = rk ) c1
-  real ( kind = rk ) c2
-  real ( kind = rk ) c3
-  real ( kind = rk ) c4
-  real ( kind = rk ) c5
-  real ( kind = rk ) d
-  real ( kind = rk ), dimension ( 2 ) :: dmin = (/ &
+  real ( kind = rk8 ), parameter :: c = 0.577215664901533D+00
+  real ( kind = rk8 ) c1
+  real ( kind = rk8 ) c2
+  real ( kind = rk8 ) c3
+  real ( kind = rk8 ) c4
+  real ( kind = rk8 ) c5
+  real ( kind = rk8 ) d
+  real ( kind = rk8 ), dimension ( 2 ) :: dmin = (/ &
     1.0D-06, 1.0D-04 /)
-  real ( kind = rk ) e
-  real ( kind = rk ) e2
-  real ( kind = rk ), dimension ( 2 ) :: emin = (/ &
+  real ( kind = rk8 ) e
+  real ( kind = rk8 ) e2
+  real ( kind = rk8 ), dimension ( 2 ) :: emin = (/ &
     2.0D-03, 6.0D-03 /)
-  real ( kind = rk ) eps
-  real ( kind = rk ), dimension ( 2 ) :: eps0 = (/ &
+  real ( kind = rk8 ) eps
+  real ( kind = rk8 ), dimension ( 2 ) :: eps0 = (/ &
     1.0D-10, 1.0D-08 /)
-  real ( kind = rk ) g
-  real ( kind = rk ) gamma_log
-  real ( kind = rk ) gamma_ln1
-  real ( kind = rk ) gamma
-  real ( kind = rk ) h
-  real ( kind = rk ), parameter :: half = 0.5D+00
+  real ( kind = rk8 ) g
+  real ( kind = rk8 ) gamma_log
+  real ( kind = rk8 ) gamma_ln1
+  real ( kind = rk8 ) gamma_user
+  real ( kind = rk8 ) h
+  real ( kind = rk8 ), parameter :: half = 0.5D+00
   integer ierr
   integer iop
-  real ( kind = rk ), parameter :: ln10 = 2.302585D+00
-  real ( kind = rk ) p
-  real ( kind = rk ) pn
-  real ( kind = rk ) q
-  real ( kind = rk ) qg
-  real ( kind = rk ) qn
-  real ( kind = rk ) r
-  real ( kind = rk ) rcomp
-  real ( kind = rk ) rta
-  real ( kind = rk ) s
-  real ( kind = rk ) s2
-  real ( kind = rk ) sum1
-  real ( kind = rk ) t
-  real ( kind = rk ), parameter :: tol = 1.0D-05
-  real ( kind = rk ), parameter :: two =  2.0D+00
-  real ( kind = rk ) u
-  real ( kind = rk ) w
-  real ( kind = rk ) x
-  real ( kind = rk ) x0
-  real ( kind = rk ) xn
-  real ( kind = rk ) y
-  real ( kind = rk ) z
+  real ( kind = rk8 ), parameter :: ln10 = 2.302585D+00
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) pn
+  real ( kind = rk8 ) q
+  real ( kind = rk8 ) qg
+  real ( kind = rk8 ) qn
+  real ( kind = rk8 ) r
+  real ( kind = rk8 ) rcomp
+  real ( kind = rk8 ) rta
+  real ( kind = rk8 ) s
+  real ( kind = rk8 ) s2
+  real ( kind = rk8 ) sum1
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ), parameter :: tol = 1.0D-05
+  real ( kind = rk8 ), parameter :: two =  2.0D+00
+  real ( kind = rk8 ) u
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) x0
+  real ( kind = rk8 ) xn
+  real ( kind = rk8 ) y
+  real ( kind = rk8 ) z
 
   e = epsilon ( e )
 
@@ -11194,7 +11493,7 @@ subroutine gamma_inc_inv ( a, x, x0, p, q, ierr )
     go to 80
   end if
 
-  g = gamma ( a + 1.0D+00 )
+  g = gamma_user ( a + 1.0D+00 )
   qg = q * g
 
   if ( qg == 0.0D+00 ) then
@@ -11613,7 +11912,7 @@ subroutine gamma_inc_values ( n_data, a, x, fx )
 
 !*****************************************************************************80
 !
-!! GAMMA_INC_VALUES returns some values of the incomplete Gamma function.
+!! gamma_inc_values() returns some values of the incomplete Gamma function.
 !
 !  Discussion:
 !
@@ -11651,40 +11950,44 @@ subroutine gamma_inc_values ( n_data, a, x, fx )
 !    Handbook of Mathematical Functions,
 !    US Department of Commerce, 1964.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer N_DATA.  The user sets N_DATA to 0
-!    before the first call.  On each call, the routine increments N_DATA by 1,
+!    integer N_DATA.  The user sets N_DATA to 0
+!    before the first call.  
+!
+!  Output:
+!
+!    integer N_DATA: On each call, the routine increments N_DATA by 1,
 !    and returns the corresponding data; when there is no more data, the
 !    output value of N_DATA will be 0 again.
 !
-!    Output, real ( kind = rk ) A, X, the arguments of the function.
+!    real ( kind = rk8 ) A, X, the arguments of the function.
 !
-!    Output, real ( kind = rk ) FX, the value of the function.
+!    real ( kind = rk8 ) FX, the value of the function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: n_max = 20
 
-  real ( kind = rk ) a
-  real ( kind = rk ), save, dimension ( n_max ) :: a_vec = (/ &
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ), save, dimension ( n_max ) :: a_vec = (/ &
     0.1D+00,  0.1D+00,  0.1D+00,  0.5D+00, &
     0.5D+00,  0.5D+00,  1.0D+00,  1.0D+00, &
     1.0D+00,  1.1D+00,  1.1D+00,  1.1D+00, &
     2.0D+00,  2.0D+00,  2.0D+00,  6.0D+00, &
     6.0D+00, 11.0D+00, 26.0D+00, 41.0D+00 /)
-  real ( kind = rk ) fx
-  real ( kind = rk ), save, dimension ( n_max ) :: fx_vec = (/ &
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), save, dimension ( n_max ) :: fx_vec = (/ &
     0.7420263D+00, 0.9119753D+00, 0.9898955D+00, 0.2931279D+00, &
     0.7656418D+00, 0.9921661D+00, 0.0951626D+00, 0.6321206D+00, &
     0.9932621D+00, 0.0757471D+00, 0.6076457D+00, 0.9933425D+00, &
     0.0091054D+00, 0.4130643D+00, 0.9931450D+00, 0.0387318D+00, &
     0.9825937D+00, 0.9404267D+00, 0.4863866D+00, 0.7359709D+00 /)
   integer n_data
-  real ( kind = rk ) x
-  real ( kind = rk ), save, dimension ( n_max ) :: x_vec = (/ &
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ), save, dimension ( n_max ) :: x_vec = (/ &
     3.1622777D-02, 3.1622777D-01, 1.5811388D+00, 7.0710678D-02, &
     7.0710678D-01, 3.5355339D+00, 0.1000000D+00, 1.0000000D+00, &
     5.0000000D+00, 1.0488088D-01, 1.0488088D+00, 5.2440442D+00, &
@@ -11714,7 +12017,7 @@ function gamma_ln1 ( a )
 
 !*****************************************************************************80
 !
-!! GAMMA_LN1 evaluates ln ( Gamma ( 1 + A ) ), for -0.2 <= A <= 1.25.
+!! gamma_ln1() evaluates ln ( Gamma ( 1 + A ) ), for -0.2 <= A <= 1.25.
 !
 !  Licensing:
 !
@@ -11736,45 +12039,47 @@ function gamma_ln1 ( a )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) A, defines the argument of the function.
+!    real ( kind = rk8 ) A, defines the argument of the function.
 !
-!    Output, real ( kind = rk ) GAMMA_LN1, the value of ln ( Gamma ( 1 + A ) ).
+!  Output:
+!
+!    real ( kind = rk8 ) GAMMA_LN1, the value of ln ( Gamma ( 1 + A ) ).
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) bot
-  real ( kind = rk ) gamma_ln1
-  real ( kind = rk ), parameter :: p0 =  0.577215664901533D+00
-  real ( kind = rk ), parameter :: p1 =  0.844203922187225D+00
-  real ( kind = rk ), parameter :: p2 = -0.168860593646662D+00
-  real ( kind = rk ), parameter :: p3 = -0.780427615533591D+00
-  real ( kind = rk ), parameter :: p4 = -0.402055799310489D+00
-  real ( kind = rk ), parameter :: p5 = -0.673562214325671D-01
-  real ( kind = rk ), parameter :: p6 = -0.271935708322958D-02
-  real ( kind = rk ), parameter :: q1 =  0.288743195473681D+01
-  real ( kind = rk ), parameter :: q2 =  0.312755088914843D+01
-  real ( kind = rk ), parameter :: q3 =  0.156875193295039D+01
-  real ( kind = rk ), parameter :: q4 =  0.361951990101499D+00
-  real ( kind = rk ), parameter :: q5 =  0.325038868253937D-01
-  real ( kind = rk ), parameter :: q6 =  0.667465618796164D-03
-  real ( kind = rk ), parameter :: r0 = 0.422784335098467D+00
-  real ( kind = rk ), parameter :: r1 = 0.848044614534529D+00
-  real ( kind = rk ), parameter :: r2 = 0.565221050691933D+00
-  real ( kind = rk ), parameter :: r3 = 0.156513060486551D+00
-  real ( kind = rk ), parameter :: r4 = 0.170502484022650D-01
-  real ( kind = rk ), parameter :: r5 = 0.497958207639485D-03
-  real ( kind = rk ), parameter :: s1 = 0.124313399877507D+01
-  real ( kind = rk ), parameter :: s2 = 0.548042109832463D+00
-  real ( kind = rk ), parameter :: s3 = 0.101552187439830D+00
-  real ( kind = rk ), parameter :: s4 = 0.713309612391000D-02
-  real ( kind = rk ), parameter :: s5 = 0.116165475989616D-03
-  real ( kind = rk ) top
-  real ( kind = rk ) x
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) bot
+  real ( kind = rk8 ) gamma_ln1
+  real ( kind = rk8 ), parameter :: p0 =  0.577215664901533D+00
+  real ( kind = rk8 ), parameter :: p1 =  0.844203922187225D+00
+  real ( kind = rk8 ), parameter :: p2 = -0.168860593646662D+00
+  real ( kind = rk8 ), parameter :: p3 = -0.780427615533591D+00
+  real ( kind = rk8 ), parameter :: p4 = -0.402055799310489D+00
+  real ( kind = rk8 ), parameter :: p5 = -0.673562214325671D-01
+  real ( kind = rk8 ), parameter :: p6 = -0.271935708322958D-02
+  real ( kind = rk8 ), parameter :: q1 =  0.288743195473681D+01
+  real ( kind = rk8 ), parameter :: q2 =  0.312755088914843D+01
+  real ( kind = rk8 ), parameter :: q3 =  0.156875193295039D+01
+  real ( kind = rk8 ), parameter :: q4 =  0.361951990101499D+00
+  real ( kind = rk8 ), parameter :: q5 =  0.325038868253937D-01
+  real ( kind = rk8 ), parameter :: q6 =  0.667465618796164D-03
+  real ( kind = rk8 ), parameter :: r0 = 0.422784335098467D+00
+  real ( kind = rk8 ), parameter :: r1 = 0.848044614534529D+00
+  real ( kind = rk8 ), parameter :: r2 = 0.565221050691933D+00
+  real ( kind = rk8 ), parameter :: r3 = 0.156513060486551D+00
+  real ( kind = rk8 ), parameter :: r4 = 0.170502484022650D-01
+  real ( kind = rk8 ), parameter :: r5 = 0.497958207639485D-03
+  real ( kind = rk8 ), parameter :: s1 = 0.124313399877507D+01
+  real ( kind = rk8 ), parameter :: s2 = 0.548042109832463D+00
+  real ( kind = rk8 ), parameter :: s3 = 0.101552187439830D+00
+  real ( kind = rk8 ), parameter :: s4 = 0.713309612391000D-02
+  real ( kind = rk8 ), parameter :: s5 = 0.116165475989616D-03
+  real ( kind = rk8 ) top
+  real ( kind = rk8 ) x
 
   if ( a < 0.6D+00 ) then
 
@@ -11816,7 +12121,7 @@ function gamma_log ( a )
 
 !*****************************************************************************80
 !
-!! GAMMA_LOG evaluates ln ( Gamma ( A ) ) for positive A.
+!! gamma_log() evaluates ln ( Gamma ( A ) ) for positive A.
 !
 !  Licensing:
 !
@@ -11838,31 +12143,33 @@ function gamma_log ( a )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) A, the argument of the function.
+!    real ( kind = rk8 ) A, the argument of the function.
 !    A should be positive.
 !
-!    Output, real ( kind = rk ), GAMMA_LOG, the value of ln ( Gamma ( A ) ).
+!  Output:
+!
+!    real ( kind = rk8 ), GAMMA_LOG, the value of ln ( Gamma ( A ) ).
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ), parameter :: c0 =  0.833333333333333D-01
-  real ( kind = rk ), parameter :: c1 = -0.277777777760991D-02
-  real ( kind = rk ), parameter :: c2 =  0.793650666825390D-03
-  real ( kind = rk ), parameter :: c3 = -0.595202931351870D-03
-  real ( kind = rk ), parameter :: c4 =  0.837308034031215D-03
-  real ( kind = rk ), parameter :: c5 = -0.165322962780713D-02
-  real ( kind = rk ), parameter :: d  =  0.418938533204673D+00
-  real ( kind = rk ) gamma_log
-  real ( kind = rk ) gamma_ln1
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ), parameter :: c0 =  0.833333333333333D-01
+  real ( kind = rk8 ), parameter :: c1 = -0.277777777760991D-02
+  real ( kind = rk8 ), parameter :: c2 =  0.793650666825390D-03
+  real ( kind = rk8 ), parameter :: c3 = -0.595202931351870D-03
+  real ( kind = rk8 ), parameter :: c4 =  0.837308034031215D-03
+  real ( kind = rk8 ), parameter :: c5 = -0.165322962780713D-02
+  real ( kind = rk8 ), parameter :: d  =  0.418938533204673D+00
+  real ( kind = rk8 ) gamma_log
+  real ( kind = rk8 ) gamma_ln1
   integer i
   integer n
-  real ( kind = rk ) t
-  real ( kind = rk ) w
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) w
 
   if ( a <= 0.8D+00 ) then
 
@@ -11902,7 +12209,7 @@ subroutine gamma_rat1 ( a, x, r, p, q, eps )
 
 !*****************************************************************************80
 !
-!! GAMMA_RAT1 evaluates the incomplete gamma ratio functions P(A,X) and Q(A,X).
+!! gamma_rat1() evaluates the incomplete gamma ratio functions P(A,X) and Q(A,X).
 !
 !  Licensing:
 !
@@ -11924,49 +12231,51 @@ subroutine gamma_rat1 ( a, x, r, p, q, eps )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) A, X, the parameters of the functions.
+!    real ( kind = rk8 ) A, X, the parameters of the functions.
 !    It is assumed that A <= 1.
 !
-!    Input, real ( kind = rk ) R, the value exp(-X) * X^A / Gamma(A).
+!    real ( kind = rk8 ) R, the value exp(-X) * X^A / Gamma(A).
 !
-!    Output, real ( kind = rk ) P, Q, the values of P(A,X) and Q(A,X).
+!    real ( kind = rk8 ) EPS, the tolerance.
 !
-!    Input, real ( kind = rk ) EPS, the tolerance.
+!  Output:
+!
+!    real ( kind = rk8 ) P, Q, the values of P(A,X) and Q(A,X).
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) a2n
-  real ( kind = rk ) a2nm1
-  real ( kind = rk ) am0
-  real ( kind = rk ) an
-  real ( kind = rk ) an0
-  real ( kind = rk ) b2n
-  real ( kind = rk ) b2nm1
-  real ( kind = rk ) c
-  real ( kind = rk ) cma
-  real ( kind = rk ) eps
-  real ( kind = rk ) error_f
-  real ( kind = rk ) error_fc
-  real ( kind = rk ) g
-  real ( kind = rk ) gam1
-  real ( kind = rk ) h
-  real ( kind = rk ) j
-  real ( kind = rk ) l
-  real ( kind = rk ) p
-  real ( kind = rk ) q
-  real ( kind = rk ) r
-  real ( kind = rk ) rexp
-  real ( kind = rk ) sum1
-  real ( kind = rk ) t
-  real ( kind = rk ) tol
-  real ( kind = rk ) w
-  real ( kind = rk ) x
-  real ( kind = rk ) z
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) a2n
+  real ( kind = rk8 ) a2nm1
+  real ( kind = rk8 ) am0
+  real ( kind = rk8 ) an
+  real ( kind = rk8 ) an0
+  real ( kind = rk8 ) b2n
+  real ( kind = rk8 ) b2nm1
+  real ( kind = rk8 ) c
+  real ( kind = rk8 ) cma
+  real ( kind = rk8 ) eps
+  real ( kind = rk8 ) error_f
+  real ( kind = rk8 ) error_fc
+  real ( kind = rk8 ) g
+  real ( kind = rk8 ) gam1
+  real ( kind = rk8 ) h
+  real ( kind = rk8 ) j
+  real ( kind = rk8 ) l
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) q
+  real ( kind = rk8 ) r
+  real ( kind = rk8 ) rexp
+  real ( kind = rk8 ) sum1
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) tol
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) z
 
   if ( a * x == 0.0D+00 ) then
 
@@ -12099,7 +12408,7 @@ subroutine gamma_values ( n_data, x, fx )
 
 !*****************************************************************************80
 !
-!! GAMMA_VALUES returns some values of the Gamma function.
+!! gamma_values() returns some values of the Gamma function.
 !
 !  Definition:
 !
@@ -12123,33 +12432,37 @@ subroutine gamma_values ( n_data, x, fx )
 !    Handbook of Mathematical Functions,
 !    US Department of Commerce, 1964.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer N_DATA.  The user sets N_DATA to 0
-!    before the first call.  On each call, the routine increments N_DATA by 1,
+!    integer N_DATA.  The user sets N_DATA to 0
+!    before the first call.  
+!
+!  Output:
+!
+!    integer N_DATA: On each call, the routine increments N_DATA by 1,
 !    and returns the corresponding data; when there is no more data, the
 !    output value of N_DATA will be 0 again.
 !
-!    Output, real ( kind = rk ) X, the argument of the function.
+!    real ( kind = rk8 ) X, the argument of the function.
 !
-!    Output, real ( kind = rk ) FX, the value of the function.
+!    real ( kind = rk8 ) FX, the value of the function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: n_max = 18
 
-  real ( kind = rk ) fx
-  real ( kind = rk ), save, dimension ( n_max ) :: fx_vec = (/ &
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), save, dimension ( n_max ) :: fx_vec = (/ &
     4.590845D+00,     2.218160D+00,     1.489192D+00,     1.164230D+00, &
     1.0000000000D+00, 0.9513507699D+00, 0.9181687424D+00, 0.8974706963D+00, &
     0.8872638175D+00, 0.8862269255D+00, 0.8935153493D+00, 0.9086387329D+00, &
     0.9313837710D+00, 0.9617658319D+00, 1.0000000000D+00, 3.6288000D+05, &
     1.2164510D+17,    8.8417620D+30 /)
   integer n_data
-  real ( kind = rk ) x
-  real ( kind = rk ), save, dimension ( n_max ) :: x_vec = (/ &
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ), save, dimension ( n_max ) :: x_vec = (/ &
     0.2D+00,  0.4D+00,  0.6D+00,  0.8D+00, &
     1.0D+00,  1.1D+00,  1.2D+00,  1.3D+00, &
     1.4D+00,  1.5D+00,  1.6D+00,  1.7D+00, &
@@ -12177,7 +12490,7 @@ function gsumln ( a, b )
 
 !*****************************************************************************80
 !
-!! GSUMLN evaluates the function ln(Gamma(A + B)).
+!! gsumln() evaluates the function ln(Gamma(A + B)).
 !
 !  Discussion:
 !
@@ -12203,23 +12516,25 @@ function gsumln ( a, b )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) A, B, values whose sum is the argument of
+!    real ( kind = rk8 ) A, B, values whose sum is the argument of
 !    the Gamma function.
 !
-!    Output, real ( kind = rk ) GSUMLN, the value of ln(Gamma(A+B)).
+!  Output:
+!
+!    real ( kind = rk8 ) GSUMLN, the value of ln(Gamma(A+B)).
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) alnrel
-  real ( kind = rk ) b
-  real ( kind = rk ) gamma_ln1
-  real ( kind = rk ) gsumln
-  real ( kind = rk ) x
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) alnrel
+  real ( kind = rk8 ) b
+  real ( kind = rk8 ) gamma_ln1
+  real ( kind = rk8 ) gsumln
+  real ( kind = rk8 ) x
 
   x = a + b - 2.0D+00
 
@@ -12237,7 +12552,7 @@ function ipmpar ( i )
 
 !*****************************************************************************80
 !
-!! IPMPAR returns integer machine constants.
+!! ipmpar() returns integer machine constants.
 !
 !  Discussion:
 !
@@ -12254,7 +12569,7 @@ function ipmpar ( i )
 !      IPMPAR(2) = N, the number of base A digits;
 !      IPMPAR(3) = A^N - 1, the largest magnitude.
 !
-!    It is assumed that the single and real ( kind = rk ) floating
+!    It is assumed that the single and real ( kind = rk8 ) floating
 !    point arithmetics have the same base, say B, and that the
 !    nonzero numbers are represented in the form
 !
@@ -12265,7 +12580,7 @@ function ipmpar ( i )
 !
 !    Input argument 4 is a query about the base of real arithmetic:
 !
-!      IPMPAR(4) = B, the base of single and real ( kind = rk ) arithmetic.
+!      IPMPAR(4) = B, the base of single and real ( kind = rk8 ) arithmetic.
 !
 !    Input arguments 5 through 7 are queries about single precision
 !    floating point arithmetic:
@@ -12274,12 +12589,12 @@ function ipmpar ( i )
 !     IPMPAR(6) = EMIN, the smallest exponent E for single precision.
 !     IPMPAR(7) = EMAX, the largest exponent E for single precision.
 !
-!    Input arguments 8 through 10 are queries about real ( kind = rk )
+!    Input arguments 8 through 10 are queries about real ( kind = rk8 )
 !    floating point arithmetic:
 !
-!     IPMPAR(8) = M, the number of base B digits for real ( kind = rk ).
-!     IPMPAR(9) = EMIN, the smallest exponent E for real ( kind = rk ).
-!     IPMPAR(10) = EMAX, the largest exponent E for real ( kind = rk ).
+!     IPMPAR(8) = M, the number of base B digits for real ( kind = rk8 ).
+!     IPMPAR(9) = EMIN, the smallest exponent E for real ( kind = rk8 ).
+!     IPMPAR(10) = EMAX, the largest exponent E for real ( kind = rk8 ).
 !
 !  Licensing:
 !
@@ -12297,11 +12612,13 @@ function ipmpar ( i )
 !    ACM Transactions on Mathematical Software,
 !    Volume 4, 1978, pages 176-188.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, integer I, the index of the desired constant.
+!    integer I, the index of the desired constant.
 !
-!    Output, integer IPMPAR, the value of the desired constant.
+!  Output:
+!
+!    integer IPMPAR, the value of the desired constant.
 !
   implicit none
 
@@ -12458,7 +12775,7 @@ function ipmpar ( i )
 !     data imach(10) /  127 /
 !
 !     Machine constants for the HP 2100
-!     3 WORD real ( kind = rk ) OPTION WITH FTN4
+!     3 WORD real ( kind = rk8 ) OPTION WITH FTN4
 !
 !     data imach( 1) /    2 /
 !     data imach( 2) /   15 /
@@ -12472,7 +12789,7 @@ function ipmpar ( i )
 !     data imach(10) /  127 /
 !
 !     Machine constants for the HP 2100
-!     4 WORD real ( kind = rk ) OPTION WITH FTN4
+!     4 WORD real ( kind = rk8 ) OPTION WITH FTN4
 !
 !     data imach( 1) /    2 /
 !     data imach( 2) /   15 /
@@ -12643,7 +12960,7 @@ subroutine negative_binomial_cdf_values ( n_data, f, s, p, cdf )
 
 !*****************************************************************************80
 !
-!! NEGATIVE_BINOMIAL_CDF_VALUES returns values of the negative binomial CDF.
+!! negative_binomial_cdf_values() returns values of the negative binomial CDF.
 !
 !  Discussion:
 !
@@ -12678,30 +12995,34 @@ subroutine negative_binomial_cdf_values ( n_data, f, s, p, cdf )
 !    Statistical Tables for Sociology, Biology and Physical Sciences,
 !    Cambridge University Press, 1982.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer N_DATA.  The user sets N_DATA to 0
-!    before the first call.  On each call, the routine increments N_DATA by 1,
+!    integer N_DATA.  The user sets N_DATA to 0
+!    before the first call.  
+!
+!  Output:
+!
+!    integer N_DATA: On each call, the routine increments N_DATA by 1,
 !    and returns the corresponding data; when there is no more data, the
 !    output value of N_DATA will be 0 again.
 !
-!    Output, integer F, the maximum number of failures.
+!    integer F, the maximum number of failures.
 !
-!    Output, integer S, the number of successes.
+!    integer S, the number of successes.
 !
-!    Output, real ( kind = rk ) P, the probability of a success on one trial.
+!    real ( kind = rk8 ) P, the probability of a success on one trial.
 !
-!    Output, real ( kind = rk ) CDF, the probability of at most F failures
+!    real ( kind = rk8 ) CDF, the probability of at most F failures
 !    before the S-th success.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: n_max = 27
 
-  real ( kind = rk ) cdf
-  real ( kind = rk ), save, dimension ( n_max ) :: cdf_vec = (/ &
+  real ( kind = rk8 ) cdf
+  real ( kind = rk8 ), save, dimension ( n_max ) :: cdf_vec = (/ &
     0.6367D+00, 0.3633D+00, 0.1445D+00, &
     0.5000D+00, 0.2266D+00, 0.0625D+00, &
     0.3438D+00, 0.1094D+00, 0.0156D+00, &
@@ -12723,8 +13044,8 @@ subroutine negative_binomial_cdf_values ( n_data, f, s, p, cdf )
      9,  8,  7, &
      2,  1,  0 /)
   integer n_data
-  real ( kind = rk ) p
-  real ( kind = rk ), save, dimension ( n_max ) :: p_vec = (/ &
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ), save, dimension ( n_max ) :: p_vec = (/ &
     0.50D+00, 0.50D+00, 0.50D+00, &
     0.50D+00, 0.50D+00, 0.50D+00, &
     0.50D+00, 0.50D+00, 0.50D+00, &
@@ -12771,7 +13092,7 @@ subroutine normal_01_cdf_values ( n_data, x, fx )
 
 !*****************************************************************************80
 !
-!! NORMAL_01_CDF_VALUES returns some values of the Normal 01 CDF.
+!! normal_01_cdf_values() returns some values of the Normal 01 CDF.
 !
 !  Discussion:
 !
@@ -12804,25 +13125,29 @@ subroutine normal_01_cdf_values ( n_data, x, fx )
 !    Fourth Edition,
 !    Wolfram Media / Cambridge University Press, 1999.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer N_DATA.  The user sets N_DATA to 0
-!    before the first call.  On each call, the routine increments N_DATA by 1,
+!    integer N_DATA.  The user sets N_DATA to 0
+!    before the first call.  
+!
+!  Output:
+!
+!    integer N_DATA: On each call, the routine increments N_DATA by 1,
 !    and returns the corresponding data; when there is no more data, the
 !    output value of N_DATA will be 0 again.
 !
-!    Output, real ( kind = rk ) X, the argument of the function.
+!    real ( kind = rk8 ) X, the argument of the function.
 !
-!    Output, real ( kind = rk ) FX, the value of the function.
+!    real ( kind = rk8 ) FX, the value of the function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: n_max = 17
 
-  real ( kind = rk ) fx
-  real ( kind = rk ), save, dimension ( n_max ) :: fx_vec = (/ &
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), save, dimension ( n_max ) :: fx_vec = (/ &
     0.5000000000000000D+00, &
     0.5398278372770290D+00, &
     0.5792597094391030D+00, &
@@ -12841,8 +13166,8 @@ subroutine normal_01_cdf_values ( n_data, x, fx )
     0.9997673709209645D+00, &
     0.9999683287581669D+00 /)
   integer n_data
-  real ( kind = rk ) x
-  real ( kind = rk ), save, dimension ( n_max ) :: x_vec = (/ &
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ), save, dimension ( n_max ) :: x_vec = (/ &
     0.0000000000000000D+00, &
     0.1000000000000000D+00, &
     0.2000000000000000D+00, &
@@ -12882,7 +13207,7 @@ subroutine normal_cdf_values ( n_data, mu, sigma, x, fx )
 
 !*****************************************************************************80
 !
-!! NORMAL_CDF_VALUES returns some values of the Normal CDF.
+!! normal_cdf_values() returns some values of the Normal CDF.
 !
 !  Discussion:
 !
@@ -12915,29 +13240,33 @@ subroutine normal_cdf_values ( n_data, mu, sigma, x, fx )
 !    Fourth Edition,
 !    Wolfram Media / Cambridge University Press, 1999.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer N_DATA.  The user sets N_DATA to 0
-!    before the first call.  On each call, the routine increments N_DATA by 1,
+!    integer N_DATA.  The user sets N_DATA to 0
+!    before the first call.  
+!
+!  Output:
+!
+!    integer N_DATA: On each call, the routine increments N_DATA by 1,
 !    and returns the corresponding data; when there is no more data, the
 !    output value of N_DATA will be 0 again.
 !
-!    Output, real ( kind = rk ) MU, the mean of the distribution.
+!    real ( kind = rk8 ) MU, the mean of the distribution.
 !
-!    Output, real ( kind = rk ) SIGMA, the variance of the distribution.
+!    real ( kind = rk8 ) SIGMA, the variance of the distribution.
 !
-!    Output, real ( kind = rk ) X, the argument of the function.
+!    real ( kind = rk8 ) X, the argument of the function.
 !
-!    Output, real ( kind = rk ) FX, the value of the function.
+!    real ( kind = rk8 ) FX, the value of the function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: n_max = 12
 
-  real ( kind = rk ) fx
-  real ( kind = rk ), save, dimension ( n_max ) :: fx_vec = (/ &
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), save, dimension ( n_max ) :: fx_vec = (/ &
     0.5000000000000000D+00, &
     0.9772498680518208D+00, &
     0.9999683287581669D+00, &
@@ -12950,8 +13279,8 @@ subroutine normal_cdf_values ( n_data, mu, sigma, x, fx )
     0.5000000000000000D+00, &
     0.3085375387259869D+00, &
     0.1586552539314571D+00 /)
-  real ( kind = rk ) mu
-  real ( kind = rk ), save, dimension ( n_max ) :: mu_vec = (/ &
+  real ( kind = rk8 ) mu
+  real ( kind = rk8 ), save, dimension ( n_max ) :: mu_vec = (/ &
     0.1000000000000000D+01, &
     0.1000000000000000D+01, &
     0.1000000000000000D+01, &
@@ -12965,8 +13294,8 @@ subroutine normal_cdf_values ( n_data, mu, sigma, x, fx )
     0.4000000000000000D+01, &
     0.5000000000000000D+01 /)
   integer n_data
-  real ( kind = rk ) sigma
-  real ( kind = rk ), save, dimension ( n_max ) :: sigma_vec = (/ &
+  real ( kind = rk8 ) sigma
+  real ( kind = rk8 ), save, dimension ( n_max ) :: sigma_vec = (/ &
     0.5000000000000000D+00, &
     0.5000000000000000D+00, &
     0.5000000000000000D+00, &
@@ -12979,8 +13308,8 @@ subroutine normal_cdf_values ( n_data, mu, sigma, x, fx )
     0.2000000000000000D+01, &
     0.2000000000000000D+01, &
     0.2000000000000000D+01 /)
-  real ( kind = rk ) x
-  real ( kind = rk ), save, dimension ( n_max ) :: x_vec = (/ &
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ), save, dimension ( n_max ) :: x_vec = (/ &
     0.1000000000000000D+01, &
     0.2000000000000000D+01, &
     0.3000000000000000D+01, &
@@ -13019,7 +13348,7 @@ subroutine poisson_cdf_values ( n_data, a, x, fx )
 
 !*****************************************************************************80
 !
-!! POISSON_CDF_VALUES returns some values of the Poisson CDF.
+!! poisson_cdf_values() returns some values of the Poisson CDF.
 !
 !  Discussion:
 !
@@ -13048,33 +13377,37 @@ subroutine poisson_cdf_values ( n_data, a, x, fx )
 !    CRC Standard Mathematical Tables and Formulae,
 !    30th Edition, CRC Press, 1996, pages 653-658.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer N_DATA.  The user sets N_DATA to 0
-!    before the first call.  On each call, the routine increments N_DATA by 1,
+!    integer N_DATA.  The user sets N_DATA to 0
+!    before the first call.  
+!
+!  Output:
+!
+!    integer N_DATA: On each call, the routine increments N_DATA by 1,
 !    and returns the corresponding data; when there is no more data, the
 !    output value of N_DATA will be 0 again.
 !
-!    Output, real ( kind = rk ) A, integer X, the arguments of the function.
+!    real ( kind = rk8 ) A, integer X, the arguments of the function.
 !
-!    Output, real ( kind = rk ) FX, the value of the function.
+!    real ( kind = rk8 ) FX, the value of the function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: n_max = 21
 
-  real ( kind = rk ) a
-  real ( kind = rk ), save, dimension ( n_max ) :: a_vec = (/ &
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ), save, dimension ( n_max ) :: a_vec = (/ &
     0.02D+00, 0.10D+00, 0.10D+00, 0.50D+00, &
     0.50D+00, 0.50D+00, 1.00D+00, 1.00D+00, &
     1.00D+00, 1.00D+00, 2.00D+00, 2.00D+00, &
     2.00D+00, 2.00D+00, 5.00D+00, 5.00D+00, &
     5.00D+00, 5.00D+00, 5.00D+00, 5.00D+00, &
     5.00D+00 /)
-  real ( kind = rk ) fx
-  real ( kind = rk ), save, dimension ( n_max ) :: fx_vec = (/ &
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), save, dimension ( n_max ) :: fx_vec = (/ &
     0.980D+00, 0.905D+00, 0.995D+00, 0.607D+00, &
     0.910D+00, 0.986D+00, 0.368D+00, 0.736D+00, &
     0.920D+00, 0.981D+00, 0.135D+00, 0.406D+00, &
@@ -13114,7 +13447,7 @@ function psi ( xx )
 
 !*****************************************************************************80
 !
-!! PSI evaluates the psi or digamma function, d/dx ln(gamma(x)).
+!! psi() evaluates the psi or digamma function, d/dx ln(gamma(x)).
 !
 !  Discussion:
 !
@@ -13143,27 +13476,29 @@ function psi ( xx )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) XX, the argument of the psi function.
+!    real ( kind = rk8 ) XX, the argument of the psi function.
 !
-!    Output, real ( kind = rk ) PSI, the value of the psi function.  PSI
+!  Output:
+!
+!    real ( kind = rk8 ) PSI, the value of the psi function.  PSI
 !    is assigned the value 0 when the psi function is undefined.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) aug
-  real ( kind = rk ) den
-  real ( kind = rk ), parameter :: dx0 = &
+  real ( kind = rk8 ) aug
+  real ( kind = rk8 ) den
+  real ( kind = rk8 ), parameter :: dx0 = &
     1.461632144968362341262659542325721325D+00
   integer i
   integer ipmpar
   integer m
   integer n
   integer nq
-  real ( kind = rk ), parameter, dimension ( 7 ) :: p1 = (/ &
+  real ( kind = rk8 ), parameter, dimension ( 7 ) :: p1 = (/ &
    0.895385022981970D-02, &
    0.477762828042627D+01, &
    0.142441585084029D+03, &
@@ -13171,45 +13506,45 @@ function psi ( xx )
    0.363351846806499D+04, &
    0.413810161269013D+04, &
    0.130560269827897D+04/)
-  real ( kind = rk ), dimension ( 4 ) :: p2 = (/ &
+  real ( kind = rk8 ), dimension ( 4 ) :: p2 = (/ &
     -0.212940445131011D+01, &
     -0.701677227766759D+01, &
     -0.448616543918019D+01, &
     -0.648157123766197D+00 /)
-  real ( kind = rk ), parameter :: piov4 = 0.785398163397448D+00
-  real ( kind = rk ) psi
+  real ( kind = rk8 ), parameter :: piov4 = 0.785398163397448D+00
+  real ( kind = rk8 ) psi
 !
 !  Coefficients for rational approximation of
 !  PSI(X) / (X - X0),  0.5D+00 <= X <= 3.0D+00
 !
-  real ( kind = rk ), dimension ( 6 ) :: q1 = (/ &
+  real ( kind = rk8 ), dimension ( 6 ) :: q1 = (/ &
     0.448452573429826D+02, &
     0.520752771467162D+03, &
     0.221000799247830D+04, &
     0.364127349079381D+04, &
     0.190831076596300D+04, &
     0.691091682714533D-05 /)
-  real ( kind = rk ), dimension ( 4 ) :: q2 = (/ &
+  real ( kind = rk8 ), dimension ( 4 ) :: q2 = (/ &
     0.322703493791143D+02, &
     0.892920700481861D+02, &
     0.546117738103215D+02, &
     0.777788548522962D+01 /)
-  real ( kind = rk ) sgn
-  real ( kind = rk ) upper
-  real ( kind = rk ) w
-  real ( kind = rk ) x
-  real ( kind = rk ) xmax1
-  real ( kind = rk ) xmx0
-  real ( kind = rk ) xsmall
-  real ( kind = rk ) xx
-  real ( kind = rk ) z
+  real ( kind = rk8 ) sgn
+  real ( kind = rk8 ) upper
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) xmax1
+  real ( kind = rk8 ) xmx0
+  real ( kind = rk8 ) xsmall
+  real ( kind = rk8 ) xx
+  real ( kind = rk8 ) z
 !
 !  XMAX1 is the largest positive floating point constant with entirely
 !  integer representation.  It is also used as negative of lower bound
 !  on acceptable negative arguments and as the positive argument beyond which
 !  psi may be represented as LOG(X).
 !
-  xmax1 = real ( ipmpar(3), kind = rk )
+  xmax1 = real ( ipmpar(3), kind = rk8 )
   xmax1 = min ( xmax1, 1.0D+00 / epsilon ( xmax1 ) )
 !
 !  XSMALL is the absolute argument below which PI*COTAN(PI*X)
@@ -13254,9 +13589,9 @@ function psi ( xx )
     end if
 
     nq = int ( w )
-    w = w - real ( nq, kind = rk )
+    w = w - real ( nq, kind = rk8 )
     nq = int ( w * 4.0D+00 )
-    w = 4.0D+00 * ( w - real ( nq, kind = rk ) * 0.25D+00 )
+    w = 4.0D+00 * ( w - real ( nq, kind = rk8 ) * 0.25D+00 )
 !
 !  W is now related to the fractional part of 4.0 * X.
 !  Adjust argument to correspond to values in first
@@ -13314,7 +13649,7 @@ function psi ( xx )
     end do
 
     den = ( upper + p1(7) ) / ( den + q1(6) )
-    xmx0 = real ( x, kind = rk ) - dx0
+    xmx0 = real ( x, kind = rk8 ) - dx0
     psi = den * xmx0 + aug
 !
 !  3 < X < XMAX1
@@ -13347,7 +13682,7 @@ subroutine psi_values ( n_data, x, fx )
 
 !*****************************************************************************80
 !
-!! PSI_VALUES returns some values of the Psi or Digamma function.
+!! psi_values() returns some values of the Psi or Digamma function.
 !
 !  Discussion:
 !
@@ -13375,32 +13710,36 @@ subroutine psi_values ( n_data, x, fx )
 !    Handbook of Mathematical Functions,
 !    US Department of Commerce, 1964.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer N_DATA.  The user sets N_DATA to 0
-!    before the first call.  On each call, the routine increments N_DATA by 1,
+!    integer N_DATA.  The user sets N_DATA to 0
+!    before the first call.  
+!
+!  Output:
+!
+!    integer N_DATA: On each call, the routine increments N_DATA by 1,
 !    and returns the corresponding data; when there is no more data, the
 !    output value of N_DATA will be 0 again.
 !
-!    Output, real ( kind = rk ) X, the argument of the function.
+!    real ( kind = rk8 ) X, the argument of the function.
 !
-!    Output, real ( kind = rk ) FX, the value of the function.
+!    real ( kind = rk8 ) FX, the value of the function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: n_max = 11
 
-  real ( kind = rk ) fx
-  real ( kind = rk ), save, dimension ( n_max ) :: fx_vec = (/ &
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), save, dimension ( n_max ) :: fx_vec = (/ &
     -0.5772156649D+00, -0.4237549404D+00, -0.2890398966D+00, &
     -0.1691908889D+00, -0.0613845446D+00, -0.0364899740D+00, &
      0.1260474528D+00,  0.2085478749D+00,  0.2849914333D+00, &
      0.3561841612D+00,  0.4227843351D+00 /)
   integer n_data
-  real ( kind = rk ) x
-  real ( kind = rk ), save, dimension ( n_max ) :: x_vec = (/ &
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ), save, dimension ( n_max ) :: x_vec = (/ &
     1.0D+00,  1.1D+00,  1.2D+00,  &
     1.3D+00,  1.4D+00,  1.5D+00,  &
     1.6D+00,  1.7D+00,  1.8D+00,  &
@@ -13427,7 +13766,7 @@ subroutine r8_swap ( x, y )
 
 !*****************************************************************************80
 !
-!! R8_SWAP swaps two R8 values.
+!! r8_swap() swaps two R8 values.
 !
 !  Licensing:
 !
@@ -13441,18 +13780,22 @@ subroutine r8_swap ( x, y )
 !
 !    John Burkardt
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, real ( kind = rk ) X, Y.  On output, the values of X and
+!    real ( kind = rk8 ) X, Y: values to interchange.
+!
+!  Output:
+!
+!    real ( kind = rk8 ) X, Y: the values of X and
 !    Y have been interchanged.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) x
-  real ( kind = rk ) y
-  real ( kind = rk ) z
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ) y
+  real ( kind = rk8 ) z
 
   z = x
   x = y
@@ -13464,7 +13807,7 @@ function rcomp ( a, x )
 
 !*****************************************************************************80
 !
-!! RCOMP evaluates exp(-X) * X^A / Gamma(A).
+!! rcomp() evaluates exp(-X) * X^A / Gamma(A).
 !
 !  Licensing:
 !
@@ -13472,7 +13815,7 @@ function rcomp ( a, x )
 !
 !  Modified:
 !
-!    15 February 2021
+!    09 October 2026
 !
 !  Author:
 !
@@ -13486,11 +13829,13 @@ function rcomp ( a, x )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) A, X, arguments of the quantity to be computed.
+!    real ( kind = rk8 ) A, X, arguments of the quantity to be computed.
 !
-!    Output, real ( kind = rk ) RCOMP, the value of exp(-X) * X^A / Gamma(A).
+!  Output:
+!
+!    real ( kind = rk8 ) RCOMP, the value of exp(-X) * X^A / Gamma(A).
 !
 !  Local:
 !
@@ -13498,18 +13843,18 @@ function rcomp ( a, x )
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) a
-  real ( kind = rk ) gam1
-  real ( kind = rk ) gamma
-  real ( kind = rk ) rcomp
-  real ( kind = rk ) rlog
-  real ( kind = rk ), parameter :: rt2pin = 0.398942280401433D+00
-  real ( kind = rk ) t
-  real ( kind = rk ) t1
-  real ( kind = rk ) u
-  real ( kind = rk ) x
+  real ( kind = rk8 ) a
+  real ( kind = rk8 ) gam1
+  real ( kind = rk8 ) gamma_user
+  real ( kind = rk8 ) rcomp
+  real ( kind = rk8 ) rlog
+  real ( kind = rk8 ), parameter :: rt2pin = 0.398942280401433D+00
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ) t1
+  real ( kind = rk8 ) u
+  real ( kind = rk8 ) x
 
   if ( a < 20.0D+00 ) then
 
@@ -13518,7 +13863,7 @@ function rcomp ( a, x )
     if ( a < 1.0D+00 ) then
       rcomp = ( a * exp ( t ) ) * ( 1.0D+00 + gam1 ( a ) )
     else
-      rcomp = exp ( t ) / gamma ( a )
+      rcomp = exp ( t ) / gamma_user ( a )
     end if
 
   else
@@ -13543,7 +13888,7 @@ function rexp ( x )
 
 !*****************************************************************************80
 !
-!! REXP evaluates the function EXP(X) - 1.
+!! rexp() evaluates the function EXP(X) - 1.
 !
 !  Licensing:
 !
@@ -13565,25 +13910,27 @@ function rexp ( x )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) X, the argument of the function.
+!    real ( kind = rk8 ) X, the argument of the function.
 !
-!    Output, real ( kind = rk ) REXP, the value of EXP(X)-1.
+!  Output:
+!
+!    real ( kind = rk8 ) REXP, the value of EXP(X)-1.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ), parameter :: p1 =  0.914041914819518D-09
-  real ( kind = rk ), parameter :: p2 =  0.238082361044469D-01
-  real ( kind = rk ), parameter :: q1 = -0.499999999085958D+00
-  real ( kind = rk ), parameter :: q2 =  0.107141568980644D+00
-  real ( kind = rk ), parameter :: q3 = -0.119041179760821D-01
-  real ( kind = rk ), parameter :: q4 =  0.595130811860248D-03
-  real ( kind = rk ) rexp
-  real ( kind = rk ) w
-  real ( kind = rk ) x
+  real ( kind = rk8 ), parameter :: p1 =  0.914041914819518D-09
+  real ( kind = rk8 ), parameter :: p2 =  0.238082361044469D-01
+  real ( kind = rk8 ), parameter :: q1 = -0.499999999085958D+00
+  real ( kind = rk8 ), parameter :: q2 =  0.107141568980644D+00
+  real ( kind = rk8 ), parameter :: q3 = -0.119041179760821D-01
+  real ( kind = rk8 ), parameter :: q4 =  0.595130811860248D-03
+  real ( kind = rk8 ) rexp
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) x
 
   if ( abs ( x ) <= 0.15D+00 ) then
 
@@ -13608,7 +13955,7 @@ function rlog ( x )
 
 !*****************************************************************************80
 !
-!! RLOG computes X - 1 - LN(X).
+!! rlog() computes X - 1 - LN(X).
 !
 !  Licensing:
 !
@@ -13630,32 +13977,34 @@ function rlog ( x )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) X, the argument of the function.
+!    real ( kind = rk8 ) X, the argument of the function.
 !
-!    Output, real ( kind = rk ) RLOG, the value of the function.
+!  Output:
+!
+!    real ( kind = rk8 ) RLOG, the value of the function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ), parameter :: a  =  0.566749439387324D-01
-  real ( kind = rk ), parameter :: b  =  0.456512608815524D-01
-  real ( kind = rk ), parameter :: half = 0.5D+00
-  real ( kind = rk ), parameter :: p0 =  0.333333333333333D+00
-  real ( kind = rk ), parameter :: p1 = -0.224696413112536D+00
-  real ( kind = rk ), parameter :: p2 =  0.620886815375787D-02
-  real ( kind = rk ), parameter :: q1 = -0.127408923933623D+01
-  real ( kind = rk ), parameter :: q2 =  0.354508718369557D+00
-  real ( kind = rk ) r
-  real ( kind = rk ) rlog
-  real ( kind = rk ) t
-  real ( kind = rk ), parameter :: two =  2.0D+00
-  real ( kind = rk ) u
-  real ( kind = rk ) w
-  real ( kind = rk ) w1
-  real ( kind = rk ) x
+  real ( kind = rk8 ), parameter :: a  =  0.566749439387324D-01
+  real ( kind = rk8 ), parameter :: b  =  0.456512608815524D-01
+  real ( kind = rk8 ), parameter :: half = 0.5D+00
+  real ( kind = rk8 ), parameter :: p0 =  0.333333333333333D+00
+  real ( kind = rk8 ), parameter :: p1 = -0.224696413112536D+00
+  real ( kind = rk8 ), parameter :: p2 =  0.620886815375787D-02
+  real ( kind = rk8 ), parameter :: q1 = -0.127408923933623D+01
+  real ( kind = rk8 ), parameter :: q2 =  0.354508718369557D+00
+  real ( kind = rk8 ) r
+  real ( kind = rk8 ) rlog
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ), parameter :: two =  2.0D+00
+  real ( kind = rk8 ) u
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) w1
+  real ( kind = rk8 ) x
 
   if ( x < 0.61D+00 ) then
 
@@ -13700,7 +14049,7 @@ function rlog1 ( x )
 
 !*****************************************************************************80
 !
-!! RLOG1 evaluates the function X - ln ( 1 + X ).
+!! rlog1() evaluates the function X - ln ( 1 + X ).
 !
 !  Licensing:
 !
@@ -13722,32 +14071,34 @@ function rlog1 ( x )
 !    ACM Transactions on Mathematical Software,
 !    Volume 18, 1993, pages 360-373.
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) X, the argument.
+!    real ( kind = rk8 ) X, the argument.
 !
-!    Output, real ( kind = rk ) RLOG1, the value of X - ln ( 1 + X ).
+!  Output:
+!
+!    real ( kind = rk8 ) RLOG1, the value of X - ln ( 1 + X ).
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ), parameter :: a = 0.566749439387324D-01
-  real ( kind = rk ), parameter :: b = 0.456512608815524D-01
-  real ( kind = rk ) h
-  real ( kind = rk ), parameter :: half = 0.5D+00
-  real ( kind = rk ), parameter :: p0 = 0.333333333333333D+00
-  real ( kind = rk ), parameter :: p1 = -0.224696413112536D+00
-  real ( kind = rk ), parameter :: p2 = 0.620886815375787D-02
-  real ( kind = rk ), parameter :: q1 = -0.127408923933623D+01
-  real ( kind = rk ), parameter :: q2 = 0.354508718369557D+00
-  real ( kind = rk ) r
-  real ( kind = rk ) rlog1
-  real ( kind = rk ) t
-  real ( kind = rk ), parameter :: two =  2.0D+00
-  real ( kind = rk ) w
-  real ( kind = rk ) w1
-  real ( kind = rk ) x
+  real ( kind = rk8 ), parameter :: a = 0.566749439387324D-01
+  real ( kind = rk8 ), parameter :: b = 0.456512608815524D-01
+  real ( kind = rk8 ) h
+  real ( kind = rk8 ), parameter :: half = 0.5D+00
+  real ( kind = rk8 ), parameter :: p0 = 0.333333333333333D+00
+  real ( kind = rk8 ), parameter :: p1 = -0.224696413112536D+00
+  real ( kind = rk8 ), parameter :: p2 = 0.620886815375787D-02
+  real ( kind = rk8 ), parameter :: q1 = -0.127408923933623D+01
+  real ( kind = rk8 ), parameter :: q2 = 0.354508718369557D+00
+  real ( kind = rk8 ) r
+  real ( kind = rk8 ) rlog1
+  real ( kind = rk8 ) t
+  real ( kind = rk8 ), parameter :: two =  2.0D+00
+  real ( kind = rk8 ) w
+  real ( kind = rk8 ) w1
+  real ( kind = rk8 ) x
 
   if ( x < -0.39D+00 ) then
 
@@ -13798,7 +14149,7 @@ subroutine student_cdf_values ( n_data, a, x, fx )
 
 !*****************************************************************************80
 !
-!! STUDENT_CDF_VALUES returns some values of the Student CDF.
+!! student_cdf_values() returns some values of the Student CDF.
 !
 !  Licensing:
 !
@@ -13818,21 +14169,25 @@ subroutine student_cdf_values ( n_data, a, x, fx )
 !    Handbook of Mathematical Functions,
 !    US Department of Commerce, 1964.
 !
-!  Parameters:
+!  Input:
 !
-!    Input/output, integer N_DATA.  The user sets N_DATA to 0
-!    before the first call.  On each call, the routine increments N_DATA by 1,
+!    integer N_DATA.  The user sets N_DATA to 0
+!    before the first call.  
+!
+!  Output:
+!
+!    integer N_DATA: On each call, the routine increments N_DATA by 1,
 !    and returns the corresponding data; when there is no more data, the
 !    output value of N_DATA will be 0 again.
 !
-!    Output, integer A, real ( kind = rk ) X, the arguments of
+!    integer A, real ( kind = rk8 ) X, the arguments of
 !    the function.
 !
-!    Output, real ( kind = rk ) FX, the value of the function.
+!    real ( kind = rk8 ) FX, the value of the function.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
   integer, parameter :: n_max = 13
 
@@ -13842,15 +14197,15 @@ subroutine student_cdf_values ( n_data, a, x, fx )
     5, 2, 5, 2, &
     5, 2, 3, 4, &
     5 /)
-  real ( kind = rk ) fx
-  real ( kind = rk ), save, dimension ( n_max ) :: fx_vec = (/ &
+  real ( kind = rk8 ) fx
+  real ( kind = rk8 ), save, dimension ( n_max ) :: fx_vec = (/ &
     0.60D+00, 0.60D+00, 0.60D+00, 0.60D+00, &
     0.60D+00, 0.75D+00, 0.75D+00, 0.95D+00, &
     0.95D+00, 0.99D+00, 0.99D+00, 0.99D+00, &
     0.99D+00 /)
   integer n_data
-  real ( kind = rk ) x
-  real ( kind = rk ), save, dimension ( n_max ) :: x_vec = (/ &
+  real ( kind = rk8 ) x
+  real ( kind = rk8 ), save, dimension ( n_max ) :: x_vec = (/ &
     0.325D+00, 0.289D+00, 0.277D+00, 0.271D+00, &
     0.267D+00, 0.816D+00, 0.727D+00, 2.920D+00, &
     2.015D+00, 6.965D+00, 4.541D+00, 3.747D+00, &
@@ -13879,7 +14234,7 @@ function stvaln ( p )
 
 !*****************************************************************************80
 !
-!! STVALN provides starting values for the inverse of the normal distribution.
+!! stvaln() provides starting values for the inverse of the normal distribution.
 !
 !  Discussion:
 !
@@ -13903,36 +14258,38 @@ function stvaln ( p )
 !    Marcel Dekker, NY, 1980, page 95,
 !    QA276.4 K46
 !
-!  Parameters:
+!  Input:
 !
-!    Input, real ( kind = rk ) P, the probability whose normal deviate
+!    real ( kind = rk8 ) P, the probability whose normal deviate
 !    is sought.
 !
-!    Output, real ( kind = rk ) STVALN, the normal deviate whose probability
+!  Output:
+!
+!    real ( kind = rk8 ) STVALN, the normal deviate whose probability
 !    is approximately P.
 !
   implicit none
 
-  integer, parameter :: rk = kind ( 1.0D+00 )
+  integer, parameter :: rk8 = kind ( 1.0D+00 )
 
-  real ( kind = rk ) eval_pol
-  real ( kind = rk ) p
-  real ( kind = rk ) sgn
-  real ( kind = rk ) stvaln
-  real ( kind = rk ), parameter, dimension(0:4) :: xden = (/ &
+  real ( kind = rk8 ) eval_pol
+  real ( kind = rk8 ) p
+  real ( kind = rk8 ) sgn
+  real ( kind = rk8 ) stvaln
+  real ( kind = rk8 ), parameter, dimension(0:4) :: xden = (/ &
     0.993484626060D-01, &
     0.588581570495D+00, &
     0.531103462366D+00, &
     0.103537752850D+00, &
     0.38560700634D-02 /)
-  real ( kind = rk ), parameter, dimension(0:4) :: xnum = (/ &
+  real ( kind = rk8 ), parameter, dimension(0:4) :: xnum = (/ &
     -0.322232431088D+00, &
     -1.000000000000D+00, &
     -0.342242088547D+00, &
     -0.204231210245D-01, &
     -0.453642210148D-04 /)
-  real ( kind = rk ) y
-  real ( kind = rk ) z
+  real ( kind = rk8 ) y
+  real ( kind = rk8 ) z
 
   if ( p <= 0.5D+00 ) then
 

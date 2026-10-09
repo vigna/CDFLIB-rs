@@ -31,3 +31,33 @@ pub use negative_binomial::{NegativeBinomial, NegativeBinomialError};
 pub use normal::{Normal, NormalError};
 pub use poisson::{Poisson, PoissonError};
 pub use students_t::{StudentsT, StudentsTError};
+
+/// Rust only: returns the smallest integer *s* ≤ `max` with `cdf(s)` ≥ *p*,
+/// or `max` if there is none, for 0 < *p* < 1 and a nondecreasing `cdf`.
+///
+/// This serves the integer quantile required by
+/// [`DiscreteCdf::inverse_cdf`]; CDFLIB has no counterpart, as its
+/// `which = 2` solves for a real *s*. The bracket is found by doubling and
+/// then narrowed by bisection, so no tuning constant is involved.
+///
+/// [`DiscreteCdf::inverse_cdf`]: crate::traits::DiscreteCdf::inverse_cdf
+pub(crate) fn integer_quantile(p: f64, max: u64, cdf: impl Fn(u64) -> f64) -> u64 {
+    let mut lo = 0u64;
+    let mut hi = 1u64.min(max);
+    while cdf(hi) < p {
+        if hi == max {
+            return max;
+        }
+        lo = hi + 1;
+        hi = hi.saturating_mul(2).min(max);
+    }
+    while lo < hi {
+        let mid = lo + (hi - lo) / 2;
+        if cdf(mid) < p {
+            lo = mid + 1;
+        } else {
+            hi = mid;
+        }
+    }
+    lo
+}

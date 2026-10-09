@@ -11,10 +11,7 @@
 mod common;
 
 use cdflib::{ChiSquaredNoncentral, ContinuousCdf, FisherSnedecorNoncentral};
-use common::{
-    assert_close_eps, read_csv, DEFAULT_ABS_TOL, NONCENTRAL_CHI_REL_TOL, NONCENTRAL_F_ABS_TOL,
-    NONCENTRAL_F_REL_TOL,
-};
+use common::{assert_exact, read_csv};
 
 #[test]
 fn chi_squared_noncentral_matches_cumchn_reference() {
@@ -23,18 +20,8 @@ fn chi_squared_noncentral_matches_cumchn_reference() {
             panic!("width");
         };
         let d = ChiSquaredNoncentral::new(df, ncp);
-        assert_close_eps(
-            d.cdf(x),
-            expected_cdf,
-            NONCENTRAL_CHI_REL_TOL,
-            DEFAULT_ABS_TOL,
-        );
-        assert_close_eps(
-            d.ccdf(x),
-            expected_sf,
-            NONCENTRAL_CHI_REL_TOL,
-            DEFAULT_ABS_TOL,
-        );
+        assert_exact(d.cdf(x), expected_cdf, &row);
+        assert_exact(d.ccdf(x), expected_sf, &row);
     }
 }
 
@@ -45,17 +32,7 @@ fn f_noncentral_matches_cumfnc_reference() {
             panic!("width");
         };
         let d = FisherSnedecorNoncentral::new(dfn, dfd, ncp);
-        assert_close_eps(
-            d.cdf(fx),
-            expected_cdf,
-            NONCENTRAL_F_REL_TOL,
-            NONCENTRAL_F_ABS_TOL,
-        );
-        assert_close_eps(
-            d.ccdf(fx),
-            expected_sf,
-            NONCENTRAL_F_REL_TOL,
-            NONCENTRAL_F_ABS_TOL,
-        );
+        assert_exact(d.cdf(fx), expected_cdf, &row);
+        assert_exact(d.ccdf(fx), expected_sf, &row);
     }
 }

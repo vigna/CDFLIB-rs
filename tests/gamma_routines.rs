@@ -5,11 +5,10 @@
 mod common;
 
 use cdflib::special::internal::dstrem;
-use cdflib::special::{gamma, gamma_inc, gamma_inc_inv, gamma_inc_with_acc, gamma_log, GammaIncAcc};
-use common::{
-    assert_close_eps, read_csv, DEFAULT_ABS_TOL, ITERATIVE_KERNEL_ABS_TOL,
-    ITERATIVE_KERNEL_REL_TOL, KERNEL_REL_TOL,
+use cdflib::special::{
+    gamma, gamma_inc, gamma_inc_inv, gamma_inc_with_acc, gamma_log, GammaIncAcc,
 };
+use common::{assert_exact, read_csv};
 
 #[test]
 fn gamma_log_matches_reference() {
@@ -17,7 +16,7 @@ fn gamma_log_matches_reference() {
         let [a, expected] = row[..] else {
             panic!("width");
         };
-        assert_close_eps(gamma_log(a), expected, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
+        assert_exact(gamma_log(a), expected, &row);
     }
 }
 
@@ -27,7 +26,7 @@ fn gamma_matches_reference() {
         let [a, expected] = row[..] else {
             panic!("width");
         };
-        assert_close_eps(gamma(a), expected, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
+        assert_exact(gamma(a), expected, &row);
     }
 }
 
@@ -38,18 +37,8 @@ fn gamma_inc_matches_reference() {
             panic!("width");
         };
         let (p, q) = gamma_inc(a, x);
-        assert_close_eps(
-            p,
-            expected_p,
-            ITERATIVE_KERNEL_REL_TOL,
-            ITERATIVE_KERNEL_ABS_TOL,
-        );
-        assert_close_eps(
-            q,
-            expected_q,
-            ITERATIVE_KERNEL_REL_TOL,
-            ITERATIVE_KERNEL_ABS_TOL,
-        );
+        assert_exact(p, expected_p, &row);
+        assert_exact(q, expected_q, &row);
     }
 }
 
@@ -65,18 +54,8 @@ fn gamma_inc_digits6_matches_reference() {
             panic!("width");
         };
         let (p, q) = gamma_inc_with_acc(a, x, GammaIncAcc::Digits6);
-        assert_close_eps(
-            p,
-            expected_p,
-            ITERATIVE_KERNEL_REL_TOL,
-            ITERATIVE_KERNEL_ABS_TOL,
-        );
-        assert_close_eps(
-            q,
-            expected_q,
-            ITERATIVE_KERNEL_REL_TOL,
-            ITERATIVE_KERNEL_ABS_TOL,
-        );
+        assert_exact(p, expected_p, &row);
+        assert_exact(q, expected_q, &row);
     }
 }
 
@@ -136,12 +115,7 @@ fn gamma_inc_inv_matches_reference() {
             panic!("width");
         };
         let (x, _) = gamma_inc_inv(a, -1.0, p, q);
-        assert_close_eps(
-            x,
-            expected_x,
-            ITERATIVE_KERNEL_REL_TOL,
-            ITERATIVE_KERNEL_ABS_TOL,
-        );
+        assert_exact(x, expected_x, &row);
     }
 }
 
@@ -151,16 +125,13 @@ fn dstrem_matches_reference() {
         let [z, expected] = row[..] else {
             panic!("width");
         };
-        assert_close_eps(dstrem(z), expected, KERNEL_REL_TOL, DEFAULT_ABS_TOL);
+        assert_exact(dstrem(z), expected, &row);
     }
 }
 
-// The a <= 0, |a| < 15 branch of gamma is libm-free (peel-loop products
-// and one rational evaluation), so the Rust port matches the F90 bit for
-// bit on the committed fixture. The -1.0e-8 row in particular
-// distinguishes the two-step (x + 0.5) + 0.5 rounding from a single
-// x + 1.0 rounding. The |a| >= 15 reflection rows go through libm and
-// are covered at KERNEL_REL_TOL by gamma_matches_reference instead.
+// The a <= 0, |a| < 15 branch of gamma must keep its negative rows in the
+// fixture: the -1.0e-8 row in particular distinguishes the two-step
+// (x + 0.5) + 0.5 rounding from a single x + 1.0 rounding.
 #[test]
 fn gamma_negative_small_matches_reference_exactly() {
     let mut rows = 0;

@@ -142,10 +142,10 @@ fn discrete_inverse_cdf_contract() {
 }
 
 #[test]
-fn discrete_inverse_sf_contract() {
-    // inverse_sf now returns the real-valued F90 cdf*-which=2 quantile.
+fn discrete_inverse_ccdf_contract() {
+    // inverse_ccdf returns the real-valued quantile of CDFLIB's which = 2.
     // Round-trip contract: at the returned real s, the integer-floor s
-    // satisfies the discrete sf bound sf(floor(s)) >= q (when interior).
+    // satisfies the discrete bound ccdf(floor(s)) >= q (when interior).
     let binomial = Binomial::new(20, 0.3);
     for &target in &[0.5, 0.1] {
         let s = binomial.inverse_ccdf(target).unwrap();

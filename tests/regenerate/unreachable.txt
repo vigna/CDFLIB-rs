@@ -1,0 +1,81 @@
+# Lines of refs/cdflib.f90 that no reference-table generator executes,
+# with the reason. Checked by coverage.sh, which fails on any other line
+# that no generator reaches. Format: <first>[-<last>] <routine>: <reason>.
+#
+# Rust API: the Rust port has no argument the line could act on.
+2582-2598 cdfbet: which out of range (status -1); Rust has one method per value of which.
+3026-3042 cdfbin: which out of range (status -1).
+3465-3481 cdfchi: which out of range (status -1).
+3825-3841 cdfchn: which out of range (status -1).
+4157-4173 cdff: which out of range (status -1).
+4596-4612 cdffnc: which out of range (status -1).
+4984-5000 cdfgam: which out of range (status -1).
+5334-5350 cdfnbn: which out of range (status -1).
+5768-5782 cdfnor: which out of range (status -1).
+5993-6009 cdfpoi: which out of range (status -1).
+6310-6326 cdft: which out of range (status -1).
+2665-2677 cdfbet: y out of range (status -5); the Rust API derives y = 1 - x.
+2723-2727 cdfbet: x + y /= 1 (status 4); the Rust API derives y = 1 - x.
+3142-3154 cdfbin: ompr out of range (status -7); the Rust API derives ompr = 1 - pr.
+3175-3179 cdfbin: pr + ompr /= 1 (status 4); the Rust API derives ompr = 1 - pr.
+5443-5455 cdfnbn: ompr out of range (status -7); the Rust API derives ompr = 1 - pr.
+5475-5479 cdfnbn: pr + ompr /= 1 (status 4); the Rust API derives ompr = 1 - pr.
+#
+# Search failures that cannot occur: over the search interval the
+# cumulative distribution function takes the values 0 and 1 at the two
+# ends (or tends to them), so the answer is always bracketed.
+2779-2788 cdfbet: which = 2 failure; cumbet spans [0..1] for x in [0..1].
+2824-2833 cdfbet: which = 3 failure; cumbet is 1 at a = 0 and 0 at a = 1e300.
+2869-2878 cdfbet: which = 4 failure; cumbet is 0 at b = 0 and 1 at b = 1e300.
+3225-3226 cdfbin: which = 2 status 2; cumbin is 1 at s = xn.
+3261-3276 cdfbin: which = 3 failure; cumbin is 1 for xn <= s and 0 at xn = 1e300.
+3320-3321 cdfbin: which = 4 status 1; dzror reports qleft only if f(xhi) < f(xlo), but for s < xn cumbin spans [0..1] and for xn <= s it is constant.
+3612-3621 cdfchi: which = 2 failure; cumchi spans [0..1] for x in [0..1e300].
+3662-3671 cdfchi: which = 3 failure; cumchi is 1 at df = 0 and 0 at df = 1e300.
+3931-3940 cdfchn: which = 2 failure; cumchn spans [0..1] for x in [0..1e300].
+3977-3978 cdfchn: which = 3 status 2; cumchn tends to 0 as df grows.
+4302-4311 cdff: which = 2 failure; cumf spans [0..1] for f in [0..1e300].
+4715-4730 cdffnc: which = 2 failure; cumfnc spans [0..1] for f in [0..1e30].
+5163-5172 cdfgam: which = 3 failure; cumgam is 1 at shape = 0 and 0 at shape = 1e300.
+5525-5526 cdfnbn: which = 2 status 2; cumnbn tends to 1 as f grows.
+5561-5570 cdfnbn: which = 3 failure; cumnbn is 1 at s = 0 and 0 at s = 1e300.
+5618-5627 cdfnbn: which = 4 failure; cumnbn spans [0..1] for pr in [0..1].
+6132-6133 cdfpoi: which = 2 status 2; cumpoi tends to 1 as s grows.
+6168-6177 cdfpoi: which = 3 failure; cumpoi is 1 at xlam = 0 and 0 at xlam = 1e300.
+#
+# Status 10 from the error value of gamma_inc.
+3576-3577 cdfchi: which = 1 tests porq, which is not set when which = 1 (an F90 defect); Rust reports the gamma_inc error as ChiSquaredError::GammaInc, or panics in cdf.
+5109 cdfgam: which = 1 tests porq, which is not set when which = 1 (an F90 defect); Rust panics in cdf on the gamma_inc error.
+3603-3604 cdfchi: which = 2 status 10; gamma_inc fails only for df/2 beyond 6.6e28 (3.28e-3 / epsilon²) with x/2 within a few ulps of it, which the search does not visit.
+3653-3654 cdfchi: which = 3 status 10; as above.
+5151-5155 cdfgam: which = 3 status 10; as above, for shape and x * scale.
+#
+# Fatal stops: the program would end, so no generator can run them.
+7321 cumfnc: dfn < 1; every Rust entry point rejects dfn < 1 (DfnTooSmall) before calling cumfnc.
+7328 cumfnc: dfd < 1; every Rust entry point rejects dfd < 1 (DfdTooSmall) before calling cumfnc.
+8252 dinvr: illegal value of i99999, impossible with the Rust resume enum.
+8262 dinvr: SMALL, X, BIG not monotone; Rust returns SearchError::StartOutOfRange (tested in tests/dispatcher_calls.rs).
+8723 dstrem: z <= 0; Rust panics by design.
+9206 dzror: illegal value of i99999, impossible with the Rust resume enum.
+#
+# Dead on IEEE 754 binary64.
+2277 beta_up: k < mu never holds, since k = int(exparg(0)) = 709 and mu = int(abs(exparg(1))) = 708.
+9821-9826 exparg: the base of floating-point arithmetic is 2.
+11478 gamma_inc_inv: iop = 2 only when epsilon exceeds 1e-10.
+#
+# Unreachable for any argument.
+1718 beta_pser: x**a with x > 0 and a <= 1 is at least x, so it is not zero.
+1906 beta_rcomp: with a, b <= 1, exp(a*ln(x) + b*ln(y)) is at least the smallest subnormal.
+7413 cumfnc: aup - 1 + b == 0 needs dfn/2 + icent + dfd/2 == 1, impossible with dfn, dfd >= 1 and icent >= 1.
+11500-11502 gamma_inc_inv: q * gamma(a + 1) with q > 0 and gamma(a + 1) >= 0.88 does not round to 0.
+11523-11525 gamma_inc_inv: b = qg / a with a < 1 is at least qg > 0.
+11787-11788 gamma_inc_inv: at label 200 |t| <= 0.1 and |w t| <= 0.1, so 1 - h > 0 and x > 0.
+11883-11884 gamma_inc_inv: as above, at label 250.
+#
+# Not reached by any tested input.
+911-912 beta_grat: the partial sum becoming nonpositive.
+8130 dinvnr: no convergence after 100 Newton steps from the stvaln start, with p > q.
+10966-10968 gamma_inc: qans < 0 at label 200; qans is 1 - P computed with an error far smaller than its own magnitude.
+11759-11761 gamma_inc_inv: rcomp underflows while gamma_inc returns P and Q both nonzero (Schroder iteration using P).
+11855-11857 gamma_inc_inv: as above (Schroder iteration using Q).
+12367-12368 gamma_rat1: q < 0, as for gamma_inc at label 200.

@@ -244,39 +244,47 @@ digit. The intentional structural divergences are:
 - `error_fc(ind, x)` (which multiplexes plain and exponentially-scaled output
   via an integer flag) is split into two Rust functions, [`error_fc`] and
   [`error_fc_scaled`]. Same numerics, no flag argument.
-- The Fortran `cum*` and `cdf*` method families are folded into the
-  corresponding distribution module's [`cdf`] / [`ccdf`] / [`inverse_cdf`] /
-  [`inverse_ccdf`] / `search_*` methods rather than exposed as bare functions.
+- The Fortran `cdf*` routines are split by `which` into the corresponding
+  distribution's [`cdf`] / [`ccdf`] / [`inverse_cdf`] / [`inverse_ccdf`] /
+  `search_*` methods. The `cum*` routines are crate-private functions with
+  their Fortran names, called by those methods exactly where the Fortran calls
+  them.
 - `dinvr` and `dzror` (the reverse-communication root finders) live as internal
   state machines in `crate::search`. They are not part of the public surface.
-- The search setup constants (`abs_step`, `rel_step`, `stp_mul`, `abs_tol`,
-  `rel_tol`) that the Fortran `cdf*` routines declare locally are centralized in
-  `src/search/mod.rs`; the one routine that needs a different absolute tolerance
-  (`cdfchn`) uses an explicit `search_monotone_with_atol` call.
+- Each distribution module declares the constants of its `cdf*` routine
+  (`atol`, `tol`, `inf`, …) and drives the searches with the same `dstinv`
+  or `dstzr` arguments and the same reverse-communication loop as the Fortran.
 
 The lower-level CDFLIB-style helpers ([`algdiv`], [`bcorr`], [`gam1`], [`rlog`],
 etc.) live in [`cdflib::special::internal`] so the user-facing
 [`cdflib::special`] surface stays focused on the routines a statistical user is
 likely to call. Each CDFLIB algorithmic routine can be found under its original
 name, modulo the renames and splits enumerated above. The machine-constant
-utilities (`ipmpar`, `dpmpar`, `exparg`) and the `ftnstop` fatal-error sink are
-not ported: the constants live as Rust module-level values, and error reporting
-goes through the `try_*`/`Result` pairs described above.
+routines `ipmpar` and `exparg` are crate-private ports; fatal errors that the
+Fortran reports by printing a message and stopping are returned as errors
+through the `try_*`/`Result` pairs described above.
 
 ## Testing
 
-Reference values for the test suite are pre-generated from the bundled Fortran 90
+Reference values for the test suite are pre-generated from the Fortran 90
 sources (`tests/regenerate/`) and committed as CSV fixtures under `tests/data/`.
 `cargo test` reads the CSVs directly; CSV fixtures can be regenerated using the
 shell scripts in `tests/regenerate/` if desired; you will need a Fortran 90
-compiler.
+compiler. The Fortran is compiled without fused multiply-adds, and the Rust port
+reproduces every fixture value bit for bit, including the iteration traces of
+the root finders and the error status of every `cdf*` call. The script
+`tests/regenerate/coverage.sh` checks that the generators execute every line of
+`cdflib.f90`, except the lines listed with their reason in
+`tests/regenerate/unreachable.txt`.
 
 The code has been extensively tested against the original Fortran 90 and C
-sources. In the process, we found [serious bugs in `rmathlib`] and a bug in the
+sources. In the process, we found [serious bugs in `rmathlib`] and bugs in the
 [Fortran 90 version of the library] that has remained undetected for 25 years: a
 coefficient for the computation of the error function had been transcribed from
 the [original Fortran 77 code] with a wrong exponent (the [C]/[C++] version are
-unaffected).
+unaffected); `gamma_inc`, `gamma_inc_inv`, and `rcomp` called the compiler's
+intrinsic Γ function instead of the library's own `gamma_user`, as the [original
+F77 code] does.
 
 [CDFLIB]: https://people.sc.fsu.edu/~jburkardt/cpp_src/cdflib/cdflib.html
 [ACM Algorithm 654]: https://dl.acm.org/doi/10.1145/29380.214348

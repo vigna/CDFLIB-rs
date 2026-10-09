@@ -6,6 +6,12 @@ use thiserror::Error;
 /// Normal (Gaussian) distribution *N*(*μ*, *σ*²) with mean *μ* and standard
 /// deviation *σ*.
 ///
+/// The methods correspond to CDFLIB's `cdfnor` (cdflib.f90:5640):
+/// `which = 1` is [`cdf`] / [`ccdf`], `which = 2` is [`inverse_cdf`] /
+/// [`inverse_ccdf`], `which = 3` is [`search_mean`], `which = 4` is
+/// [`search_sd`]. No search is involved: the inverses are closed forms
+/// built on [`dinvnr`].
+///
 /// # Example
 ///
 /// ```
@@ -20,6 +26,14 @@ use thiserror::Error;
 /// // Standard normal quantile for 0.95
 /// let x = n.inverse_cdf(0.95).unwrap();
 /// ```
+///
+/// [`cdf`]: ContinuousCdf::cdf
+/// [`ccdf`]: ContinuousCdf::ccdf
+/// [`inverse_cdf`]: ContinuousCdf::inverse_cdf
+/// [`inverse_ccdf`]: Normal::inverse_ccdf
+/// [`search_mean`]: Normal::search_mean
+/// [`search_sd`]: Normal::search_sd
+/// [`dinvnr`]: crate::special::dinvnr
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Normal {
     mean: f64,
@@ -29,31 +43,104 @@ pub struct Normal {
 /// Errors that can arise constructing a [`Normal`] or evaluating its
 /// inverse routines.
 ///
+/// The variants correspond to the `status` codes of CDFLIB's `cdfnor`.
+///
 /// [`Normal`]: crate::Normal
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum NormalError {
-    /// The standard deviation *σ* was not strictly positive.
+    /// The standard deviation *σ* was not strictly positive (`cdfnor`
+    /// status −6). [`search_sd`] also returns it, checked only in Rust,
+    /// when the *σ* it computes is not strictly positive.
+    ///
+    /// [`search_sd`]: crate::Normal::search_sd
     #[error("standard deviation must be positive, got {0}")]
     SdNotPositive(f64),
-    /// The mean *μ* was not finite.
+    /// The mean *μ* was not finite (checked only in Rust). [`search_mean`]
+    /// also returns it when the mean it computes is not finite, as at
+    /// *p* = 0 and *p* = 1.
+    ///
+    /// [`search_mean`]: crate::Normal::search_mean
     #[error("mean must be finite, got {0}")]
     MeanNotFinite(f64),
-    /// The standard deviation *σ* was not finite.
+    /// The standard deviation *σ* was not finite (checked only in Rust).
+    /// [`search_sd`] also returns it when the *σ* it computes is not
+    /// finite.
+    ///
+    /// [`search_sd`]: crate::Normal::search_sd
     #[error("standard deviation must be finite, got {0}")]
     SdNotFinite(f64),
-    /// The argument *x* was not finite.
+    /// The argument *x* was not finite (checked only in Rust).
     #[error("argument x must be finite, got {0}")]
     XNotFinite(f64),
-    /// The probability *p* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *p* fell outside [0 . . 1] (`cdfnor` status −2); NaN is
+    /// also rejected.
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (`cdfnor` status −3); NaN is
+    /// also rejected.
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
-    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3ε).
-    /// Mirrors CDFLIB's `cdfnor` status 3 (cdflib.f90:5659).
+    /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
+    /// (`cdfnor` status 3).
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
+}
+
+// cdflib.f90:5784-5803 (status -2). Rust also rejects NaN.
+#[inline]
+fn check_p(p: f64) -> Result<(), NormalError> {
+    if p < 0.0 || 1.0 < p || p.is_nan() {
+        return Err(NormalError::PNotInRange(p));
+    }
+    Ok(())
+}
+
+// cdflib.f90:5804-5823 (status -3). Rust also rejects NaN.
+#[inline]
+fn check_q(q: f64) -> Result<(), NormalError> {
+    if q < 0.0 || 1.0 < q || q.is_nan() {
+        return Err(NormalError::QNotInRange(q));
+    }
+    Ok(())
+}
+
+// cdflib.f90:5824-5835 (status 3).
+#[inline]
+fn check_pq(p: f64, q: f64) -> Result<(), NormalError> {
+    if 3.0 * f64::EPSILON < ((p + q) - 1.0).abs() {
+        return Err(NormalError::PQSumNotOne { p, q });
+    }
+    Ok(())
+}
+
+// cdflib.f90:5837-5846 (status -6). Rust also rejects a non-finite sd.
+#[inline]
+fn check_sd(sd: f64) -> Result<(), NormalError> {
+    if sd <= 0.0 {
+        return Err(NormalError::SdNotPositive(sd));
+    }
+    if !sd.is_finite() {
+        return Err(NormalError::SdNotFinite(sd));
+    }
+    Ok(())
+}
+
+// Rust only: a finite mean.
+#[inline]
+fn check_mean(mean: f64) -> Result<(), NormalError> {
+    if !mean.is_finite() {
+        return Err(NormalError::MeanNotFinite(mean));
+    }
+    Ok(())
+}
+
+// Rust only: a finite x.
+#[inline]
+fn check_x(x: f64) -> Result<(), NormalError> {
+    if !x.is_finite() {
+        return Err(NormalError::XNotFinite(x));
+    }
+    Ok(())
 }
 
 impl Normal {
@@ -74,7 +161,7 @@ impl Normal {
     /// Fallible counterpart of [`new`](Self::new) returning a [`NormalError`]
     /// instead of panicking.
     ///
-    /// Returns [`MeanNotFinite`], [`SdNotFinite`], or [`SdNotPositive`] if
+    /// Returns [`MeanNotFinite`], [`SdNotPositive`], or [`SdNotFinite`] if
     /// either argument fails its respective test.
     ///
     /// [`MeanNotFinite`]: NormalError::MeanNotFinite
@@ -82,15 +169,8 @@ impl Normal {
     /// [`SdNotPositive`]: NormalError::SdNotPositive
     #[inline]
     pub fn try_new(mean: f64, sd: f64) -> Result<Self, NormalError> {
-        if !mean.is_finite() {
-            return Err(NormalError::MeanNotFinite(mean));
-        }
-        if !sd.is_finite() {
-            return Err(NormalError::SdNotFinite(sd));
-        }
-        if sd <= 0.0 {
-            return Err(NormalError::SdNotPositive(sd));
-        }
+        check_mean(mean)?;
+        check_sd(sd)?;
         Ok(Self { mean, sd })
     }
 
@@ -114,136 +194,92 @@ impl Normal {
 
     /// Returns the mean *μ* satisfying *p* = Pr[*X* ≤ *x*] given *σ*.
     ///
-    /// CDFLIB's `cdfnor` with `which = 3` (cdflib.f90:5695). Caller passes
-    /// both *p* and *q* = 1 − *p*; consistency is enforced within
-    /// 3ε via [`PQSumNotOne`]. Passing the pair preserves
-    /// tail precision when one tail is much smaller than the other.
+    /// CDFLIB's `cdfnor` with `which = 3`. The caller passes both *p* and
+    /// *q* = 1 − *p*, so that a small value of either keeps its precision;
+    /// they must sum to 1 within 3ε. A computed mean that is not finite, as
+    /// at *p* = 0 and *p* = 1, where it is ±∞, is reported as
+    /// [`MeanNotFinite`].
     ///
-    /// [`PQSumNotOne`]: NormalError::PQSumNotOne
+    /// [`MeanNotFinite`]: NormalError::MeanNotFinite
     #[inline]
     pub fn search_mean(p: f64, q: f64, x: f64, sd: f64) -> Result<f64, NormalError> {
+        check_p(p)?;
+        check_q(q)?;
         check_pq(p, q)?;
-        if !x.is_finite() {
-            return Err(NormalError::XNotFinite(x));
+        check_sd(sd)?;
+        check_x(x)?;
+        // Rust only: exact endpoints, where dinvnr gives NaN; the mean is
+        // then infinite.
+        if p == 0.0 {
+            return Err(NormalError::MeanNotFinite(f64::INFINITY));
         }
-        if !sd.is_finite() {
-            return Err(NormalError::SdNotFinite(sd));
+        if q == 0.0 {
+            return Err(NormalError::MeanNotFinite(f64::NEG_INFINITY));
         }
-        if sd <= 0.0 {
-            return Err(NormalError::SdNotPositive(sd));
-        }
+        // cdflib.f90:5864-5867
         let z = dinvnr(p, q);
-        Ok(x - sd * z)
+        let mean = x - sd * z;
+        // Rust only: the F90 returns mean whatever its value.
+        if !mean.is_finite() {
+            return Err(NormalError::MeanNotFinite(mean));
+        }
+        Ok(mean)
     }
 
     /// Returns the standard deviation *σ* satisfying *p* = Pr[*X* ≤ *x*] given *μ*.
     ///
-    /// CDFLIB's `cdfnor` with `which = 4` (cdflib.f90:5702). Caller passes
-    /// both *p* and *q*; see [`search_mean`] for the (*p*, *q*) convention.
+    /// CDFLIB's `cdfnor` with `which = 4`. The caller passes both *p* and
+    /// *q* = 1 − *p*; see [`search_mean`].
     ///
-    /// The case *p* = 1/2 with *x* = *μ* is underdetermined (every *σ* > 0
-    /// satisfies the equation); the formula returns a meaningless value
-    /// (typically 0 since the numerator is 0 and *dinvnr* converges to a
-    /// tiny non-zero denominator). F90 produces the same value.
+    /// The result is (*x* − *μ*) / Φ⁻¹(*p*), as in CDFLIB. Where CDFLIB
+    /// returns a value that is not strictly positive, Rust returns
+    /// [`SdNotPositive`] with that value: when *x* < *μ* and *p* > 1/2, or
+    /// *x* > *μ* and *p* < 1/2, no *σ* > 0 exists; when *x* = *μ* the
+    /// numerator is 0. For *p* = 0 or *p* = 1 the error carries 0, the
+    /// limit of the formula. At *p* = 1/2, `dinvnr` gives a tiny nonzero
+    /// value instead of 0, so *x* ≠ *μ* gives a huge *σ* of the sign of
+    /// *x* − *μ*, as in CDFLIB. A *σ* that is not finite is reported as
+    /// [`SdNotFinite`].
+    ///
+    /// [`SdNotPositive`]: NormalError::SdNotPositive
+    /// [`SdNotFinite`]: NormalError::SdNotFinite
     ///
     /// [`search_mean`]: Self::search_mean
     #[inline]
     pub fn search_sd(p: f64, q: f64, x: f64, mean: f64) -> Result<f64, NormalError> {
-        check_pq(p, q)?;
-        if !x.is_finite() {
-            return Err(NormalError::XNotFinite(x));
-        }
-        if !mean.is_finite() {
-            return Err(NormalError::MeanNotFinite(mean));
-        }
-        let z = dinvnr(p, q);
-        Ok((x - mean) / z)
-    }
-}
-
-#[inline]
-fn check_p(p: f64) -> Result<(), NormalError> {
-    if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(NormalError::PNotInRange(p))
-    } else {
-        Ok(())
-    }
-}
-
-#[inline]
-fn check_q(q: f64) -> Result<(), NormalError> {
-    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
-        Err(NormalError::QNotInRange(q))
-    } else {
-        Ok(())
-    }
-}
-
-#[inline]
-fn check_pq(p: f64, q: f64) -> Result<(), NormalError> {
-    check_p(p)?;
-    check_q(q)?;
-    // F90 cdflib.f90:5659 uses 3 * epsilon as the consistency tolerance.
-    if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
-        return Err(NormalError::PQSumNotOne { p, q });
-    }
-    Ok(())
-}
-
-impl ContinuousCdf for Normal {
-    type Error = NormalError;
-
-    #[inline]
-    fn cdf(&self, x: f64) -> f64 {
-        let (cum, _ccum) = cumnor((x - self.mean) / self.sd);
-        cum
-    }
-
-    /// Direct complementary-CDF computation, not 1 − cdf(*x*). Crucial for
-    /// preserving precision in the right tail (where cdf(*x*) saturates to
-    /// 1.0 well before the true value reaches it).
-    #[inline]
-    fn ccdf(&self, x: f64) -> f64 {
-        let (_cum, ccum) = cumnor((x - self.mean) / self.sd);
-        ccum
-    }
-
-    /// Quantile: *x* such that Pr[*X* ≤ *x*] = *p*.
-    ///
-    /// Maximum precision is achieved when *p* ≤ 1/2. For *p* > 1/2, the
-    /// internal *q* = 1 − *p* loses precision near *p* = 1; users with a
-    /// known small right-tail probability *q* should call [`inverse_ccdf`]
-    /// directly. (A single-argument API cannot carry both *p* and *q*
-    /// with full precision; CDFLIB's (*p*, *q*) pair convention
-    /// exists for exactly this reason.)
-    ///
-    /// [`inverse_ccdf`]: Self::inverse_ccdf
-    #[inline]
-    fn inverse_cdf(&self, p: f64) -> Result<f64, NormalError> {
         check_p(p)?;
-        if p == 0.0 {
-            return Ok(f64::NEG_INFINITY);
+        check_q(q)?;
+        check_pq(p, q)?;
+        check_x(x)?;
+        check_mean(mean)?;
+        // Rust only: exact endpoints, where dinvnr gives NaN; the limit of
+        // the formula is 0.
+        if p == 0.0 || q == 0.0 {
+            return Err(NormalError::SdNotPositive(0.0));
         }
-        if p == 1.0 {
-            return Ok(f64::INFINITY);
-        }
-        let q = 1.0 - p;
+        // cdflib.f90:5871-5874
         let z = dinvnr(p, q);
-        Ok(self.mean + self.sd * z)
+        let sd = (x - mean) / z;
+        // Rust only: the F90 returns sd whatever its value.
+        if sd.is_nan() || sd <= 0.0 {
+            return Err(NormalError::SdNotPositive(sd));
+        }
+        if !sd.is_finite() {
+            return Err(NormalError::SdNotFinite(sd));
+        }
+        Ok(sd)
     }
-}
 
-impl Normal {
     /// Returns the quantile *x* such that [ccdf]\(*x*\) = *q*.
     ///
-    /// Mirrors CDFLIB's `cdfnor` with `which = 2`, routed through the
-    /// upper-tail input so a small right-tail probability *q* keeps its
-    /// precision.
+    /// CDFLIB's `cdfnor` with `which = 2`, with *p* = 1 − *q*, so that a
+    /// small right-tail probability *q* keeps its precision.
     ///
     /// [ccdf]: crate::traits::ContinuousCdf::ccdf
     #[inline]
     pub fn inverse_ccdf(&self, q: f64) -> Result<f64, NormalError> {
         check_q(q)?;
+        // Rust only: exact endpoints.
         if q == 0.0 {
             return Ok(f64::INFINITY);
         }
@@ -251,8 +287,58 @@ impl Normal {
             return Ok(f64::NEG_INFINITY);
         }
         let p = 1.0 - q;
+        // cdflib.f90:5857-5860
         let z = dinvnr(p, q);
-        Ok(self.mean + self.sd * z)
+        let x = self.sd * z + self.mean;
+        Ok(x)
+    }
+}
+
+impl ContinuousCdf for Normal {
+    type Error = NormalError;
+
+    /// CDFLIB's `cdfnor` with `which = 1`.
+    #[inline]
+    fn cdf(&self, x: f64) -> f64 {
+        // cdflib.f90:5850-5853
+        let z = (x - self.mean) / self.sd;
+        let (cum, _ccum) = cumnor(z);
+        cum
+    }
+
+    /// CDFLIB's `cdfnor` with `which = 1`, computed directly rather than
+    /// as 1 − cdf(*x*), which preserves precision in the right tail.
+    #[inline]
+    fn ccdf(&self, x: f64) -> f64 {
+        // cdflib.f90:5850-5853
+        let z = (x - self.mean) / self.sd;
+        let (_cum, ccum) = cumnor(z);
+        ccum
+    }
+
+    /// CDFLIB's `cdfnor` with `which = 2`, with *q* = 1 − *p*.
+    ///
+    /// Maximum precision is achieved when *p* ≤ 1/2. For *p* > 1/2, the
+    /// internal *q* = 1 − *p* is exact, but it can be no finer than the
+    /// spacing of the doubles near 1; users with a known small right-tail
+    /// probability *q* should call [`inverse_ccdf`] directly.
+    ///
+    /// [`inverse_ccdf`]: Normal::inverse_ccdf
+    #[inline]
+    fn inverse_cdf(&self, p: f64) -> Result<f64, NormalError> {
+        check_p(p)?;
+        // Rust only: exact endpoints.
+        if p == 0.0 {
+            return Ok(f64::NEG_INFINITY);
+        }
+        if p == 1.0 {
+            return Ok(f64::INFINITY);
+        }
+        let q = 1.0 - p;
+        // cdflib.f90:5857-5860
+        let z = dinvnr(p, q);
+        let x = self.sd * z + self.mean;
+        Ok(x)
     }
 }
 
@@ -337,7 +423,7 @@ mod tests {
         // not be 0. CDFLIB-grade tail accuracy is the whole point.
         let n = Normal::new(0.0, 1.0);
         let s = n.ccdf(10.0);
-        assert!(s > 0.0 && s < 1e-22, "sf(10) = {s}");
+        assert!(s > 0.0 && s < 1e-22, "ccdf(10) = {s}");
     }
 
     #[test]
@@ -375,13 +461,15 @@ mod tests {
     }
 
     #[test]
-    fn search_sd_underdetermined_matches_f90() {
+    fn search_sd_underdetermined_is_an_error() {
         // p = 1/2 makes z ≈ 0 and x = mean makes the numerator zero, so
         // every sd > 0 satisfies the equation. F90 returns the meaningless
-        // value (x - mean) / dinvnr(0.5, 0.5) ≈ 0/tiny ≈ 0; we let that
-        // propagate rather than catching it with a typed error.
-        let r = Normal::search_sd(0.5, 0.5, 3.0, 3.0).unwrap();
-        assert_eq!(r, 0.0, "expected the F90 underdetermined value 0; got {r}");
+        // value (x - mean) / dinvnr(0.5, 0.5) ≈ 0/tiny ≈ 0, which Rust
+        // reports as SdNotPositive.
+        assert_eq!(
+            Normal::search_sd(0.5, 0.5, 3.0, 3.0),
+            Err(NormalError::SdNotPositive(0.0))
+        );
     }
 
     #[test]
@@ -469,5 +557,40 @@ mod tests {
         assert_eq!(n.std_dev(), 3.0);
         let expected_entropy = 0.5 * (2.0 * PI * E * 9.0).ln();
         assert!((n.entropy() - expected_entropy).abs() < 1e-15);
+    }
+
+    #[test]
+    fn search_endpoints() {
+        assert_eq!(
+            Normal::search_mean(0.0, 1.0, 1.0, 2.0),
+            Err(NormalError::MeanNotFinite(f64::INFINITY))
+        );
+        assert_eq!(
+            Normal::search_mean(1.0, 0.0, 1.0, 2.0),
+            Err(NormalError::MeanNotFinite(f64::NEG_INFINITY))
+        );
+        assert_eq!(
+            Normal::search_sd(0.0, 1.0, 1.0, 2.0),
+            Err(NormalError::SdNotPositive(0.0))
+        );
+        assert_eq!(
+            Normal::search_sd(1.0, 0.0, 3.0, 2.0),
+            Err(NormalError::SdNotPositive(0.0))
+        );
+    }
+
+    #[test]
+    fn search_sd_without_a_positive_solution_is_an_error() {
+        // x < mean with p > 1/2: CDFLIB returns a negative sd.
+        assert!(matches!(
+            Normal::search_sd(0.9, 0.1, 1.0, 2.0),
+            Err(NormalError::SdNotPositive(sd)) if sd < 0.0
+        ));
+        // x = mean: the numerator is 0.
+        assert!(matches!(
+            Normal::search_sd(0.9, 0.1, 2.0, 2.0),
+            Err(NormalError::SdNotPositive(_))
+        ));
+        assert!(Normal::search_sd(0.9, 0.1, 3.0, 2.0).unwrap() > 0.0);
     }
 }

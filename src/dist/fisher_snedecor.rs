@@ -1,14 +1,26 @@
 use crate::error::SearchError;
-use crate::search::{search_monotone, SEARCH_BOUND};
+use crate::search::dstinv;
 use crate::special::beta_inc;
 use crate::special::{beta_log, psi};
 use crate::traits::{Continuous, ContinuousCdf, Entropy, Mean, Variance};
 use thiserror::Error;
 
+// Parameters of cdff (cdflib.f90:4132-4148).
+const ATOL: f64 = 1.0e-10;
+const INF: f64 = 1.0e300;
+const TOL: f64 = 1.0e-8;
+
 /// Fisher–Snedecor (*F*) distribution with *dfn* numerator and *dfd*
 /// denominator degrees of freedom.
 ///
-/// The CDF reduces to the incomplete Β (Abramowitz–Stegun 26.5.28).
+/// The CDF reduces to the incomplete Β (Abramowitz–Stegun 26.6.2).
+///
+/// The methods correspond to CDFLIB's `cdff` (cdflib.f90:4028):
+/// `which = 1` is [`cdf`] / [`ccdf`], `which = 2` is [`inverse_cdf`] /
+/// [`inverse_ccdf`], `which = 3` is [`search_dfn`], `which = 4` is
+/// [`search_dfd`]. As CDFLIB warns, the CDF is not necessarily monotone in
+/// either degrees of freedom, so the searches assume monotonicity and find
+/// one of possibly two solutions.
 ///
 /// # Example
 ///
@@ -24,6 +36,13 @@ use thiserror::Error;
 /// // Compute numerator df given Pr[X ≤ 3.33] = 0.95 and dfd = 10
 /// let dfn = FisherSnedecor::search_dfn(0.95, 0.05, 3.33, 10.0).unwrap();
 /// ```
+///
+/// [`cdf`]: ContinuousCdf::cdf
+/// [`ccdf`]: ContinuousCdf::ccdf
+/// [`inverse_cdf`]: ContinuousCdf::inverse_cdf
+/// [`inverse_ccdf`]: FisherSnedecor::inverse_ccdf
+/// [`search_dfn`]: FisherSnedecor::search_dfn
+/// [`search_dfd`]: FisherSnedecor::search_dfd
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FisherSnedecor {
     dfn: f64,
@@ -33,43 +52,158 @@ pub struct FisherSnedecor {
 /// Errors arising from constructing a [`FisherSnedecor`] or from its
 /// parameter searches.
 ///
+/// The variants correspond to the `status` codes of CDFLIB's `cdff`.
+///
 /// [`FisherSnedecor`]: crate::FisherSnedecor
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum FisherSnedecorError {
-    /// The numerator degrees of freedom *dfn* was not strictly positive.
+    /// The numerator degrees of freedom *dfn* was not strictly positive
+    /// (`cdff` status −5). Rust also rejects the smallest subnormal number,
+    /// whose half, which `cumf` passes to `beta_inc`, is 0.
     #[error("numerator df must be positive, got {0}")]
     DfnNotPositive(f64),
-    /// The numerator degrees of freedom *dfn* was not finite.
+    /// The numerator degrees of freedom *dfn* was not finite (checked only
+    /// in Rust).
     #[error("numerator df must be finite, got {0}")]
     DfnNotFinite(f64),
-    /// The denominator degrees of freedom *dfd* was not strictly positive.
+    /// The denominator degrees of freedom *dfd* was not strictly positive
+    /// (`cdff` status −6). Rust also rejects the smallest subnormal number,
+    /// whose half, which `cumf` passes to `beta_inc`, is 0.
     #[error("denominator df must be positive, got {0}")]
     DfdNotPositive(f64),
-    /// The denominator degrees of freedom *dfd* was not finite.
+    /// The denominator degrees of freedom *dfd* was not finite (checked
+    /// only in Rust).
     #[error("denominator df must be finite, got {0}")]
     DfdNotFinite(f64),
     /// The value *f* (the point at which the CDF is evaluated) was not
-    /// strictly positive.
+    /// strictly positive (`cdff` status −4 for *f* < 0; Rust also rejects
+    /// *f* = 0, where Pr[*X* ≤ *f*] = 0 whatever the parameters).
     #[error("f must be positive, got {0}")]
     FNotPositive(f64),
-    /// The value *f* was not finite.
+    /// The value *f* was not finite (checked only in Rust).
     #[error("f must be finite, got {0}")]
     FNotFinite(f64),
-    /// The probability *p* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *p* fell outside [0 . . 1] (`cdff` status −2); NaN is
+    /// also rejected.
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (`cdff` status −3); NaN is
+    /// also rejected.
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
-    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3ε).
-    /// Mirrors CDFLIB's `cdff` status 3.
+    /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
+    /// (`cdff` status 3).
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
-    /// The internal root-finder failed; see [`SearchError`].
+    /// The search for the answer failed (`cdff` status 1 or 2); see
+    /// [`SearchError`].
     ///
     /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
     Search(#[from] SearchError),
+}
+
+/// Returns the cumulative *F* distribution (*cum*, *ccum*) at *f* with
+/// *dfn* and *dfd* degrees of freedom (`cumf`, cdflib.f90:7134).
+///
+/// The complement of *xx* = *dfd* / (*dfd* + *dfn*·*f*) is computed
+/// directly when *xx* > 0.5 to avoid cancellation.
+#[inline]
+pub(crate) fn cumf(f: f64, dfn: f64, dfd: f64) -> (f64, f64) {
+    if f <= 0.0 {
+        return (0.0, 1.0);
+    }
+    let prod = dfn * f;
+    let dsum = dfd + prod;
+    let mut xx = dfd / dsum;
+    let yy;
+    if 0.5 < xx {
+        yy = prod / dsum;
+        xx = 1.0 - yy;
+    } else {
+        yy = 1.0 - xx;
+    }
+    // F90 ignores the ierr of beta_inc. With dfn and dfd positive and
+    // halving to nonzero values, which the Rust checks ensure, beta_inc
+    // has no error exit.
+    let (ccum, cum) = beta_inc(0.5 * dfd, 0.5 * dfn, xx, yy);
+    (cum, ccum)
+}
+
+// cdflib.f90:4175-4194 (status -2). Rust also rejects NaN.
+#[inline]
+fn check_p(p: f64) -> Result<(), FisherSnedecorError> {
+    if p < 0.0 || 1.0 < p || p.is_nan() {
+        return Err(FisherSnedecorError::PNotInRange(p));
+    }
+    Ok(())
+}
+
+// cdflib.f90:4195-4214 (status -3). Rust also rejects NaN.
+#[inline]
+fn check_q(q: f64) -> Result<(), FisherSnedecorError> {
+    if q < 0.0 || 1.0 < q || q.is_nan() {
+        return Err(FisherSnedecorError::QNotInRange(q));
+    }
+    Ok(())
+}
+
+// cdflib.f90:4215-4227 (status -4). Rust also rejects f = 0 and a
+// non-finite f.
+#[inline]
+fn check_f(f: f64) -> Result<(), FisherSnedecorError> {
+    if f <= 0.0 {
+        return Err(FisherSnedecorError::FNotPositive(f));
+    }
+    if !f.is_finite() {
+        return Err(FisherSnedecorError::FNotFinite(f));
+    }
+    Ok(())
+}
+
+// cdflib.f90:4228-4240 (status -5). Rust also rejects a non-finite dfn.
+#[inline]
+fn check_dfn(dfn: f64) -> Result<(), FisherSnedecorError> {
+    if dfn <= 0.0 {
+        return Err(FisherSnedecorError::DfnNotPositive(dfn));
+    }
+    // Rust only: cumf then passes b = 0.5 * dfn = 0 to beta_inc, which
+    // fails when dfn * f underflows (ierr 7) or dfd halves to 0 too
+    // (ierr 2); the F90 ignores the error.
+    if 0.5 * dfn == 0.0 {
+        return Err(FisherSnedecorError::DfnNotPositive(dfn));
+    }
+    if !dfn.is_finite() {
+        return Err(FisherSnedecorError::DfnNotFinite(dfn));
+    }
+    Ok(())
+}
+
+// cdflib.f90:4241-4253 (status -6). Rust also rejects a non-finite dfd.
+#[inline]
+fn check_dfd(dfd: f64) -> Result<(), FisherSnedecorError> {
+    if dfd <= 0.0 {
+        return Err(FisherSnedecorError::DfdNotPositive(dfd));
+    }
+    // Rust only: cumf then passes a = 0.5 * dfd = 0 to beta_inc, which
+    // fails when xx = 0, for an infinite or overflowing dfn * f (ierr 6),
+    // or when dfn halves to 0 too (ierr 2); the F90 ignores the error.
+    if 0.5 * dfd == 0.0 {
+        return Err(FisherSnedecorError::DfdNotPositive(dfd));
+    }
+    if !dfd.is_finite() {
+        return Err(FisherSnedecorError::DfdNotFinite(dfd));
+    }
+    Ok(())
+}
+
+// cdflib.f90:4254-4265 (status 3).
+#[inline]
+fn check_pq(p: f64, q: f64) -> Result<(), FisherSnedecorError> {
+    if 3.0 * f64::EPSILON < ((p + q) - 1.0).abs() {
+        return Err(FisherSnedecorError::PQSumNotOne { p, q });
+    }
+    Ok(())
 }
 
 impl FisherSnedecor {
@@ -89,20 +223,18 @@ impl FisherSnedecor {
 
     /// Fallible counterpart of [`new`](Self::new) returning a
     /// [`FisherSnedecorError`] instead of panicking.
+    ///
+    /// Returns [`DfnNotPositive`], [`DfnNotFinite`], [`DfdNotPositive`], or
+    /// [`DfdNotFinite`] if either argument fails its validity check.
+    ///
+    /// [`DfnNotPositive`]: FisherSnedecorError::DfnNotPositive
+    /// [`DfnNotFinite`]: FisherSnedecorError::DfnNotFinite
+    /// [`DfdNotPositive`]: FisherSnedecorError::DfdNotPositive
+    /// [`DfdNotFinite`]: FisherSnedecorError::DfdNotFinite
     #[inline]
     pub fn try_new(dfn: f64, dfd: f64) -> Result<Self, FisherSnedecorError> {
-        if !dfn.is_finite() {
-            return Err(FisherSnedecorError::DfnNotFinite(dfn));
-        }
-        if dfn <= 0.0 {
-            return Err(FisherSnedecorError::DfnNotPositive(dfn));
-        }
-        if !dfd.is_finite() {
-            return Err(FisherSnedecorError::DfdNotFinite(dfd));
-        }
-        if dfd <= 0.0 {
-            return Err(FisherSnedecorError::DfdNotPositive(dfd));
-        }
+        check_dfn(dfn)?;
+        check_dfd(dfd)?;
         Ok(Self { dfn, dfd })
     }
 
@@ -119,236 +251,168 @@ impl FisherSnedecor {
     }
 
     /// Returns the numerator degrees of freedom *dfn* satisfying
-    /// Pr[*X* ≤ *f*] = *p* given *dfd*.
+    /// Pr[*X* ≤ *f*] = *p*, searched for in [1 . . 10³⁰⁰].
     ///
-    /// Mirrors CDFLIB's `cdff` with `which = 3`. Caller passes both *p* and *q*
-    /// = 1 − *p*; consistency is enforced within 3ε. The search has lower bound
-    /// 1, since *dfn* < 1 makes `cumf`'s `beta_inc` call diverge.
+    /// CDFLIB's `cdff` with `which = 3`. The caller passes both *p* and
+    /// *q* = 1 − *p*; they must sum to 1 within 3ε.
     #[inline]
     pub fn search_dfn(p: f64, q: f64, f: f64, dfd: f64) -> Result<f64, FisherSnedecorError> {
+        check_p(p)?;
+        check_q(q)?;
+        check_f(f)?;
+        check_dfd(dfd)?;
         check_pq(p, q)?;
-        if !f.is_finite() {
-            return Err(FisherSnedecorError::FNotFinite(f));
+
+        // cdflib.f90:4329-4374. The lower bound is 1, since dfn = 0 makes
+        // beta_inc fail inside cumf (cdflib.f90:4322-4325).
+        let bound_lo = 1.0;
+        let bound_hi = INF;
+        let mut d = dstinv(bound_lo, bound_hi, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
+        while d.status() == 1 {
+            let dfn = d.x();
+            let (cum, ccum) = cumf(f, dfn, dfd);
+            let fx = if p <= q { cum - p } else { ccum - q };
+            d.dinvr(fx);
         }
-        if f <= 0.0 {
-            return Err(FisherSnedecorError::FNotPositive(f));
-        }
-        if !dfd.is_finite() {
-            return Err(FisherSnedecorError::DfdNotFinite(dfd));
-        }
-        if dfd <= 0.0 {
-            return Err(FisherSnedecorError::DfdNotPositive(dfd));
-        }
-        // Mirror Fortran cdff's cum-p if p<=q else ccum-q precision pivot.
-        let func = |dfn: f64| {
-            let dist = FisherSnedecor { dfn, dfd };
-            let cum = dist.cdf(f);
-            let ccum = dist.ccdf(f);
-            if p <= q {
-                cum - p
+        if d.status() == -1 {
+            return Err(if d.qleft() {
+                SearchError::AnswerBelowLowerBound { bound: bound_lo }
             } else {
-                ccum - q
+                SearchError::AnswerAboveUpperBound { bound: bound_hi }
             }
-        };
-        Ok(search_monotone(
-            1.0,
-            SEARCH_BOUND,
-            5.0,
-            1.0,
-            SEARCH_BOUND,
-            func,
-        )?)
+            .into());
+        }
+        Ok(d.x())
     }
 
-    /// Returns the denominator degrees of freedom *dfd* satisfying Pr[*X* ≤
-    /// *f*] = *p* given *dfn*.
+    /// Returns the denominator degrees of freedom *dfd* satisfying
+    /// Pr[*X* ≤ *f*] = *p*, searched for in [1 . . 10³⁰⁰].
     ///
-    /// Mirrors CDFLIB's `cdff` with `which = 4`. Caller passes both *p* and *q*
-    /// = 1 − *p*; consistency is enforced within 3ε. Lower-bounded below by 1
-    /// for the same convergence reason as [`search_dfn`](Self::search_dfn).
+    /// CDFLIB's `cdff` with `which = 4`. The caller passes both *p* and
+    /// *q* = 1 − *p*; they must sum to 1 within 3ε.
     #[inline]
     pub fn search_dfd(p: f64, q: f64, f: f64, dfn: f64) -> Result<f64, FisherSnedecorError> {
-        check_pq(p, q)?;
-        if !f.is_finite() {
-            return Err(FisherSnedecorError::FNotFinite(f));
-        }
-        if f <= 0.0 {
-            return Err(FisherSnedecorError::FNotPositive(f));
-        }
-        if !dfn.is_finite() {
-            return Err(FisherSnedecorError::DfnNotFinite(dfn));
-        }
-        if dfn <= 0.0 {
-            return Err(FisherSnedecorError::DfnNotPositive(dfn));
-        }
-        // F CDF is increasing in dfd for fixed f > 0 and dfn.
-        let func = |dfd: f64| {
-            let dist = FisherSnedecor { dfn, dfd };
-            let cum = dist.cdf(f);
-            let ccum = dist.ccdf(f);
-            if p <= q {
-                cum - p
-            } else {
-                ccum - q
-            }
-        };
-        Ok(search_monotone(
-            1.0,
-            SEARCH_BOUND,
-            5.0,
-            1.0,
-            SEARCH_BOUND,
-            func,
-        )?)
-    }
-}
-
-#[inline]
-fn check_p(p: f64) -> Result<(), FisherSnedecorError> {
-    if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(FisherSnedecorError::PNotInRange(p))
-    } else {
-        Ok(())
-    }
-}
-
-#[inline]
-fn check_q(q: f64) -> Result<(), FisherSnedecorError> {
-    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
-        Err(FisherSnedecorError::QNotInRange(q))
-    } else {
-        Ok(())
-    }
-}
-
-#[inline]
-fn check_pq(p: f64, q: f64) -> Result<(), FisherSnedecorError> {
-    check_p(p)?;
-    check_q(q)?;
-    if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
-        return Err(FisherSnedecorError::PQSumNotOne { p, q });
-    }
-    Ok(())
-}
-
-/// `cumf`: CDF of the *F* distribution via the incomplete-Β reduction.
-fn cumf(f: f64, dfn: f64, dfd: f64) -> (f64, f64) {
-    if f <= 0.0 {
-        return (0.0, 1.0);
-    }
-    let prod = dfn * f;
-    let dsum = dfd + prod;
-    let mut xx = dfd / dsum;
-    let yy;
-    if xx > 0.5 {
-        yy = prod / dsum;
-        xx = 1.0 - yy;
-    } else {
-        yy = 1.0 - xx;
-    }
-    // beta_inc returns (P, Q, _). CDFLIB passes (ccum, cum) so the
-    // P returned by beta_inc is the CCUM of cumf.
-    let (p, q) = beta_inc(0.5 * dfd, 0.5 * dfn, xx, yy);
-    // ccum = p, cum = q.
-    (q, p)
-}
-
-impl ContinuousCdf for FisherSnedecor {
-    type Error = FisherSnedecorError;
-
-    #[inline]
-    fn cdf(&self, x: f64) -> f64 {
-        cumf(x, self.dfn, self.dfd).0
-    }
-
-    #[inline]
-    fn ccdf(&self, x: f64) -> f64 {
-        cumf(x, self.dfn, self.dfd).1
-    }
-
-    #[inline]
-    fn inverse_cdf(&self, p: f64) -> Result<f64, FisherSnedecorError> {
         check_p(p)?;
-        if p == 0.0 {
-            return Ok(0.0);
+        check_q(q)?;
+        check_f(f)?;
+        check_dfn(dfn)?;
+        check_pq(p, q)?;
+
+        // cdflib.f90:4385-4426. The lower bound is 1, since dfd = 0 makes
+        // beta_inc fail inside cumf (cdflib.f90:4378-4381).
+        let bound_lo = 1.0;
+        let bound_hi = INF;
+        let mut d = dstinv(bound_lo, bound_hi, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
+        while d.status() == 1 {
+            let dfd = d.x();
+            let (cum, ccum) = cumf(f, dfn, dfd);
+            let fx = if p <= q { cum - p } else { ccum - q };
+            d.dinvr(fx);
         }
-        if p == 1.0 {
-            return Ok(f64::INFINITY);
+        if d.status() == -1 {
+            return Err(if d.qleft() {
+                SearchError::AnswerBelowLowerBound { bound: bound_lo }
+            } else {
+                SearchError::AnswerAboveUpperBound { bound: bound_hi }
+            }
+            .into());
         }
+        Ok(d.x())
+    }
+
+    /// CDFLIB's `cdff` with `which = 2`: returns *f* given (*p*, *q*),
+    /// already checked.
+    fn search_f(&self, p: f64, q: f64) -> Result<f64, FisherSnedecorError> {
         let dfn = self.dfn;
         let dfd = self.dfd;
-        // Mirror cdff's which=2 precision pivot: cum-p if p<=q else
-        // ccum-q (cdflib.f90:4258), with q = 1 - p.
-        let q = 1.0 - p;
-        let func = |x: f64| {
-            let (cum, ccum) = cumf(x, dfn, dfd);
-            if p <= q {
-                cum - p
+        // cdflib.f90:4278-4318
+        let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
+        while d.status() == 1 {
+            let f = d.x();
+            let (cum, ccum) = cumf(f, dfn, dfd);
+            let fx = if p <= q { cum - p } else { ccum - q };
+            d.dinvr(fx);
+        }
+        if d.status() == -1 {
+            return Err(if d.qleft() {
+                SearchError::AnswerBelowLowerBound { bound: 0.0 }
             } else {
-                ccum - q
+                SearchError::AnswerAboveUpperBound { bound: INF }
             }
-        };
-        // Match cdff's which=2: range (0, inf), start = 5.0.
-        Ok(search_monotone(
-            0.0,
-            SEARCH_BOUND,
-            5.0,
-            0.0,
-            SEARCH_BOUND,
-            func,
-        )?)
+            .into());
+        }
+        Ok(d.x())
     }
-}
 
-impl FisherSnedecor {
-    /// Returns the quantile *x* such that [ccdf]\(*x*\) = *q*.
+    /// Returns the quantile *f* such that [ccdf]\(*f*\) = *q*, searched for
+    /// in [0 . . 10³⁰⁰].
     ///
-    /// Mirrors CDFLIB's `cdff` with `which = 2`, using the same
-    /// `cum - p` / `ccum - q` pivot as the Fortran routine.
+    /// CDFLIB's `cdff` with `which = 2`, with *p* = 1 − *q*.
     ///
     /// [ccdf]: crate::traits::ContinuousCdf::ccdf
     #[inline]
     pub fn inverse_ccdf(&self, q: f64) -> Result<f64, FisherSnedecorError> {
         check_q(q)?;
+        // Rust only: exact endpoints.
         if q == 1.0 {
             return Ok(0.0);
         }
         if q == 0.0 {
             return Ok(f64::INFINITY);
         }
-        let dfn = self.dfn;
-        let dfd = self.dfd;
         let p = 1.0 - q;
-        let func = |x: f64| {
-            let (cum, ccum) = cumf(x, dfn, dfd);
-            if p <= q {
-                cum - p
-            } else {
-                ccum - q
-            }
-        };
-        Ok(search_monotone(
-            0.0,
-            SEARCH_BOUND,
-            5.0,
-            0.0,
-            SEARCH_BOUND,
-            func,
-        )?)
+        self.search_f(p, q)
+    }
+}
+
+impl ContinuousCdf for FisherSnedecor {
+    type Error = FisherSnedecorError;
+
+    /// CDFLIB's `cdff` with `which = 1`.
+    #[inline]
+    fn cdf(&self, x: f64) -> f64 {
+        // Rust only: no status -4 for f < 0 (cdflib.f90:4215-4227); cumf
+        // returns (0, 1) there.
+        // cdflib.f90:4271
+        cumf(x, self.dfn, self.dfd).0
+    }
+
+    /// CDFLIB's `cdff` with `which = 1`.
+    #[inline]
+    fn ccdf(&self, x: f64) -> f64 {
+        // Rust only: no status -4 for f < 0 (cdflib.f90:4215-4227); cumf
+        // returns (0, 1) there.
+        // cdflib.f90:4271
+        cumf(x, self.dfn, self.dfd).1
+    }
+
+    /// CDFLIB's `cdff` with `which = 2`, with *q* = 1 − *p*.
+    #[inline]
+    fn inverse_cdf(&self, p: f64) -> Result<f64, FisherSnedecorError> {
+        check_p(p)?;
+        // Rust only: exact endpoints.
+        if p == 0.0 {
+            return Ok(0.0);
+        }
+        if p == 1.0 {
+            return Ok(f64::INFINITY);
+        }
+        let q = 1.0 - p;
+        self.search_f(p, q)
     }
 }
 
 impl Continuous for FisherSnedecor {
     #[inline]
     fn pdf(&self, x: f64) -> f64 {
-        if x <= 0.0 {
+        if x < 0.0 {
             return 0.0;
         }
         self.ln_pdf(x).exp()
     }
     #[inline]
     fn ln_pdf(&self, x: f64) -> f64 {
-        if x <= 0.0 {
+        if x < 0.0 {
             return f64::NEG_INFINITY;
         }
         let dfn = self.dfn;
@@ -356,7 +420,14 @@ impl Continuous for FisherSnedecor {
         // f(x) = (dfn/dfd)^(dfn/2) · x^(dfn/2-1) · (1 + dfn·x/dfd)^(-(dfn+dfd)/2) / Β(dfn/2, dfd/2)
         let half_dfn = dfn / 2.0;
         let half_dfd = dfd / 2.0;
-        half_dfn * (dfn / dfd).ln() + (half_dfn - 1.0) * x.ln()
+        // For dfn = 2 the term (dfn/2 - 1) ln x is 0 at x = 0, where it
+        // would be 0 · (-inf).
+        let ln_x_term = if half_dfn == 1.0 && x == 0.0 {
+            0.0
+        } else {
+            (half_dfn - 1.0) * x.ln()
+        };
+        half_dfn * (dfn / dfd).ln() + ln_x_term
             - (half_dfn + half_dfd) * (1.0 + dfn * x / dfd).ln()
             - beta_log(half_dfn, half_dfd)
     }
@@ -457,5 +528,28 @@ mod tests {
             FisherSnedecor::search_dfd(0.5, 0.5, 1.0, 0.0),
             Err(FisherSnedecorError::DfnNotPositive(0.0))
         ));
+    }
+
+    #[test]
+    fn df_halving_to_zero_is_rejected() {
+        // cumf passes dfn / 2 and dfd / 2 to beta_inc, which fails on 0.
+        let tiny = f64::from_bits(1);
+        assert_eq!(
+            FisherSnedecor::try_new(tiny, 1.0),
+            Err(FisherSnedecorError::DfnNotPositive(tiny))
+        );
+        assert_eq!(
+            FisherSnedecor::try_new(1.0, tiny),
+            Err(FisherSnedecorError::DfdNotPositive(tiny))
+        );
+        let d = FisherSnedecor::new(2.0 * tiny, 1.0);
+        assert!(d.cdf(0.1).is_finite());
+    }
+
+    #[test]
+    fn density_at_zero_is_the_limit() {
+        assert!((FisherSnedecor::new(2.0, 5.0).pdf(0.0) - 1.0).abs() < 1e-12);
+        assert_eq!(FisherSnedecor::new(1.0, 5.0).pdf(0.0), f64::INFINITY);
+        assert_eq!(FisherSnedecor::new(3.0, 5.0).pdf(0.0), 0.0);
     }
 }

@@ -1,69 +1,76 @@
-//! Error function and complementary error function.
+//! Error function and complementary error function (cdflib.f90:9294 and
+//! cdflib.f90:9450).
 
 #![allow(clippy::excessive_precision)]
 
-/// Largest negative argument to `exp` for which the result is nonzero in
-/// IEEE 754 binary64.
-///
-/// Matches F90's `exparg(1)` exactly: `0.99999 × (-1022) × 0.69314718055995`,
-/// where -1022 = `ipmpar(9) - 1` for IEEE binary64 and `0.69314718055995` is
-/// the literal `lnb` used by F90 for base b=2 (cdflib.f90:9544).
-const NEG_EXPARG: f64 = -708.389_334_568_083_540_9;
+use super::{exparg, pow2};
 
-// Coefficients for |x| ≤ 0.5.
+// Rational approximation tables. The F90 declares the same digits in both
+// error_f (cdflib.f90:9356-9386) and error_fc (cdflib.f90:9503-9534); they are
+// shared here.
 const A: [f64; 5] = [
-    7.71058495001320e-05,
-    -1.33733772997339e-03,
-    3.23076579225834e-02,
-    4.79137145607681e-02,
-    1.28379167095513e-01,
+    0.771058495001320e-4,
+    -0.133733772997339e-2,
+    0.323076579225834e-1,
+    0.479137145607681e-1,
+    0.128379167095513,
 ];
 const B: [f64; 3] = [
-    3.01048631703895e-03,
-    5.38971687740286e-02,
-    3.75795757275549e-01,
+    0.301048631703895e-2,
+    0.538971687740286e-1,
+    0.375795757275549,
 ];
-
-// Coefficients for 0.5 < |x| ≤ 4.
+const C: f64 = 0.564189583547756;
 const P: [f64; 8] = [
-    -1.36864857382717e-07,
-    5.64195517478974e-01,
-    7.21175825088309e+00,
-    4.31622272220567e+01,
-    1.52989285046940e+02,
-    3.39320816734344e+02,
-    4.51918953711873e+02,
-    3.00459261020162e+02,
+    -1.36864857382717e-7,
+    5.64195517478974e-1,
+    7.21175825088309,
+    4.31622272220567e1,
+    1.52989285046940e2,
+    3.39320816734344e2,
+    4.51918953711873e2,
+    3.00459261020162e2,
 ];
 const Q: [f64; 8] = [
-    1.00000000000000e+00,
-    1.27827273196294e+01,
-    7.70001529352295e+01,
-    2.77585444743988e+02,
-    6.38980264465631e+02,
-    9.31354094850610e+02,
-    7.90950925327898e+02,
-    3.00459260956983e+02,
+    1.00000000000000,
+    1.27827273196294e1,
+    7.70001529352295e1,
+    2.77585444743988e2,
+    6.38980264465631e2,
+    9.31354094850610e2,
+    7.90950925327898e2,
+    3.00459260956983e2,
 ];
-
-// Coefficients for |x| > 4.
 const R: [f64; 5] = [
-    2.10144126479064e+00,
-    2.62370141675169e+01,
-    2.13688200555087e+01,
-    4.65807828718470e+00,
-    2.82094791773523e-01,
+    2.10144126479064,
+    2.62370141675169e1,
+    2.13688200555087e1,
+    4.65807828718470,
+    2.82094791773523e-1,
 ];
 const S: [f64; 4] = [
-    9.41537750555460e+01,
-    1.87114811799590e+02,
-    9.90191814623914e+01,
-    1.80124575948747e+01,
+    9.41537750555460e1,
+    1.87114811799590e2,
+    9.90191814623914e1,
+    1.80124575948747e1,
 ];
 
-const C: f64 = 0.564189583547756;
-
-/// Returns the error function erf(*x*) = (2/√π) ∫₀ˣ e⁻*ᵗ*² d*t*.
+/// Evaluates the error function.
+///
+/// The function is defined by
+///
+/// erf(*x*) = (2 / √π) ∫₀ˣ exp(−*t*²) d*t*.
+///
+/// Properties of the function include: erf(*x*) → −1 as *x* → −∞;
+/// erf(0) = 0; erf(0.476936…) = 0.5; erf(*x*) → +1 as *x* → +∞; and
+/// ½ (erf(*x* / √2) + 1) = Φ(*x*).
+///
+/// Since some compilers already supply a routine named `erf`, CDFLIB gives
+/// this routine the distinct name `error_f` (cdflib.f90:9294).
+///
+/// Reference: Armido DiDinato, Alfred Morris, Algorithm 708: Significant
+/// Digit Computation of the Incomplete Beta Function Ratios, ACM Transactions
+/// on Mathematical Software, Volume 18, 1993, pages 360-373.
 ///
 /// # Example
 ///
@@ -75,52 +82,59 @@ const C: f64 = 0.564189583547756;
 /// ```
 #[inline]
 pub fn error_f(x: f64) -> f64 {
+    let mut error_f;
+
     let ax = x.abs();
 
-    let mut erf = if ax <= 0.5 {
+    if ax <= 0.5 {
         let t = x * x;
-        let top = ((((A[0] * t + A[1]) * t + A[2]) * t + A[3]) * t) + A[4] + 1.0;
+
+        let top = ((((A[0] * t + A[1]) * t + A[2]) * t + A[3]) * t + A[4]) + 1.0;
+
         let bot = ((B[0] * t + B[1]) * t + B[2]) * t + 1.0;
-        ax * (top / bot)
+        error_f = ax * (top / bot);
     } else if ax <= 4.0 {
-        let top = (((((((P[0] * ax + P[1]) * ax + P[2]) * ax + P[3]) * ax + P[4]) * ax + P[5])
-            * ax
+        let top = ((((((P[0] * ax + P[1]) * ax + P[2]) * ax + P[3]) * ax + P[4]) * ax + P[5]) * ax
             + P[6])
-            * ax)
-            + P[7];
-        let bot = (((((((Q[0] * ax + Q[1]) * ax + Q[2]) * ax + Q[3]) * ax + Q[4]) * ax + Q[5])
             * ax
+            + P[7];
+
+        let bot = ((((((Q[0] * ax + Q[1]) * ax + Q[2]) * ax + Q[3]) * ax + Q[4]) * ax + Q[5]) * ax
             + Q[6])
-            * ax)
+            * ax
             + Q[7];
-        // erf = 1 - exp(-x²) * top/bot ; written as 0.5 + (0.5 - …) for
-        // tail-precision-friendly assembly, matching CDFLIB.
-        0.5 + (0.5 - (-(x * x)).exp() * top / bot)
+
+        error_f = 0.5 + (0.5 - (-(x * x)).exp() * top / bot);
     } else if ax < 5.8 {
         let x2 = x * x;
         let t = 1.0 / x2;
+
         let top = (((R[0] * t + R[1]) * t + R[2]) * t + R[3]) * t + R[4];
+
         let bot = (((S[0] * t + S[1]) * t + S[2]) * t + S[3]) * t + 1.0;
-        let erf = (C - top / (x2 * bot)) / ax;
-        0.5 + (0.5 - (-x2).exp() * erf)
+
+        error_f = (C - top / (x2 * bot)) / ax;
+        error_f = 0.5 + (0.5 - (-x2).exp() * error_f);
     } else {
-        // |x| >= 5.8: erf saturates to 1 before the sign fixup.
-        1.0
-    };
-    if x < 0.0 {
-        erf = -erf;
+        error_f = 1.0;
     }
-    erf
+
+    if x < 0.0 {
+        error_f = -error_f;
+    }
+
+    error_f
 }
 
-/// Returns the complementary error function erfc(*x*) = 1 − erf(*x*).
+/// Evaluates the complementary error function erfc(*x*) = 1 − erf(*x*).
 ///
-/// Computed directly (not as `1 - error_f(x)`) so the small right-tail
-/// values stay accurate to ~15 digits. CDFLIB exposes this and the scaled
-/// variant [`error_fc_scaled`] via a single `int *ind` flag; we split them
-/// into two Rust functions for clarity.
+/// This is CDFLIB's `error_fc(ind, x)` (cdflib.f90:9450) with *ind* = 0.
+/// The value is computed directly, not as 1 − [`error_f`]\(*x*\), so that
+/// small right-tail values keep full relative accuracy.
 ///
-/// [`error_fc_scaled`]: crate::special::error_fc_scaled
+/// Reference: Armido DiDinato, Alfred Morris, Algorithm 708: Significant
+/// Digit Computation of the Incomplete Beta Function Ratios, ACM Transactions
+/// on Mathematical Software, Volume 18, 1993, pages 360-373.
 ///
 /// # Example
 ///
@@ -130,77 +144,115 @@ pub fn error_f(x: f64) -> f64 {
 /// let y = error_fc(2.0);
 /// assert!((y - 0.00467773).abs() < 1e-8);
 /// ```
+///
+/// [`error_f`]: crate::special::error_f
 #[inline]
 pub fn error_fc(x: f64) -> f64 {
-    error_fc_inner(x, false)
+    error_fc_ind(0, x)
 }
 
-/// Returns erfc(*x*) · exp(*x*²). Useful for very large |*x*| where erfc itself
-/// underflows but its exponentially-scaled form does not.
+/// Evaluates the scaled complementary error function exp(*x*²) · erfc(*x*).
+///
+/// This is CDFLIB's `error_fc(ind, x)` (cdflib.f90:9450) with *ind* ≠ 0:
+/// the value returned has been multiplied by exp(*x*²). It stays finite for
+/// large positive *x*, where erfc(*x*) itself underflows.
+///
+/// Reference: Armido DiDinato, Alfred Morris, Algorithm 708: Significant
+/// Digit Computation of the Incomplete Beta Function Ratios, ACM Transactions
+/// on Mathematical Software, Volume 18, 1993, pages 360-373.
 #[inline]
 pub fn error_fc_scaled(x: f64) -> f64 {
-    error_fc_inner(x, true)
+    error_fc_ind(1, x)
 }
 
-fn error_fc_inner(x: f64, scaled: bool) -> f64 {
+// The body of error_fc (cdflib.f90:9450-9640). If ind is nonzero, the value
+// returned has been multiplied by exp(x * x).
+#[allow(clippy::assign_op_pattern)]
+fn error_fc_ind(ind: i32, x: f64) -> f64 {
+    let mut error_fc;
+
+    // Case abs(x) <= 0.5.
     let ax = x.abs();
 
-    // |x| ≤ 0.5
     if ax <= 0.5 {
         let t = x * x;
-        let top = ((((A[0] * t + A[1]) * t + A[2]) * t + A[3]) * t) + A[4] + 1.0;
+
+        let top = ((((A[0] * t + A[1]) * t + A[2]) * t + A[3]) * t + A[4]) + 1.0;
+
         let bot = ((B[0] * t + B[1]) * t + B[2]) * t + 1.0;
-        let mut erfc = 0.5 + (0.5 - x * (top / bot));
-        if scaled {
-            erfc *= t.exp();
+
+        error_fc = 0.5 + (0.5 - x * (top / bot));
+
+        if ind != 0 {
+            error_fc = t.exp() * error_fc;
         }
-        return erfc;
+
+        return error_fc;
     }
 
-    // 0.5 < |x| ≤ 4
-    let mut erfc;
+    // Case 0.5 < abs(x) <= 4.
     if ax <= 4.0 {
-        let top = (((((((P[0] * ax + P[1]) * ax + P[2]) * ax + P[3]) * ax + P[4]) * ax + P[5])
-            * ax
+        let top = ((((((P[0] * ax + P[1]) * ax + P[2]) * ax + P[3]) * ax + P[4]) * ax + P[5]) * ax
             + P[6])
-            * ax)
-            + P[7];
-        let bot = (((((((Q[0] * ax + Q[1]) * ax + Q[2]) * ax + Q[3]) * ax + Q[4]) * ax + Q[5])
             * ax
+            + P[7];
+
+        let bot = ((((((Q[0] * ax + Q[1]) * ax + Q[2]) * ax + Q[3]) * ax + Q[4]) * ax + Q[5]) * ax
             + Q[6])
-            * ax)
+            * ax
             + Q[7];
-        erfc = top / bot;
+
+        error_fc = top / bot;
     } else {
-        // |x| > 4
-        // Large-negative-x cutoff: erfc(x) → 2 as x → -∞.
+        // Case 4 < abs(x).
         if x <= -5.6 {
-            return if scaled { 2.0 * (x * x).exp() } else { 2.0 };
-        }
-        // For the unscaled form, also check the overflow boundary on the
-        // positive side: when -x² ≤ NEG_EXPARG, exp(-x²) underflows.
-        if !scaled && (x > 100.0 || x * x > -NEG_EXPARG) {
-            return 0.0;
+            if ind == 0 {
+                error_fc = 2.0;
+            } else {
+                error_fc = 2.0 * (x * x).exp();
+            }
+
+            return error_fc;
         }
 
-        let t = (1.0 / x).powi(2);
+        if ind == 0 {
+            if 100.0 < x {
+                error_fc = 0.0;
+                return error_fc;
+            }
+
+            if -exparg(1) < x * x {
+                error_fc = 0.0;
+                return error_fc;
+            }
+        }
+
+        let t = pow2(1.0 / x);
+
         let top = (((R[0] * t + R[1]) * t + R[2]) * t + R[3]) * t + R[4];
+
         let bot = (((S[0] * t + S[1]) * t + S[2]) * t + S[3]) * t + 1.0;
-        erfc = (C - t * top / bot) / ax;
+
+        error_fc = (C - t * top / bot) / ax;
     }
 
     // Final assembly.
-    if scaled {
+    if ind != 0 {
         if x < 0.0 {
-            erfc = 2.0 * (x * x).exp() - erfc;
+            error_fc = 2.0 * (x * x).exp() - error_fc;
         }
     } else {
-        erfc *= (-(x * x)).exp();
+        let w = x * x;
+        let t = w;
+        let e = w - t;
+        error_fc = ((0.5 + (0.5 - e)) * (-t).exp()) * error_fc;
+
         if x < 0.0 {
-            erfc = 2.0 - erfc;
+            error_fc = 2.0 - error_fc;
         }
     }
-    erfc
+
+    error_fc
 }
 
 #[cfg(test)]

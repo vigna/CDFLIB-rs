@@ -1,9 +1,17 @@
 use crate::error::SearchError;
-use crate::search::{search_monotone, SEARCH_BOUND};
-use crate::special::gamma_inc;
+use crate::search::dstinv;
 use crate::special::gamma_log;
+use crate::special::GammaIncError;
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 use thiserror::Error;
+
+use super::chi_squared::cumchi;
+use super::integer_quantile;
+
+// Parameters of cdfpoi (cdflib.f90:5971-5983).
+const ATOL: f64 = 1.0e-10;
+const INF: f64 = 1.0e300;
+const TOL: f64 = 1.0e-8;
 
 /// Poisson distribution with rate parameter *λ*.
 ///
@@ -12,11 +20,13 @@ use thiserror::Error;
 /// The CDF reduces to the regularized upper incomplete Γ:
 /// Pr[*X* ≤ *s*] = *Q*(*s* + 1, *λ*).
 ///
+/// The methods correspond to CDFLIB's `cdfpoi` (cdflib.f90:5880), whose
+/// XLAM is *λ*: `which = 1` is [`cdf`] / [`ccdf`], `which = 2` is
+/// [`inverse_ccdf`], `which = 3` is [`search_lambda`].
+///
 /// # Notes
 ///
 /// [`Entropy`] is not implemented.
-///
-/// [`Entropy`]: crate::traits::Entropy
 ///
 /// # Example
 ///
@@ -36,6 +46,12 @@ use thiserror::Error;
 /// // Compute lambda given Pr[X ≤ 3] = 0.5
 /// let lambda = Poisson::search_lambda(0.5, 0.5, 3).unwrap();
 /// ```
+///
+/// [`Entropy`]: crate::traits::Entropy
+/// [`cdf`]: DiscreteCdf::cdf
+/// [`ccdf`]: DiscreteCdf::ccdf
+/// [`inverse_ccdf`]: Poisson::inverse_ccdf
+/// [`search_lambda`]: Poisson::search_lambda
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Poisson {
     lambda: f64,
@@ -43,39 +59,105 @@ pub struct Poisson {
 
 /// Errors arising from constructing a [`Poisson`] or from its parameter search.
 ///
+/// The variants correspond to the `status` codes of CDFLIB's `cdfpoi`.
+///
 /// [`Poisson`]: crate::Poisson
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum PoissonError {
-    /// The rate parameter *λ* was negative.
-    ///
-    /// CDFLIB's `cdfpoi` accepts *λ* = 0 (cdflib.f90:7541), a degenerate
-    /// distribution concentrated at 0, so we reject only strictly
-    /// negative values.
+    /// The rate parameter *λ* was negative (`cdfpoi` status −5). *λ* = 0,
+    /// a degenerate distribution concentrated at 0, is accepted.
     #[error("lambda must be ≥ 0, got {0}")]
     LambdaNegative(f64),
-    /// The rate parameter *λ* was not finite.
+    /// The rate parameter *λ* was not finite (checked only in Rust).
     #[error("lambda must be finite, got {0}")]
     LambdaNotFinite(f64),
-    /// The probability *p* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *p* fell outside [0 . . 1] (`cdfpoi` status −2); NaN is
+    /// also rejected.
     #[error("probability {0} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1] (or was non-finite).
+    /// The probability *q* fell outside [0 . . 1] (`cdfpoi` status −3); NaN is
+    /// also rejected.
     #[error("probability {0} outside [0..1]")]
     QNotInRange(f64),
-    /// The pair (*p*, *q*) is not complementary (|*p* + *q* − 1| > 3ε).
-    /// Mirrors CDFLIB's `cdfpoi` status 3.
+    /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
+    /// (`cdfpoi` status 3).
     #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
-    /// The internal root-finder failed; see [`SearchError`].
+    /// The search for the answer failed (`cdfpoi` status 1 or 2); see
+    /// [`SearchError`].
     ///
     /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
     Search(#[from] SearchError),
 }
 
+/// Returns the cumulative Poisson distribution (*cum*, *ccum*) of *s* or
+/// fewer events with mean *xlam* (`cumpoi`, cdflib.f90:7796).
+///
+/// The error value of `gamma_inc`, which CDFLIB passes on unchecked, is
+/// returned as a [`GammaIncError`].
+///
+/// [`GammaIncError`]: crate::special::GammaIncError
+#[inline]
+pub(crate) fn cumpoi(s: f64, xlam: f64) -> Result<(f64, f64), GammaIncError> {
+    let df = 2.0 * (s + 1.0);
+    let chi = 2.0 * xlam;
+    let (ccum, cum) = cumchi(chi, df)?;
+    Ok((cum, ccum))
+}
+
+// Rust only: cdfpoi has no status for an error value of gamma_inc, which it
+// passes on as a probability; it can occur only for s and xlam beyond 6.6e28,
+// with xlam within a few ulps of s + 1.
+#[inline]
+fn cumpoi_or_panic(s: f64, xlam: f64) -> (f64, f64) {
+    match cumpoi(s, xlam) {
+        Ok(r) => r,
+        Err(e) => panic!("cumpoi({s}, {xlam}): {e}"),
+    }
+}
+
+// cdflib.f90:6012-6030 (status -2). Rust also rejects NaN.
+#[inline]
+fn check_p(p: f64) -> Result<(), PoissonError> {
+    if p < 0.0 || 1.0 < p || p.is_nan() {
+        return Err(PoissonError::PNotInRange(p));
+    }
+    Ok(())
+}
+
+// cdflib.f90:6032-6050 (status -3). Rust also rejects NaN.
+#[inline]
+fn check_q(q: f64) -> Result<(), PoissonError> {
+    if q < 0.0 || 1.0 < q || q.is_nan() {
+        return Err(PoissonError::QNotInRange(q));
+    }
+    Ok(())
+}
+
+// cdflib.f90:6065-6076 (status -5). Rust also rejects a non-finite xlam.
+#[inline]
+fn check_xlam(xlam: f64) -> Result<(), PoissonError> {
+    if xlam < 0.0 {
+        return Err(PoissonError::LambdaNegative(xlam));
+    }
+    if !xlam.is_finite() {
+        return Err(PoissonError::LambdaNotFinite(xlam));
+    }
+    Ok(())
+}
+
+// cdflib.f90:6078-6088 (status 3).
+#[inline]
+fn check_pq(p: f64, q: f64) -> Result<(), PoissonError> {
+    if 3.0 * f64::EPSILON < ((p + q) - 1.0).abs() {
+        return Err(PoissonError::PQSumNotOne { p, q });
+    }
+    Ok(())
+}
+
 impl Poisson {
-    /// Construct a Poisson(*λ*) distribution with rate *λ* ≥ 0. The
-    /// degenerate case *λ* = 0 gives a point mass at *s* = 0.
+    /// Construct a Poisson(*λ*) distribution with *λ* ≥ 0.
     ///
     /// # Panics
     ///
@@ -87,22 +169,16 @@ impl Poisson {
         Self::try_new(lambda).unwrap()
     }
 
-    /// Fallible counterpart of [`new`](Self::new) returning a [`PoissonError`]
-    /// instead of panicking.
+    /// Fallible counterpart of [`new`](Self::new) returning a
+    /// [`PoissonError`] instead of panicking.
     ///
-    /// Returns [`LambdaNegative`] or [`LambdaNotFinite`] if *λ* fails its
-    /// validity check.
+    /// Returns [`LambdaNegative`] or [`LambdaNotFinite`] otherwise.
     ///
     /// [`LambdaNegative`]: PoissonError::LambdaNegative
     /// [`LambdaNotFinite`]: PoissonError::LambdaNotFinite
     #[inline]
     pub fn try_new(lambda: f64) -> Result<Self, PoissonError> {
-        if !lambda.is_finite() {
-            return Err(PoissonError::LambdaNotFinite(lambda));
-        }
-        if lambda < 0.0 {
-            return Err(PoissonError::LambdaNegative(lambda));
-        }
+        check_xlam(lambda)?;
         Ok(Self { lambda })
     }
 
@@ -112,79 +188,121 @@ impl Poisson {
         self.lambda
     }
 
-    /// Returns the rate parameter *λ* satisfying Pr[*X* ≤ *s*] = *p*.
+    /// Returns the rate parameter *λ* satisfying Pr[*X* ≤ *s*] = *p*,
+    /// searched for in [0 . . 10³⁰⁰].
     ///
-    /// Mirrors CDFLIB's `cdfpoi` with `which = 3`. Caller passes both
-    /// *p* and *q* = 1 − *p*; consistency is enforced within 3ε.
+    /// CDFLIB's `cdfpoi` with `which = 3`. The caller passes both *p* and
+    /// *q* = 1 − *p*; they must sum to 1 within 3ε.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the search evaluates `gamma_inc` where it cannot compute
+    /// its result, which needs *s* and *λ* beyond 6.6 · 10²⁸.
     #[inline]
     pub fn search_lambda(p: f64, q: f64, s: u64) -> Result<f64, PoissonError> {
+        check_p(p)?;
+        check_q(q)?;
+        // Rust only: the test s < 0 (cdflib.f90:6054-6063, status -4) is
+        // dropped, since s is a u64.
         check_pq(p, q)?;
-        let sf = s as f64;
-        // CDF is decreasing in λ for fixed s (more mass shifts right).
-        // Mirror cdfpoi's if p <= q then cum-p else ccum-q precision pivot.
-        let f = |lambda: f64| {
-            let (sf_upper, cdf) = gamma_inc(sf + 1.0, lambda);
-            if p <= q {
-                cdf - p
+        let s = s as f64;
+
+        // cdflib.f90:6145-6183
+        let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
+        while d.status() == 1 {
+            let xlam = d.x();
+            let (cum, ccum) = cumpoi_or_panic(s, xlam);
+            let fx = if p <= q { cum - p } else { ccum - q };
+            d.dinvr(fx);
+        }
+        if d.status() == -1 {
+            return Err(if d.qleft() {
+                SearchError::AnswerBelowLowerBound { bound: 0.0 }
             } else {
-                sf_upper - q
+                SearchError::AnswerAboveUpperBound { bound: INF }
             }
-        };
-        // Match cdfpoi's which=3: range (0, inf), start = 5.0.
-        Ok(search_monotone(
-            0.0,
-            SEARCH_BOUND,
-            5.0,
-            0.0,
-            SEARCH_BOUND,
-            f,
-        )?)
+            .into());
+        }
+        Ok(d.x())
     }
-}
 
-#[inline]
-fn check_p(p: f64) -> Result<(), PoissonError> {
-    if !(0.0..=1.0).contains(&p) || !p.is_finite() {
-        Err(PoissonError::PNotInRange(p))
-    } else {
-        Ok(())
-    }
-}
+    /// Returns the real-valued *s* such that [cdf]\(*s*\) = 1 − *q* on the
+    /// continuous extension of the CDF, searched for in [0 . . 10³⁰⁰].
+    ///
+    /// CDFLIB's `cdfpoi` with `which = 2`, with *p* = 1 − *q*.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the search evaluates `gamma_inc` where it cannot compute
+    /// its result, which needs *s* and *λ* beyond 6.6 · 10²⁸.
+    ///
+    /// [cdf]: crate::traits::DiscreteCdf::cdf
+    #[inline]
+    pub fn inverse_ccdf(&self, q: f64) -> Result<f64, PoissonError> {
+        check_q(q)?;
+        let p = 1.0 - q;
+        let xlam = self.lambda;
 
-#[inline]
-fn check_q(q: f64) -> Result<(), PoissonError> {
-    if !(0.0..=1.0).contains(&q) || !q.is_finite() {
-        Err(PoissonError::QNotInRange(q))
-    } else {
-        Ok(())
+        // cdflib.f90:6101-6139
+        let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
+        while d.status() == 1 {
+            let s = d.x();
+            let (cum, ccum) = cumpoi_or_panic(s, xlam);
+            let fx = if p <= q { cum - p } else { ccum - q };
+            d.dinvr(fx);
+        }
+        if d.status() == -1 {
+            return Err(if d.qleft() {
+                SearchError::AnswerBelowLowerBound { bound: 0.0 }
+            } else {
+                SearchError::AnswerAboveUpperBound { bound: INF }
+            }
+            .into());
+        }
+        Ok(d.x())
     }
-}
-
-#[inline]
-fn check_pq(p: f64, q: f64) -> Result<(), PoissonError> {
-    check_p(p)?;
-    check_q(q)?;
-    if (p + q - 1.0).abs() > 3.0 * f64::EPSILON {
-        return Err(PoissonError::PQSumNotOne { p, q });
-    }
-    Ok(())
 }
 
 impl DiscreteCdf for Poisson {
     type Error = PoissonError;
 
+    /// CDFLIB's `cdfpoi` with `which = 1`.
+    ///
+    /// # Panics
+    ///
+    /// Panics where `gamma_inc` cannot compute its result, which needs *s*
+    /// and *λ* beyond 6.6 · 10²⁸.
     #[inline]
     fn cdf(&self, s: u64) -> f64 {
-        let (_, q) = gamma_inc(s as f64 + 1.0, self.lambda);
-        q
+        // Rust only: the test s < 0 (cdflib.f90:6054-6063) is vacuous for a
+        // u64.
+        // cdflib.f90:6094
+        cumpoi_or_panic(s as f64, self.lambda).0
     }
 
+    /// CDFLIB's `cdfpoi` with `which = 1`.
+    ///
+    /// # Panics
+    ///
+    /// Panics where `gamma_inc` cannot compute its result, which needs *s*
+    /// and *λ* beyond 6.6 · 10²⁸.
     #[inline]
     fn ccdf(&self, s: u64) -> f64 {
-        let (p, _) = gamma_inc(s as f64 + 1.0, self.lambda);
-        p
+        // Rust only: the test s < 0 (cdflib.f90:6054-6063) is vacuous for a
+        // u64.
+        // cdflib.f90:6094
+        cumpoi_or_panic(s as f64, self.lambda).1
     }
 
+    /// Rust only: the smallest integer *s* with [`cdf`](Self::cdf)(*s*) ≥
+    /// *p* ([`u64::MAX`] if none). CDFLIB has no counterpart; its
+    /// `which = 2` solves for a real *s* (see [`inverse_ccdf`]).
+    ///
+    /// # Panics
+    ///
+    /// Panics as [`cdf`](Self::cdf) does.
+    ///
+    /// [`inverse_ccdf`]: Poisson::inverse_ccdf
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<u64, PoissonError> {
         check_p(p)?;
@@ -194,67 +312,7 @@ impl DiscreteCdf for Poisson {
         if p == 1.0 {
             return Ok(u64::MAX);
         }
-        // Sample then halve the integer range; the CDF is monotone increasing in s.
-        // Start with mean ± 5σ.
-        let mean = self.lambda;
-        let sd = self.lambda.sqrt();
-        let mut hi = (mean + 10.0 * sd + 10.0).ceil() as u64;
-        // Expand until cdf(hi) >= p.
-        while self.cdf(hi) < p && hi < u64::MAX / 2 {
-            hi *= 2;
-        }
-        // Unreachable for any f64-representable λ (Poisson tails decay much
-        // faster than 2⁶²), but if the expansion exits without finding a sign change,
-        // saturate at u64::MAX so the contract "smallest x with cdf(x) ≥ p"
-        // is never silently violated.
-        if self.cdf(hi) < p {
-            return Ok(u64::MAX);
-        }
-        let mut lo = 0u64;
-        while lo < hi {
-            let mid = lo + (hi - lo) / 2;
-            if self.cdf(mid) < p {
-                lo = mid + 1;
-            } else {
-                hi = mid;
-            }
-        }
-        Ok(lo)
-    }
-}
-
-impl Poisson {
-    /// Returns the real-valued *s* such that [cdf]\(*s*\) = 1 − *q*.
-    ///
-    /// Mirrors CDFLIB's `cdfpoi` with `which = 2` (cdflib.f90:5915-5938):
-    /// single dinvr loop, residual cum-p if p≤q else ccum-q.
-    ///
-    /// [cdf]: crate::traits::DiscreteCdf::cdf
-    #[inline]
-    pub fn inverse_ccdf(&self, q: f64) -> Result<f64, PoissonError> {
-        check_q(q)?;
-        let lambda = self.lambda;
-        let p = 1.0 - q;
-        // F90 cumpoi(s, λ) writes cum and ccum: cum = Q(s+1, λ) = Poisson CDF,
-        // ccum = P(s+1, λ) = Poisson SF. Rust gamma_inc returns (P, Q) so
-        // the binding order is (ccum, cum).
-        let f = |s: f64| {
-            let (ccum, cum) = gamma_inc(s + 1.0, lambda);
-            if p <= q {
-                cum - p
-            } else {
-                ccum - q
-            }
-        };
-        // F90 dstinv(0.0, inf, 0.5, 0.5, 5.0, atol, tol); s = 5.0.
-        Ok(search_monotone(
-            0.0,
-            SEARCH_BOUND,
-            5.0,
-            0.0,
-            SEARCH_BOUND,
-            f,
-        )?)
+        Ok(integer_quantile(p, u64::MAX, |s| self.cdf(s)))
     }
 }
 
@@ -265,6 +323,9 @@ impl Discrete for Poisson {
     }
     #[inline]
     fn ln_pmf(&self, s: u64) -> f64 {
+        if self.lambda == 0.0 {
+            return if s == 0 { 0.0 } else { f64::NEG_INFINITY };
+        }
         let sf = s as f64;
         sf * self.lambda.ln() - self.lambda - gamma_log(sf + 1.0)
     }
@@ -295,7 +356,7 @@ mod tests {
             Err(PoissonError::LambdaNegative(_))
         ));
         // λ = 0 is the degenerate point mass at 0; CDFLIB accepts it
-        // (cdflib.f90:7541), so the Rust port does too.
+        // (cdflib.f90:6065-6076 reject only xlam < 0), so the Rust port does too.
         assert!(Poisson::try_new(0.0).is_ok());
         assert!(matches!(
             Poisson::try_new(f64::NAN),
@@ -367,8 +428,8 @@ mod tests {
 
     // Search convergence in this regime depends on the host FPU's exact
     // ln/exp results; miri's soft-float libm shims accumulate enough drift
-    // through gamma_inc that the range-and-refine step can no longer
-    // certify a sign change. Skipped under miri.
+    // through gamma_inc that the dinvr bracketing cannot certify a sign
+    // change. Skipped under miri.
     #[cfg(not(miri))]
     #[test]
     fn search_lambda_uses_precision_pivot_at_both_tails() {
@@ -403,5 +464,13 @@ mod tests {
         assert_eq!(p.mean(), 4.0);
         assert_eq!(p.variance(), 4.0);
         assert!(p.ln_pmf(3).is_finite());
+    }
+
+    #[test]
+    fn pmf_at_zero_rate() {
+        let p = Poisson::new(0.0);
+        assert_eq!(p.pmf(0), 1.0);
+        assert_eq!(p.pmf(1), 0.0);
+        assert_eq!(p.ln_pmf(1), f64::NEG_INFINITY);
     }
 }
