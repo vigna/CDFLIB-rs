@@ -14,10 +14,11 @@
 //! exactly complementary passed to a method that derives one from the other,
 //! a negative count passed to a `u64` argument, a number of successes above
 //! the number of trials passed to the binomial `cdf` (which returns 1
-//! instead of an error), and the Rust-only rejections of a zero *r* or *pr*
-//! in `NegativeBinomial`. Where the F90 returns a parameter of 0 with status
-//! 0, at the lower end of a search interval, the Rust returns the error of
-//! the constructor for that parameter instead.
+//! instead of an error), the Rust-only rejections of a zero *r* or *pr* in
+//! `NegativeBinomial`, and the NaN that `cdfnor` returns at *p* = 0, where
+//! the Rust inverse returns −∞. Where the F90 returns a parameter of 0 with
+//! status 0, at the lower end of a search interval, the Rust returns the
+//! error of the constructor for that parameter instead.
 
 mod common;
 
@@ -231,7 +232,7 @@ fn calls(name: &str, nargs: usize) -> Vec<Call> {
 fn check<E: F90Status + Debug>(got: Result<f64, E>, c: &Call, expected: f64) {
     match got {
         Ok(v) => {
-            assert_eq!(c.status, 0, "{:?}: got Ok({v:e})", c.row);
+            assert_eq!(0, c.status, "{:?}: got Ok({v:e})", c.row);
             assert_exact(v, expected, &c.row);
         }
         Err(e) => {
@@ -285,11 +286,11 @@ fn p_derived(p: f64, q: f64) -> bool {
 
 /// Calls the inverse taking *p* or the one taking *q*, whichever receives
 /// exactly the F90 pair; returns None when neither can express the row, or
-/// when *p* or *q* is 0 or 1, where the Rust inverses return the exact
-/// endpoint of the support.
+/// when *p* or *q* is 0 or 1 and the F90 result is NaN, where the Rust
+/// inverses return the exact endpoint of the support instead.
 fn by_p_or_q<T>(c: &Call, by_p: impl FnOnce(f64) -> T, by_q: impl FnOnce(f64) -> T) -> Option<T> {
     let (p, q) = (c.before[0], c.before[1]);
-    if c.status == 0 && (p == 0.0 || p == 1.0 || q == 0.0 || q == 1.0) {
+    if c.status == 0 && (p == 0.0 || p == 1.0 || q == 0.0 || q == 1.0) && c.after[2].is_nan() {
         return None;
     }
     match c.status {
@@ -321,7 +322,7 @@ fn cdfbet_calls() {
         match c.which {
             1 => match d {
                 Ok(d) => {
-                    assert_eq!(c.status, 0, "{:?}", c.row);
+                    assert_eq!(0, c.status, "{:?}", c.row);
                     assert_exact(d.cdf(x), c.after[0], &c.row);
                     assert_exact(d.ccdf(x), c.after[1], &c.row);
                 }
@@ -405,7 +406,7 @@ fn cdfbin_calls() {
         }
         n += 1;
     }
-    assert_eq!(n, 35);
+    assert_eq!(n, 37);
 }
 
 #[test]
@@ -419,7 +420,7 @@ fn cdfchi_calls() {
         match c.which {
             1 => match d {
                 Ok(d) => {
-                    assert_eq!(c.status, 0, "{:?}", c.row);
+                    assert_eq!(0, c.status, "{:?}", c.row);
                     assert_exact(d.cdf(x), c.after[0], &c.row);
                     assert_exact(d.ccdf(x), c.after[1], &c.row);
                 }
@@ -441,7 +442,7 @@ fn cdfchi_calls() {
         }
         n += 1;
     }
-    assert_eq!(n, 25);
+    assert_eq!(n, 28);
 }
 
 #[test]
@@ -455,7 +456,7 @@ fn cdfchn_calls() {
         match c.which {
             1 => match d {
                 Ok(d) => {
-                    assert_eq!(c.status, 0, "{:?}", c.row);
+                    assert_eq!(0, c.status, "{:?}", c.row);
                     assert_exact(d.cdf(x), c.after[0], &c.row);
                     assert_exact(d.ccdf(x), c.after[1], &c.row);
                 }
@@ -490,7 +491,7 @@ fn cdff_calls() {
         match c.which {
             1 => match d {
                 Ok(d) => {
-                    assert_eq!(c.status, 0, "{:?}", c.row);
+                    assert_eq!(0, c.status, "{:?}", c.row);
                     assert_exact(d.cdf(f), c.after[0], &c.row);
                     assert_exact(d.ccdf(f), c.after[1], &c.row);
                 }
@@ -511,7 +512,7 @@ fn cdff_calls() {
         }
         n += 1;
     }
-    assert_eq!(n, 31);
+    assert_eq!(n, 32);
 }
 
 #[test]
@@ -525,7 +526,7 @@ fn cdffnc_calls() {
         match c.which {
             1 => match d {
                 Ok(d) => {
-                    assert_eq!(c.status, 0, "{:?}", c.row);
+                    assert_eq!(0, c.status, "{:?}", c.row);
                     assert_exact(d.cdf(f), c.after[0], &c.row);
                     assert_exact(d.ccdf(f), c.after[1], &c.row);
                 }
@@ -568,7 +569,7 @@ fn cdfgam_calls() {
         match c.which {
             1 => match d {
                 Ok(d) => {
-                    assert_eq!(c.status, 0, "{:?}", c.row);
+                    assert_eq!(0, c.status, "{:?}", c.row);
                     assert_exact(d.cdf(x), c.after[0], &c.row);
                     assert_exact(d.ccdf(x), c.after[1], &c.row);
                 }
@@ -591,7 +592,7 @@ fn cdfgam_calls() {
         }
         n += 1;
     }
-    assert_eq!(n, 28);
+    assert_eq!(n, 31);
 }
 
 #[test]
@@ -612,7 +613,7 @@ fn cdfnbn_calls() {
                 };
                 match NegativeBinomial::try_new(s, pr) {
                     Ok(d) => {
-                        assert_eq!(c.status, 0, "{:?}", c.row);
+                        assert_eq!(0, c.status, "{:?}", c.row);
                         assert_exact(d.cdf(f), c.after[0], &c.row);
                         assert_exact(d.ccdf(f), c.after[1], &c.row);
                     }
@@ -653,6 +654,16 @@ fn cdfnbn_calls() {
                 let (Some(f), Some(s)) = (count(f), count(s)) else {
                     continue;
                 };
+                // Rust also rejects s = 0 successes, which cdfnbn accepts.
+                if s == 0 {
+                    assert_eq!(
+                        NegativeBinomial::search_pr(p, q, s, f),
+                        Err(NegativeBinomialError::RNotPositive),
+                        "{:?}",
+                        c.row
+                    );
+                    continue;
+                }
                 check_positive(
                     NegativeBinomial::search_pr(p, q, s, f),
                     &c,
@@ -678,7 +689,7 @@ fn cdfnor_calls() {
         match c.which {
             1 => match d {
                 Ok(d) => {
-                    assert_eq!(c.status, 0, "{:?}", c.row);
+                    assert_eq!(0, c.status, "{:?}", c.row);
                     assert_exact(d.cdf(x), c.after[0], &c.row);
                     assert_exact(d.ccdf(x), c.after[1], &c.row);
                 }
@@ -725,7 +736,7 @@ fn cdfpoi_calls() {
                 let Some(s) = count(s) else { continue };
                 match Poisson::try_new(xlam) {
                     Ok(d) => {
-                        assert_eq!(c.status, 0, "{:?}", c.row);
+                        assert_eq!(0, c.status, "{:?}", c.row);
                         assert_exact(d.cdf(s), c.after[0], &c.row);
                         assert_exact(d.ccdf(s), c.after[1], &c.row);
                     }
@@ -766,7 +777,7 @@ fn cdft_calls() {
         match c.which {
             1 => match d {
                 Ok(d) => {
-                    assert_eq!(c.status, 0, "{:?}", c.row);
+                    assert_eq!(0, c.status, "{:?}", c.row);
                     assert_exact(d.cdf(t), c.after[0], &c.row);
                     assert_exact(d.ccdf(t), c.after[1], &c.row);
                 }

@@ -4,9 +4,9 @@
 //! F distributions (CDFLIB's `cumchn` and `cumfnc`).
 //!
 //! Both functions are Poisson-mixture series whose internal convergence
-//! tolerances are configured to `1e-5` (chi²) and `1e-4` (F) inside
-//! CDFLIB. The assertions here are tuned to the measured error on the
-//! committed fixture grid, not to machine epsilon.
+//! tolerances are configured to `1e-5` (χ²) and `1e-4` (*F*) inside
+//! CDFLIB. The port sums the same terms in the same order, so the
+//! assertions compare with the F90 values exactly.
 
 mod common;
 

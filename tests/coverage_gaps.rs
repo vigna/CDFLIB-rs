@@ -56,8 +56,11 @@ fn gamma_negative_argument_and_overflow_paths() {
 
     // |a| ≥ 15 reflection branch with t > 0.9. Γ(-15.95) routes through
     // t = 0.95 → t = 1 - 0.95 = 0.05.
-    let g_307 = gamma(-15.95);
-    assert!(g_307.is_finite() && g_307 != 0.0, "g_307 = {g_307}");
+    let g_reflected = gamma(-15.95);
+    assert!(
+        g_reflected.is_finite() && g_reflected != 0.0,
+        "g_reflected = {g_reflected}"
+    );
 
     // Reflection at a negative integer with |a| ≥ 15: sin(πt) = 0 → pole.
     assert_eq!(try_gamma(-20.0), Err(GammaDomainError::Pole(-20.0)));
@@ -138,7 +141,7 @@ fn rcomp_branches() {
 
     // a ≥ 20 with x so tiny that x/a underflows to zero.
     // x = 0 hits the a·x == 0 short-circuit upstream, so we need
-    // x > 0 but x/a == 0. f64::MIN_POSITIVE / 1e15 underflows.
+    // x > 0 but x/a == 0. f64::MIN_POSITIVE / 1e20 underflows.
     let r4 = rcomp(1e20, f64::MIN_POSITIVE);
     // Result must be exactly 0 by the early-return.
     assert_eq!(r4, 0.0);
@@ -265,13 +268,13 @@ fn beta_rcomp1_branches() {
 
     // |e| > 0.6 branch in u. Needs |lambda/a| > 0.6 with a0 ≥ 8.
     // lambda = a - (a+b)·x = 10 - 22·0.1 = 7.8, |7.8/10| = 0.78.
-    let r_467 = beta_rcomp1(0, 10.0, 12.0, 0.1, 0.9);
-    assert!(r_467.is_finite() && r_467 > 0.0);
+    let r_large_e_in_u = beta_rcomp1(0, 10.0, 12.0, 0.1, 0.9);
+    assert!(r_large_e_in_u.is_finite() && r_large_e_in_u > 0.0);
 
     // |e| > 0.6 branch in v. Symmetric: a > b sub-branch makes
     // lambda = (a+b)y - b; |lambda/b| large for skewed y.
-    let r_474 = beta_rcomp1(0, 15.0, 8.0, 0.95, 0.05);
-    assert!(r_474.is_finite() && r_474 > 0.0);
+    let r_large_e_in_v = beta_rcomp1(0, 15.0, 8.0, 0.95, 0.05);
+    assert!(r_large_e_in_v.is_finite() && r_large_e_in_v > 0.0);
 
     // a0 < 8 paths.
     let r3 = beta_rcomp1(0, 0.5, 12.0, 0.3, 0.7);
@@ -280,8 +283,8 @@ fn beta_rcomp1_branches() {
 
     // b0 ≤ 1 path with apb > 1. a = 0.5, b = 0.7 → both ≤ 1,
     // apb = 1.2 > 1, so the (1 + gam1(u))/apb branch fires.
-    let r_528 = beta_rcomp1(0, 0.5, 0.7, 0.4, 0.6);
-    assert!(r_528.is_finite() && r_528 > 0.0);
+    let r_apb_above_1 = beta_rcomp1(0, 0.5, 0.7, 0.4, 0.6);
+    assert!(r_apb_above_1.is_finite() && r_apb_above_1 > 0.0);
 
     // b0 ≤ 1 path with esum(mu, z) underflowing to 0. mu sufficiently
     // negative drives exp(mu + z) to 0. mu = -800 puts the exponent
@@ -492,21 +495,17 @@ fn gamma_inc_inv_schroder_q_saturates_to_zero() {
 fn gamma_inc_inv_schroder_p_first_order_negative() {
     // First-order Schröder step with t = (pn − p)/r ≥ 1 ⇒ x = xn·(1−t) ≤ 0.
     // Choose x0 well above the true x: gamma_inc(2, 10) ≈ (0.9995, 5e-4),
-    // r ≈ 4.5e-4. For p = 0.01: t ≈ 0.99/4.5e-4 ≈ 2200 ≫ 1.
+    // r ≈ 4.5e-3. For p = 0.01: t ≈ 0.99/4.5e-3 ≈ 220 ≫ 1.
     let r = try_gamma_inc_inv(2.0, 10.0, 0.01, 0.99);
     assert!(matches!(r, Err(GammaIncInvError::IterationFailed)));
 }
 
 #[test]
 fn gamma_inc_inv_schroder_q_first_order_negative() {
-    // Symmetric on the q branch: feed x0 well below the true x with p > 0.5.
-    // gamma_inc(2, 0.01) ≈ (5e-5, 1−5e-5), r ≈ 1e-2. For q = 0.01:
-    // t = (q − qn)/r = (0.01 − 0.99995)/0.01 ≈ −99. |t| ≫ 0.1 →
-    // first-order: x = xn·(1−t) = 0.01·100 = 1.0 (positive). Need a
-    // sign-flipped case: x0 huge with q close to 1.
-    //
-    // Easier route: use p > 0.5 close to 1 so x_true is large, with x0
-    // tiny. Then qn ≈ 1 ≫ q, t large positive → x = xn·(1−t) < 0.
+    // The same on the q branch, used for p > 0.5. From x0 = 0.01, where
+    // qn ≈ 1 and r ≈ 1e-4, the first step t = (q − qn)/r ≈ −1e4 overshoots
+    // to x ≈ 100, where qn ≈ 4e-42 is far below q = 0.01, so the next
+    // first-order step has t ≫ 1 and x = xn·(1−t) ≤ 0.
     let r = try_gamma_inc_inv(2.0, 0.01, 0.99, 0.01);
     assert!(matches!(r, Err(GammaIncInvError::IterationFailed)));
 }

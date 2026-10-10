@@ -22,9 +22,11 @@ use thiserror::Error;
 ///
 /// // Pr[X ≤ 1.96] ≈ 0.975
 /// let p = n.cdf(1.96);
+/// assert!((p - 0.9750021048517795).abs() < 1e-12);
 ///
 /// // Standard normal quantile for 0.95
 /// let x = n.inverse_cdf(0.95).unwrap();
+/// assert!((x - 1.6448536269514722).abs() < 1e-12);
 /// ```
 ///
 /// [`cdf`]: ContinuousCdf::cdf
@@ -300,6 +302,10 @@ impl ContinuousCdf for Normal {
     /// CDFLIB's `cdfnor` with `which = 1`.
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
+        // Rust only: NaN for a NaN x.
+        if x.is_nan() {
+            return f64::NAN;
+        }
         // cdflib.f90:5850-5853
         let z = (x - self.mean) / self.sd;
         // Rust only: exact endpoints where z * 16 overflows in cumnor
@@ -315,6 +321,10 @@ impl ContinuousCdf for Normal {
     /// as 1 − cdf(*x*), which preserves precision in the right tail.
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
+        // Rust only: NaN for a NaN x.
+        if x.is_nan() {
+            return f64::NAN;
+        }
         // cdflib.f90:5850-5853
         let z = (x - self.mean) / self.sd;
         // Rust only: exact endpoints where z * 16 overflows in cumnor
@@ -603,5 +613,12 @@ mod tests {
             Err(NormalError::SdNotPositive(_))
         ));
         assert!(Normal::search_sd(0.9, 0.1, 3.0, 2.0).unwrap() > 0.0);
+    }
+
+    #[test]
+    fn nan_argument_gives_nan() {
+        let d = Normal::new(0.0, 1.0);
+        assert!(d.cdf(f64::NAN).is_nan());
+        assert!(d.ccdf(f64::NAN).is_nan());
     }
 }

@@ -13,7 +13,7 @@ jobs:
     name: cargo check (MSRV 1.71)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@1.71.0
       - uses: Swatinem/rust-cache@v2
       # The latest releases of thiserror require Rust 1.77 (see README.md).
@@ -22,16 +22,21 @@ jobs:
       - run: cargo check --all-targets
 
   test:
-    name: clippy + test (stable)
+    name: fmt + clippy + doc + test (stable)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy
+          components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo doc --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
       - run: cargo test
+      - run: cargo test --release
 
   exact:
     # The reference tables are generated on macOS on Apple silicon, where
@@ -40,7 +45,7 @@ jobs:
     name: test, exact comparison (macOS, Apple silicon)
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo test

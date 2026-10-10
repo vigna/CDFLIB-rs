@@ -133,7 +133,8 @@ pub fn error_f(x: f64) -> f64 {
 ///
 /// This is CDFLIB's `error_fc(ind, x)` (cdflib.f90:9450) with *ind* = 0.
 /// The value is computed directly, not as 1 − [`error_f`]\(*x*\), so that
-/// small right-tail values keep full relative accuracy.
+/// small right-tail values keep full relative accuracy. A NaN argument
+/// gives NaN, as in the F90.
 ///
 /// Reference: Armido DiDinato, Alfred Morris, Algorithm 708: Significant
 /// Digit Computation of the Incomplete Beta Function Ratios, ACM Transactions
@@ -147,8 +148,6 @@ pub fn error_f(x: f64) -> f64 {
 /// let y = error_fc(2.0);
 /// assert!((y - 0.00467773).abs() < 1e-8);
 /// ```
-///
-/// A NaN argument gives NaN, as in the F90.
 ///
 /// [`error_f`]: crate::special::error_f
 #[inline]

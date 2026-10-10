@@ -32,9 +32,11 @@ const TOL: f64 = 1.0e-8;
 ///
 /// // Pr[X ≤ 11.07] ≈ 0.95
 /// let p = c.cdf(11.07);
+/// assert!((p - 0.9499903813775945).abs() < 1e-12);
 ///
 /// // Compute df given Pr[X ≤ 3.84] = 0.95
 /// let df = ChiSquared::search_df(0.95, 0.05, 3.84).unwrap();
+/// assert!((df - 0.9994101496).abs() < 1e-6);
 /// ```
 ///
 /// [`cdf`]: ContinuousCdf::cdf
@@ -204,7 +206,10 @@ impl ChiSquared {
     /// *q* = 1 − *p*; they must sum to 1 within 3ε.
     ///
     /// A computed *df* of 0, at the lower end of the search interval, is
-    /// reported as [`DfNotPositive`].
+    /// reported as [`DfNotPositive`]. At *p* = 0, where the answer is +∞, the
+    /// search stops, as the F90 does, where the computed probability becomes 0,
+    /// and returns that finite value: `search_df(0.0, 1.0, 1.0)` returns about
+    /// 395.
     ///
     /// [`DfNotPositive`]: ChiSquaredError::DfNotPositive
     #[inline]
@@ -301,6 +306,10 @@ impl ContinuousCdf for ChiSquared {
     /// *df* > 1.3 · 10²⁹ and *x* within a few ulps of *df*.
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
+        // Rust only: NaN for a NaN x.
+        if x.is_nan() {
+            return f64::NAN;
+        }
         // Rust only: exact endpoint at +inf, where cumchi gives NaN.
         if x == f64::INFINITY {
             return 1.0;
@@ -324,6 +333,10 @@ impl ContinuousCdf for ChiSquared {
     /// *df* > 1.3 · 10²⁹ and *x* within a few ulps of *df*.
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
+        // Rust only: NaN for a NaN x.
+        if x.is_nan() {
+            return f64::NAN;
+        }
         // Rust only: exact endpoint at +inf, where cumchi gives NaN.
         if x == f64::INFINITY {
             return 0.0;
@@ -375,6 +388,11 @@ impl Continuous for ChiSquared {
             return f64::NEG_INFINITY;
         }
         let k = self.df / 2.0;
+        // For a subnormal df, k is 0, and at x = 0 the expression below
+        // would be inf - inf; the density at 0 is +inf for every df < 2.
+        if k == 0.0 && x == 0.0 {
+            return f64::INFINITY;
+        }
         // ln f(x) = -(k ln 2 + ln Γ(k)) + (k - 1) ln x - x/2; for k = 1 the
         // term (k - 1) ln x is 0 at x = 0, where it would be 0 · (-inf).
         let ln_x_term = if k == 1.0 && x == 0.0 {
@@ -589,5 +607,19 @@ mod tests {
         assert!((ChiSquared::new(2.0).pdf(0.0) - 0.5).abs() < 1e-12);
         assert_eq!(ChiSquared::new(1.0).pdf(0.0), f64::INFINITY);
         assert_eq!(ChiSquared::new(3.0).pdf(0.0), 0.0);
+    }
+
+    #[test]
+    fn nan_argument_gives_nan() {
+        let d = ChiSquared::new(3.0);
+        assert!(d.cdf(f64::NAN).is_nan());
+        assert!(d.ccdf(f64::NAN).is_nan());
+    }
+
+    #[test]
+    fn density_at_zero_for_a_subnormal_df() {
+        let d = ChiSquared::new(f64::from_bits(1));
+        assert_eq!(d.pdf(0.0), f64::INFINITY);
+        assert_eq!(d.ln_pdf(0.0), f64::INFINITY);
     }
 }

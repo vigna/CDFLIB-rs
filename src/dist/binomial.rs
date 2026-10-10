@@ -38,9 +38,11 @@ const TOL: f64 = 1.0e-8;
 ///
 /// // Probability of 3 or fewer successes in 10 trials
 /// let cdf = b.cdf(3);
+/// assert!((cdf - 0.6496107184).abs() < 1e-12);
 ///
 /// // Compute success probability given Pr[S ≤ 2] = 0.5 and n = 10
 /// let pr = Binomial::search_pr(0.5, 0.5, 10, 2).unwrap();
+/// assert!((pr - 0.2585747233).abs() < 1e-6);
 /// ```
 ///
 /// [`Entropy`]: crate::traits::Entropy
@@ -211,7 +213,10 @@ impl Binomial {
     /// 3ε.
     ///
     /// A computed *n* of 0, at the lower end of the search interval, is
-    /// reported as [`TrialsZero`].
+    /// reported as [`TrialsZero`]. At *p* = 0, where the answer is +∞, the
+    /// search stops, as the F90 does, where the computed probability becomes 0,
+    /// and returns that finite value: `search_trials(0.0, 1.0, 0.5, 3)` returns
+    /// about 1957.5.
     ///
     /// [`TrialsZero`]: BinomialError::TrialsZero
     #[inline]

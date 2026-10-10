@@ -7,7 +7,7 @@
 //! [`gamma_inc`], [`error_f`], [`cumnor`], etc.).
 //!
 //! Users porting code that calls these helpers by name (for example
-//! `algdiv(a, b)`, `bcorr(a, b)`, `gam1(a)`, `rlog(x)`, `stvaln(p)`) can find
+//! [`algdiv`], [`bcorr`], [`gam1`], [`rlog`], [`stvaln`]) can find
 //! each routine here under its CDFLIB name. Each one is a port of the routine
 //! of the same name in the Fortran 90 CDFLIB, and its documentation follows
 //! the Fortran header; `ierr` out-parameters are surfaced through the
@@ -17,6 +17,12 @@
 //! [`gamma_inc`]: crate::special::gamma_inc
 //! [`error_f`]: crate::special::error_f
 //! [`cumnor`]: crate::special::cumnor
+//! [`algdiv`]: crate::special::internal::algdiv
+//! [`bcorr`]: crate::special::internal::bcorr
+//! [`gam1`]: crate::special::internal::gam1
+//! [`rlog`]: crate::special::internal::rlog
+//! [`stvaln`]: crate::special::internal::stvaln
+//! [`BetaGratError`]: crate::special::internal::BetaGratError
 
 pub use super::beta::{
     algdiv, apser, bcorr, beta_asym, beta_frac, beta_grat, beta_pser, beta_rcomp, beta_rcomp1,

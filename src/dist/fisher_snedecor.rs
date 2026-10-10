@@ -32,9 +32,11 @@ const TOL: f64 = 1.0e-8;
 ///
 /// // Pr[X ≤ 3.33]
 /// let p = f.cdf(3.33);
+/// assert!((p - 0.9501687242027787).abs() < 1e-12);
 ///
 /// // Compute numerator df given Pr[X ≤ 3.33] = 0.95 and dfd = 10
 /// let dfn = FisherSnedecor::search_dfn(0.95, 0.05, 3.33, 10.0).unwrap();
+/// assert!((dfn - 4.967304933).abs() < 1e-6);
 /// ```
 ///
 /// [`cdf`]: ContinuousCdf::cdf
@@ -60,7 +62,7 @@ pub enum FisherSnedecorError {
     /// The numerator degrees of freedom *dfn* was not strictly positive
     /// (`cdff` status −5). Rust also rejects the smallest subnormal number,
     /// whose half, which `cumf` passes to `beta_inc`, is 0.
-    #[error("numerator df must be positive, got {0}")]
+    #[error("numerator df must be positive and not the smallest subnormal, got {0}")]
     DfnNotPositive(f64),
     /// The numerator degrees of freedom *dfn* was not finite (checked only
     /// in Rust).
@@ -69,7 +71,7 @@ pub enum FisherSnedecorError {
     /// The denominator degrees of freedom *dfd* was not strictly positive
     /// (`cdff` status −6). Rust also rejects the smallest subnormal number,
     /// whose half, which `cumf` passes to `beta_inc`, is 0.
-    #[error("denominator df must be positive, got {0}")]
+    #[error("denominator df must be positive and not the smallest subnormal, got {0}")]
     DfdNotPositive(f64),
     /// The denominator degrees of freedom *dfd* was not finite (checked
     /// only in Rust).
@@ -372,6 +374,12 @@ impl ContinuousCdf for FisherSnedecor {
     /// CDFLIB's `cdff` with `which = 1`.
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
+        // Rust only: NaN for a NaN x, which cumf passes to beta_inc; as in
+        // the F90, beta_inc can then return a value computed from the other
+        // arguments.
+        if x.is_nan() {
+            return f64::NAN;
+        }
         // Rust only: no status -4 for f < 0 (cdflib.f90:4215-4227); cumf
         // returns (0, 1) there.
         // cdflib.f90:4271
@@ -381,6 +389,10 @@ impl ContinuousCdf for FisherSnedecor {
     /// CDFLIB's `cdff` with `which = 1`.
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
+        // Rust only: NaN for a NaN x, as in cdf.
+        if x.is_nan() {
+            return f64::NAN;
+        }
         // Rust only: no status -4 for f < 0 (cdflib.f90:4215-4227); cumf
         // returns (0, 1) there.
         // cdflib.f90:4271
@@ -433,8 +445,10 @@ impl Continuous for FisherSnedecor {
         } else {
             (half_dfn - 1.0) * x.ln()
         };
-        half_dfn * (dfn / dfd).ln() + ln_x_term
-            - (half_dfn + half_dfd) * (1.0 + dfn * x / dfd).ln()
+        // ln_1p keeps the precision of ln(1 + dfn·x/dfd) when dfd is large.
+        let ratio = dfn / dfd;
+        half_dfn * ratio.ln() + ln_x_term
+            - (half_dfn + half_dfd) * (ratio * x).ln_1p()
             - beta_log(half_dfn, half_dfd)
     }
 }
@@ -458,7 +472,12 @@ impl Variance for FisherSnedecor {
         let dfn = self.dfn;
         let dfd = self.dfd;
         if dfd > 4.0 {
-            2.0 * dfd * dfd * (dfn + dfd - 2.0) / (dfn * (dfd - 2.0).powi(2) * (dfd - 4.0))
+            // 2 dfd² (dfn + dfd - 2) / (dfn (dfd - 2)² (dfd - 4)), written
+            // with m = dfd / (dfd - 2), the mean, and (dfn + dfd - 2) /
+            // (dfd - 4) = 1 + (dfn + 2) / (dfd - 4), so that no intermediate
+            // overflows.
+            let m = dfd / (dfd - 2.0);
+            2.0 * m * m * (1.0 + (dfn + 2.0) / (dfd - 4.0)) / dfn
         } else {
             f64::NAN
         }
@@ -466,14 +485,19 @@ impl Variance for FisherSnedecor {
 }
 
 impl Entropy for FisherSnedecor {
+    /// The result is NaN when both *dfn* and *dfd* are below about
+    /// 1.1 · 10⁻³⁰⁸, where *ψ*(*dfn*/2) and *ψ*(*dfd*/2) overflow to −∞
+    /// and their terms cancel.
     #[inline]
     fn entropy(&self) -> f64 {
         // Closed-form: H = ln(dfd/dfn · Β(dfn/2, dfd/2))
         //                + (1 - dfn/2) ψ(dfn/2) - (1 + dfd/2) ψ(dfd/2)
         //                + (dfn+dfd)/2 · ψ((dfn+dfd)/2)
+        // The logarithm of dfd/dfn is a difference so that the ratio cannot
+        // overflow or underflow.
         let dfn = self.dfn;
         let dfd = self.dfd;
-        (dfd / dfn).ln() + beta_log(dfn / 2.0, dfd / 2.0) + (1.0 - dfn / 2.0) * psi(dfn / 2.0)
+        dfd.ln() - dfn.ln() + beta_log(dfn / 2.0, dfd / 2.0) + (1.0 - dfn / 2.0) * psi(dfn / 2.0)
             - (1.0 + dfd / 2.0) * psi(dfd / 2.0)
             + 0.5 * (dfn + dfd) * psi((dfn + dfd) / 2.0)
     }
@@ -557,5 +581,37 @@ mod tests {
         assert!((FisherSnedecor::new(2.0, 5.0).pdf(0.0) - 1.0).abs() < 1e-12);
         assert_eq!(FisherSnedecor::new(1.0, 5.0).pdf(0.0), f64::INFINITY);
         assert_eq!(FisherSnedecor::new(3.0, 5.0).pdf(0.0), 0.0);
+    }
+
+    #[test]
+    fn nan_argument_gives_nan() {
+        let d = FisherSnedecor::new(1e-300, 1e-300);
+        assert!(d.cdf(f64::NAN).is_nan());
+        assert!(d.ccdf(f64::NAN).is_nan());
+    }
+
+    #[test]
+    fn density_keeps_precision_for_large_dfd() {
+        // The F(1, dfd) density at 1 tends to the χ²(1) density at 1.
+        let pdf = FisherSnedecor::new(1.0, 1e17).pdf(1.0);
+        assert!((pdf / 0.24197072451914335 - 1.0).abs() < 1e-12);
+        let pdf = FisherSnedecor::new(2.0, 1e20).pdf(0.5);
+        assert!((pdf / 0.6065306597126334 - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn variance_does_not_overflow() {
+        // For large dfd the variance tends to 2 / dfn.
+        assert!((FisherSnedecor::new(5.0, 1e103).variance() - 0.4).abs() < 1e-12);
+        assert!((FisherSnedecor::new(5.0, f64::MAX).variance() - 0.4).abs() < 1e-12);
+    }
+
+    #[test]
+    fn entropy_with_a_subnormal_parameter_is_the_limit() {
+        assert_eq!(
+            FisherSnedecor::new(1e-323, 5.0).entropy(),
+            f64::NEG_INFINITY
+        );
+        assert_eq!(FisherSnedecor::new(5.0, 1e-323).entropy(), f64::INFINITY);
     }
 }

@@ -84,8 +84,6 @@ pub fn rexp(x: f64) -> f64 {
 /// Same algorithm as [`rexp`]: a rational approximation for |*x*| ≤ 0.15,
 /// exp(*x*) otherwise.
 ///
-/// [`rexp`]: crate::special::internal::rexp
-///
 /// # Example
 ///
 /// ```
@@ -98,6 +96,8 @@ pub fn rexp(x: f64) -> f64 {
 /// # #[cfg(not(miri))]
 /// assert!((y - (0.5_f64.exp() - 1.0)).abs() < 1e-15);
 /// ```
+///
+/// [`rexp`]: crate::special::internal::rexp
 #[inline]
 pub fn dexpm1(x: f64) -> f64 {
     const P1: f64 = 0.914041914819518e-9;
@@ -574,7 +574,7 @@ pub fn gamma_ln1(a: f64) -> f64 {
 /// [`try_psi`]: crate::special::try_psi
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
 pub enum PsiError {
-    /// Argument is zero or a negative integer; *ψ* has a pole there.
+    /// Argument is zero or a negative integer; ψ has a pole there.
     #[error("ψ has a pole at {0}")]
     Pole(f64),
     /// Argument is at or below −*xmax1*, where *xmax1* = 2³¹ − 1 is the
@@ -858,8 +858,6 @@ pub fn gsumln(a: f64, b: f64) -> f64 {
 ///
 /// Panics if *z* ≤ 0 (CDFLIB prints a fatal error and stops).
 ///
-/// [`gamma_log`]: crate::special::gamma_log
-///
 /// # Example
 ///
 /// ```
@@ -869,6 +867,8 @@ pub fn gsumln(a: f64, b: f64) -> f64 {
 /// let y = dstrem(100.0);
 /// assert!((y - 1.0 / 1200.0).abs() < 1e-6);
 /// ```
+///
+/// [`gamma_log`]: crate::special::gamma_log
 #[inline]
 pub fn dstrem(z: f64) -> f64 {
     const NCOEF: usize = 9;
@@ -991,10 +991,11 @@ pub enum GammaIncError {
 /// Panics on a [`GammaIncError`]: if *a* or *x* is negative, if both are
 /// 0, or when the answer is computationally indeterminate because *a* is
 /// extremely large and *x* is very close to *a*. A NaN argument gives NaN
-/// components, unless the other argument is negative. As in the F90,
-/// *x* = +∞ gives NaN components too, except for *a* = 1/2, where the
-/// result is (1, 0); *a* = +∞ with finite *x* gives (0, 1). Use
-/// [`try_gamma_inc`] for the fallible form.
+/// components, unless the other argument is negative. *x* = +∞ gives NaN
+/// components too: as in the F90 for *a* ≥ 1, while for *a* < 1 the F90
+/// never returns. The exception is *a* = 1/2, where the result is (1, 0);
+/// *a* = +∞ with finite *x* gives (0, 1). Use [`try_gamma_inc`] for the
+/// fallible form.
 ///
 /// # Example
 ///

@@ -23,24 +23,27 @@
 /// use cdflib::traits::ContinuousCdf;
 ///
 /// let n = Normal::new(0.0, 1.0);
-/// let p = n.cdf(0.0);       // 0.5
-/// let x = n.inverse_cdf(p).unwrap(); // 0.0
+/// let p = n.cdf(0.0);
+/// assert_eq!(p, 0.5);
+/// let x = n.inverse_cdf(p).unwrap();
+/// assert!(x.abs() < 1e-12);
 /// ```
 pub trait ContinuousCdf {
     /// Domain-specific error type returned by the inverse routines.
     type Error;
 
-    /// Returns Pr\[*X* ≤ *x*\].
+    /// Returns Pr\[*X* ≤ *x*\], or NaN if *x* is NaN.
     fn cdf(&self, x: f64) -> f64;
 
-    /// Returns Pr\[*X* > *x*\], the complementary CDF.
+    /// Returns Pr\[*X* > *x*\], the complementary CDF, or NaN if *x* is NaN.
     ///
     /// Implementations compute this independently of [`cdf`] rather than as
     /// `1 − cdf(x)`, so the small tail keeps its precision deep into the
     /// tails where the subtraction would lose digits to cancellation. The
     /// exceptions are [`ChiSquaredNoncentral`] and
     /// [`FisherSnedecorNoncentral`], for which CDFLIB computes
-    /// `1 − cdf(x)`.
+    /// `1 − cdf(x)`, except when the noncentrality is below about 10⁻¹⁰,
+    /// where it uses the central distribution.
     ///
     /// [`cdf`]: ContinuousCdf::cdf
     /// [`ChiSquaredNoncentral`]: crate::ChiSquaredNoncentral
@@ -67,7 +70,10 @@ pub trait ContinuousCdf {
 ///
 /// let p = Poisson::new(3.0);
 /// let c = p.cdf(2);
-/// let s = p.inverse_cdf(c).unwrap(); // 2
+/// // e⁻³ (1 + 3 + 9/2)
+/// assert!((c - 0.42319008112684353).abs() < 1e-12);
+/// let s = p.inverse_cdf(c).unwrap();
+/// assert_eq!(s, 2);
 /// ```
 pub trait DiscreteCdf {
     /// Domain-specific error type returned by the inverse routines.
@@ -111,6 +117,12 @@ pub trait Continuous {
 }
 
 /// Probability mass function (and its log) for a discrete distribution.
+///
+/// The mass is computed from a closed-form expression whose terms can
+/// cancel when the parameters are very large: at the mode, the logarithm
+/// of the binomial mass has an absolute error of about 2 · 10⁻⁶ for
+/// *n* = 10⁹ and about 4 for *n* = 10¹⁵, and that of the Poisson mass an
+/// error of about 0.04 for *λ* = 10¹⁴.
 pub trait Discrete {
     /// Returns the mass Pr\[*X* = *x*\] at the support point *x*.
     fn pmf(&self, x: u64) -> f64;

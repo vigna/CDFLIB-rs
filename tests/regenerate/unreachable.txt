@@ -34,9 +34,6 @@
 5443-5448 cdfnbn: ompr < 0 (status -7); the Rust API derives ompr = 1 - pr.
 5450-5455 cdfnbn: 1 < ompr (status -7); the Rust API derives ompr = 1 - pr.
 5475-5479 cdfnbn: pr + ompr /= 1 (status 4); the Rust API derives ompr = 1 - pr.
-3662-3671 cdfchi: which = 3 failure; cumchi is constant in df only at x = 0, which the Rust API rejects (XNotPositive).
-5163-5172 cdfgam: which = 3 failure; cumgam is constant in shape only at x = 0, which the Rust API rejects (XNotPositive).
-5569-5570 cdfnbn: which = 3 status 2; cumnbn is not small at s = 1e300 only for pr = 0, which the Rust API rejects (PrOutOfRange).
 6168-6177 cdfpoi: which = 3 failure; cumpoi is not small at xlam = 1e300 only for s beyond about 1e300, and the Rust s is a u64.
 #
 # Search failures that cannot occur: the answer is always bracketed by
@@ -44,7 +41,6 @@
 2779-2788 cdfbet: which = 2 failure; cumbet spans [0..1] for x in [0..1].
 3225-3226 cdfbin: which = 2 status 2; cumbin is 1 at s = xn.
 3320-3321 cdfbin: which = 4 status 1; dzror reports qleft only if f(xhi) < f(xlo), but for s < xn cumbin spans [0..1] and for xn <= s it is constant.
-3613-3618 cdfchi: which = 2 status 1; cumchi is 0 at x = 0, so the answer is never below 0.
 3932-3937 cdfchn: which = 2 status 1; cumchn is 0 at x = 0, so the answer is never below 0.
 3977-3978 cdfchn: which = 3 status 2; cumchn tends to 0 as df grows.
 4303-4308 cdff: which = 2 status 1; cumf is 0 at f = 0, so the answer is never below 0.
@@ -80,7 +76,6 @@
 #
 # Not reached by any tested input.
 911-912 beta_grat: the partial sum becoming nonpositive.
-8130 dinvnr: no convergence after 100 Newton steps from the stvaln start, with p > q.
 10966-10968 gamma_inc: qans < 0 at label 200; qans is 1 - P computed with an error far smaller than its own magnitude.
 11759-11761 gamma_inc_inv: rcomp underflows while gamma_inc returns P and Q both nonzero (Schroder iteration using P).
 11855-11857 gamma_inc_inv: as above (Schroder iteration using Q).

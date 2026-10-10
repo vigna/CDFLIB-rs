@@ -8,9 +8,15 @@
 //! [`gamma_inc`], [`gamma_inc_inv`], [`psi`], [`error_f`], [`error_fc`],
 //! [`error_fc_scaled`], [`cumnor`], [`dinvnr`], [`dlanor`], and [`dt1`].
 //!
+//! The functions that can fail have a fallible `try_*` form
+//! ([`try_beta_inc`], [`try_gamma`], [`try_gamma_inc`], [`try_gamma_inc_inv`],
+//! [`try_psi`]), except [`dlanor`], which panics when its argument is outside
+//! the range of its asymptotic expansion; [`gamma_inc_with_acc`] exposes the
+//! accuracy selector of CDFLIB's `gamma_inc`.
+//!
 //! The companion [`internal`] submodule exposes the CDFLIB-style helper
-//! routines used inside the routines above (`algdiv`, `bcorr`, `gam1`, `rlog`,
-//! etc.). They are public so users porting C/Fortran code that calls these
+//! routines used inside the routines above ([`algdiv`], [`bcorr`], [`gam1`],
+//! [`rlog`], etc.). They are public so users porting C/Fortran code that calls these
 //! directly can find each routine under its CDFLIB name, but they are not part
 //! of the user-facing statistical API.
 //!
@@ -22,7 +28,9 @@
 //! CDFLIB's other `cum*` helpers (`cumbet`, `cumbin`, `cumchi`, `cumchn`,
 //! `cumf`, `cumfnc`, `cumgam`, `cumnbn`, `cumpoi`, `cumt`) are folded into the
 //! corresponding distribution modules and are not exposed here; if you want
-//! their behavior, use the distribution's [`cdf`] / [`ccdf`] methods.
+//! their behavior, use the distribution's [`ContinuousCdf::cdf`] /
+//! [`ContinuousCdf::ccdf`] or [`DiscreteCdf::cdf`] / [`DiscreteCdf::ccdf`]
+//! methods.
 //!
 //! [`beta`]: crate::special::beta()
 //! [`beta_log`]: crate::special::beta_log
@@ -39,8 +47,21 @@
 //! [`dinvnr`]: crate::special::dinvnr
 //! [`dlanor`]: crate::special::dlanor
 //! [`dt1`]: crate::special::dt1
-//! [`cdf`]: crate::traits::ContinuousCdf::cdf
-//! [`ccdf`]: crate::traits::ContinuousCdf::ccdf
+//! [`try_beta_inc`]: crate::special::try_beta_inc
+//! [`try_gamma`]: crate::special::try_gamma
+//! [`try_gamma_inc`]: crate::special::try_gamma_inc
+//! [`try_gamma_inc_inv`]: crate::special::try_gamma_inc_inv
+//! [`try_psi`]: crate::special::try_psi
+//! [`gamma_inc_with_acc`]: crate::special::gamma_inc_with_acc
+//! [`internal`]: crate::special::internal
+//! [`algdiv`]: crate::special::internal::algdiv
+//! [`bcorr`]: crate::special::internal::bcorr
+//! [`gam1`]: crate::special::internal::gam1
+//! [`rlog`]: crate::special::internal::rlog
+//! [`ContinuousCdf::cdf`]: crate::traits::ContinuousCdf::cdf
+//! [`ContinuousCdf::ccdf`]: crate::traits::ContinuousCdf::ccdf
+//! [`DiscreteCdf::cdf`]: crate::traits::DiscreteCdf::cdf
+//! [`DiscreteCdf::ccdf`]: crate::traits::DiscreteCdf::ccdf
 
 pub(crate) mod beta;
 pub(crate) mod erf;

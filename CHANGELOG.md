@@ -1,6 +1,49 @@
 # Change Log
 
-## [0.4.4] - 2026-10-09
+## [0.4.4] - 2026-10-10
+
+### Changed
+
+- Every routine follows the Fortran 90 line by line: the `cum*` routines
+  are crate-private functions with their Fortran names, the `cdf*` searches
+  use the same `dstinv`/`dstzr` arguments and loops, argument checks run in
+  the Fortran order, and the machine-constant routines `ipmpar` and
+  `exparg` are ported. Because of the check order, a parameter of −∞ is
+  now reported as not positive (or negative) rather than not finite, and
+  some invalid combinations of arguments report a different error.
+
+- The integer quantile of the discrete distributions brackets the answer by
+  doubling instead of using a heuristic starting point.
+
+- The Fortran squares `x**2` are computed as the exact product `x * x`, as
+  gfortran does, instead of with `powi`, whose precision Rust does not
+  specify.
+
+- `SearchError::StartOutOfRange` displays its interval as `[a..b]`.
+
+### Improved
+
+- New Fortran 90 reference tables for every kernel, for the error exits of
+  `gamma_user`, `psi`, `gamma_inc`, `gamma_inc_inv`, and `beta_inc`, for
+  the call logs (results and status codes) of every `cdf*` routine,
+  including the search failures and the status 10 that the public API can
+  reach, and for the iteration traces of `dinvr` and `dzror`.
+  `tests/regenerate/coverage.sh` checks that they execute every line of the
+  Fortran source except those listed with a reason in
+  `tests/regenerate/unreachable.txt`, and that they execute none of those.
+
+- The documentation states the behavior of the special functions at NaN,
+  infinite, and endpoint arguments, the precision limits of the noncentral
+  distributions (whose series stop after a fixed number of terms, so that
+  their values are badly wrong for a large noncentrality), the cancellation
+  in the densities and masses for very large parameters, and how to build
+  with Rust 1.71 to 1.76, for which the latest releases of `thiserror` are
+  too recent. The examples check the values they compute.
+
+- The continuous integration checks the minimum supported Rust version,
+  the formatting and the documentation, and runs the tests in debug and
+  release builds on Linux and, with bit-exact comparisons, on macOS on
+  Apple silicon.
 
 ### Fixed
 
@@ -24,6 +67,8 @@
   `gamma_rat1`, `beta_frac`, `fpser`, and `apser`, and the rare finite
   arguments on which `beta_inc` never returns, give NaN; `gamma_inc_inv`
   gives NaN, or `NotConverged` when the Schröder iteration cannot proceed.
+  Several of these inputs never returned in 0.4.3 either: for example, the
+  `cdf` at +∞ of a χ² distribution with *df* ≤ 0.5.
 
 - Branches taken on NaN in `dinvr`, `dzror`, `gamma_inc_inv`, and the
   kernels now follow the Fortran; `gamma_inc_inv` keeps the Fortran `w` at
@@ -33,9 +78,8 @@
   Fortran order before handling a NaN argument, and `gamma_inc_inv`
   reports a NaN or negative *p* or *q*, for which the Fortran returns a
   meaningless *x*, an error, or never returns, as `InconsistentPq`.
-  `beta_inc` with a NaN argument follows the Fortran through its special
-  cases and label 260, and returns NaN past them, where the Fortran may
-  also return a value computed from the arguments that are not NaN.
+  `beta_inc` with a NaN or infinite argument returns what the Fortran
+  returns, whenever the Fortran returns.
 
 - `try_gamma` reports `Underflow` instead of `Overflow` for negative
   arguments beyond about −171.6, where Γ underflows.
@@ -54,30 +98,29 @@
   (at *q* = 0, `RateNotFinite` instead of `GammaIncInv(AtInfinity)`) in
   `Gamma::search_rate`, a mean of ±∞ (at *p* = 0 or 1) in
   `Normal::search_mean`, a *σ* that is not positive (when no positive *σ*
-  exists, when *x* = *μ*, and at *p* = 0 or 1) in `Normal::search_sd`, and
-  a parameter of 0, at the lower end of the search interval, in
-  `Gamma::search_shape`, `ChiSquared::search_df`, `Beta::search_a`,
-  `Beta::search_b`, `ChiSquaredNoncentral::search_df`,
+  exists, when *x* = *μ*, and at *p* = 0 or 1) or not finite in
+  `Normal::search_sd`, and a parameter of 0, at the lower end of the search
+  interval, in `Gamma::search_shape`, `ChiSquared::search_df`,
+  `Beta::search_a`, `Beta::search_b`, `ChiSquaredNoncentral::search_df`,
   `Binomial::search_trials`, `NegativeBinomial::search_r`, and
-  `NegativeBinomial::search_pr`.
+  `NegativeBinomial::search_pr`. `NegativeBinomial::search_pr` also
+  rejects *r* = 0 as `RNotPositive`, as `NegativeBinomial::try_new` does.
 
-- `Poisson::pmf` is 1 at 0 for *λ* = 0 and `NegativeBinomial::pmf` is 1 at
-  0 for *pr* = 1, instead of NaN, and the densities of the Γ, χ², Β and *F*
-  distributions at the ends of the support are their limits (for example,
-  the rate for Γ with shape 1, and 0 at +∞) instead of 0 or NaN.
+- `Beta::search_a` with *x* = 0, `Beta::search_b` with *x* = 1, the `cdf`
+  of the *t* and χ² distributions with the smallest subnormal *df*, and the
+  `inverse_cdf` of a binomial distribution with `u64::MAX` trials no longer
+  panic.
 
-- `StudentsT::pdf` and `StudentsT::ln_pdf` are computed from `beta_log`
-  and `ln_1p`, which keeps their precision for large *df*.
-
-- The entropies of the χ² and *t* distributions are their limits, −∞ and
-  +∞, for a subnormal *df*, instead of panicking, and the entropy of the
-  normal distribution no longer overflows or underflows for extreme *σ*.
+- `cdf` and `ccdf` of the continuous distributions return NaN for a NaN
+  argument; the Fortran can return a value computed from the parameters
+  alone (0.5 for a Β distribution with tiny parameters).
 
 - `cdf` and `ccdf` are exactly 0 or 1 at ±∞ for the normal distribution,
   and at +∞ for the Γ, χ², noncentral χ² and noncentral *F*
-  distributions, where the Fortran gives NaN (for the noncentral *F*, a
-  sum truncated short of 1); for the normal and Γ distributions also
-  where the standardized argument, or *x* times the rate, overflows.
+  distributions, where the Fortran gives NaN or never returns (for the
+  noncentral *F*, a sum truncated short of 1); for the normal and Γ
+  distributions also where the standardized argument, or *x* times the
+  rate, overflows.
 
 - The noncentral χ² and *F* distributions panic where the Fortran default
   integers would overflow (*λ* beyond about 4.3 · 10⁹), instead of
@@ -85,41 +128,29 @@
   degrees of freedom are so large that its series sums to NaN, where the
   Fortran never returns.
 
-### Changed
+- `Poisson::pmf` is 1 at 0 for *λ* = 0 and `NegativeBinomial::pmf` is 1 at
+  0 for *pr* = 1, instead of NaN, and the densities of the Γ, χ², Β and *F*
+  distributions at the ends of the support are their limits (for example,
+  the rate for Γ with shape 1, +∞ for χ² with *df* < 2, and 0 at +∞)
+  instead of 0 or NaN.
 
-- Every routine follows the Fortran 90 line by line: the `cum*` routines
-  are crate-private functions with their Fortran names, the `cdf*` searches
-  use the same `dstinv`/`dstzr` arguments and loops, argument checks run in
-  the Fortran order, and the machine-constant routines `ipmpar` and
-  `exparg` are ported. Because of the check order, a parameter of −∞ is
-  now reported as not positive (or negative) rather than not finite.
+- The densities of the *t*, *F* and Β distributions use `ln_1p`, which
+  keeps their precision for large *df*, *dfd*, or *b* (the *F*(1, 10¹⁷)
+  density at 1 was 0.399 instead of 0.242), and the *t* density no longer
+  overflows for |*t*| beyond about 1.3 · 10¹⁵⁴.
 
-- The integer quantile of the discrete distributions brackets the answer by
-  doubling instead of using a heuristic starting point.
+- The means and variances of the Β, Γ, *F*, and noncentral *F*
+  distributions no longer overflow or underflow for extreme parameters.
 
-- The Fortran squares `x**2` are computed as the exact product `x * x`, as
-  gfortran does, instead of with `powi`, whose precision Rust does not
-  specify.
+- The entropies of the χ², *t*, Β and *F* distributions are their limits
+  for subnormal parameters instead of panicking or returning NaN (for the
+  *F* distribution, unless both parameters are below about 10⁻³⁰⁸), and the
+  entropy of the normal distribution no longer overflows or underflows for
+  extreme *σ*.
 
-### Improved
-
-- New Fortran 90 reference tables for every kernel, for the error exits of
-  `gamma_user`, `psi`, `gamma_inc`, `gamma_inc_inv`, and `beta_inc`, for
-  the call logs (results and status codes) of every `cdf*` routine,
-  including the search failures and the status 10 that the public API can
-  reach, and for the iteration traces of `dinvr` and `dzror`.
-  `tests/regenerate/coverage.sh` checks that they execute every line of the
-  Fortran source except those listed with a reason in
-  `tests/regenerate/unreachable.txt`, and that they execute none of those.
-
-- The documentation states the behavior of the special functions at NaN,
-  infinite, and endpoint arguments, the precision limits of the noncentral
-  distributions, and how to build with Rust 1.71 to 1.76, for which the
-  latest releases of `thiserror` are too recent.
-
-- The continuous integration checks the minimum supported Rust version,
-  and runs the bit-exact comparisons on macOS on Apple silicon, in debug
-  and release builds.
+- The error messages of `Poisson`, `FisherSnedecor`, and
+  `NegativeBinomial` describe the condition they report, and those of
+  `Beta` and `NegativeBinomial` contain no backticks.
 
 ## [0.4.3] - 2026-06-11
 

@@ -39,9 +39,11 @@ const TOL: f64 = 1.0e-8;
 ///
 /// // Probability of 3 or fewer failures before 5th success
 /// let cdf = nb.cdf(3);
+/// assert!((cdf - 0.36328125).abs() < 1e-12);
 ///
 /// // Compute success probability given Pr[F ≤ 5] = 0.9 and r = 10
 /// let pr = NegativeBinomial::search_pr(0.9, 0.1, 10, 5).unwrap();
+/// assert!((pr - 0.7744087263).abs() < 1e-6);
 /// ```
 ///
 /// [`Entropy`]: crate::traits::Entropy
@@ -73,11 +75,14 @@ pub enum NegativeBinomialError {
     #[error("success probability {0} outside (0..1]")]
     PrOutOfRange(f64),
     /// The target number of successes *r* was zero (checked only in Rust;
-    /// `cdfnbn` status −5 rejects only *s* < 0). [`search_r`] also returns
-    /// it when the *r* it computes is 0.
+    /// `cdfnbn` status −5 rejects only *s* < 0), in [`try_new`] and
+    /// [`search_pr`]. [`search_r`] also returns it when the *r* it computes
+    /// is 0.
     ///
+    /// [`try_new`]: crate::NegativeBinomial::try_new
+    /// [`search_pr`]: crate::NegativeBinomial::search_pr
     /// [`search_r`]: crate::NegativeBinomial::search_r
-    #[error("`r` must be positive")]
+    #[error("target number of successes must be positive")]
     RNotPositive,
     /// The probability *p* fell outside [0 . . 1] (`cdfnbn` status −2); NaN is
     /// also rejected.
@@ -165,6 +170,12 @@ impl NegativeBinomial {
 
     /// Fallible counterpart of [`new`](Self::new) returning a
     /// [`NegativeBinomialError`] instead of panicking.
+    ///
+    /// Returns [`RNotPositive`] if *r* is zero, and [`PrOutOfRange`] if *pr*
+    /// falls outside (0 . . 1] or is NaN (`cdfnbn` status −6).
+    ///
+    /// [`RNotPositive`]: NegativeBinomialError::RNotPositive
+    /// [`PrOutOfRange`]: NegativeBinomialError::PrOutOfRange
     #[inline]
     pub fn try_new(r: u64, pr: f64) -> Result<Self, NegativeBinomialError> {
         // Rust only: CDFLIB accepts s = 0 successes.
@@ -196,7 +207,10 @@ impl NegativeBinomial {
     /// 3ε.
     ///
     /// A computed *r* of 0, at the lower end of the search interval, is
-    /// reported as [`RNotPositive`].
+    /// reported as [`RNotPositive`]. At *p* = 0, where the answer is +∞, the
+    /// search stops, as the F90 does, where the computed probability becomes 0,
+    /// and returns that finite value: `search_r(0.0, 1.0, 0.5, 3)` returns
+    /// about 1957.5.
     ///
     /// [`RNotPositive`]: NegativeBinomialError::RNotPositive
     #[inline]
@@ -244,9 +258,12 @@ impl NegativeBinomial {
     /// *q* = 1 − *p*; they must sum to 1 within 3ε. When *p* > *q* the
     /// search runs on *ompr* = 1 − *pr* and returns *pr* = 1 − *ompr*.
     ///
-    /// A computed *pr* of 0, at the lower end of the search interval, is
+    /// *r* = 0 is rejected as [`RNotPositive`], as in [`try_new`], and a
+    /// computed *pr* of 0, at the lower end of the search interval, is
     /// reported as [`PrOutOfRange`].
     ///
+    /// [`RNotPositive`]: NegativeBinomialError::RNotPositive
+    /// [`try_new`]: Self::try_new
     /// [`PrOutOfRange`]: NegativeBinomialError::PrOutOfRange
     #[inline]
     pub fn search_pr(p: f64, q: f64, r: u64, s: u64) -> Result<f64, NegativeBinomialError> {
@@ -254,7 +271,11 @@ impl NegativeBinomial {
         check_q(q)?;
         // Rust only: the tests f < 0 (cdflib.f90:5395-5404, status -4) and
         // s < 0 (cdflib.f90:5408-5417, status -5) are dropped, since s and r
-        // are u64.
+        // are u64. Rust rejects r = 0, as try_new does, where the F90 accepts
+        // s = 0 and returns a meaningless pr.
+        if r == 0 {
+            return Err(NegativeBinomialError::RNotPositive);
+        }
         check_pq(p, q)?;
         // F90 F (failures) and S (successes).
         let f = s as f64;
@@ -447,5 +468,17 @@ mod tests {
         assert_eq!(d.pmf(0), 1.0);
         assert_eq!(d.pmf(1), 0.0);
         assert_eq!(d.ln_pmf(1), f64::NEG_INFINITY);
+    }
+
+    #[test]
+    fn search_pr_rejects_zero_successes() {
+        assert_eq!(
+            NegativeBinomial::search_pr(0.5, 0.5, 0, 5),
+            Err(NegativeBinomialError::RNotPositive)
+        );
+        assert_eq!(
+            NegativeBinomial::search_pr(0.7, 0.3, 0, 5),
+            Err(NegativeBinomialError::RNotPositive)
+        );
     }
 }

@@ -22,7 +22,7 @@ fn cdf_and_ccdf_match_cdfnor_reference() {
 
 #[test]
 fn inverse_cdf_matches_cdfnor_reference() {
-    // Each row supplies (p, q) with full precision in *both* tails (one
+    // Each row supplies (p, q) with full precision in both tails (one
     // generated as cum, the other as ccum, neither via 1 - other). The
     // trait single-arg API can only carry one of them with full
     // precision, so we route each row to its accurate branch:

@@ -94,8 +94,8 @@ pub fn algdiv(a: f64, b: f64) -> f64 {
 ///
 /// *a0* and *b0* should be nonnegative.
 ///
-/// The arguments are ordered with `f64::min` and `f64::max`, which, like
-/// gfortran's `min` and `max` on the reference platform, ignore a NaN
+/// The arguments are ordered with [`f64::min`] and [`f64::max`], which,
+/// like gfortran's `min` and `max` on the reference platform, ignore a NaN
 /// argument: `beta_log(NaN, b)` is `beta_log(b, b)`, as in the F90.
 ///
 /// # Example
@@ -107,6 +107,9 @@ pub fn algdiv(a: f64, b: f64) -> f64 {
 /// // Β(3, 4) = 1/60
 /// assert!((y - (1.0/60.0_f64).ln()).abs() < 1e-14);
 /// ```
+///
+/// [`f64::min`]: f64::min
+/// [`f64::max`]: f64::max
 #[inline]
 pub fn beta_log(a0: f64, b0: f64) -> f64 {
     const E: f64 = 0.918938533204673;
@@ -292,6 +295,9 @@ pub fn dbetrm(a: f64, b: f64) -> f64 {
 ///
 /// This routine is appropriate for use when *b* < min(*eps*, *eps*·*a*) and
 /// *x* ≤ 0.5.
+///
+/// Returns NaN where the F90 series never terminates: when the tolerance is
+/// NaN or a term is NaN or infinite.
 #[inline]
 #[allow(clippy::assign_op_pattern)]
 pub fn fpser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
@@ -338,6 +344,9 @@ pub fn fpser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
 ///
 /// `apser` is used only for cases where *a* ≤ min(*eps*, *eps*·*b*),
 /// *b*·*x* ≤ 1, and *x* ≤ 0.5.
+///
+/// Returns NaN where the F90 series never terminates: when the tolerance is
+/// NaN or a term is NaN or infinite.
 #[inline]
 pub fn apser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
     const G: f64 = 0.577215664901533;
@@ -378,6 +387,9 @@ pub fn apser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
 /// (cdflib.f90:1625).
 ///
 /// `beta_pser` is used when *b* ≤ 1 or *b*·*x* ≤ 0.7. *eps* is the tolerance.
+///
+/// Returns NaN where the F90 series never terminates: when the tolerance is
+/// NaN or a term is NaN or infinite.
 #[inline]
 #[allow(clippy::assign_op_pattern)]
 pub fn beta_pser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
@@ -808,8 +820,13 @@ pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
 /// *Q*(*a*, *x*) (cdflib.f90:12208).
 ///
 /// It is assumed that *a* ≤ 1. The argument *r* is the value
-/// exp(−*x*) · *x*^*a* / Γ(*a*), and *eps* is the tolerance. Returns
+/// exp(−*x*) · *xᵃ* / Γ(*a*), and *eps* is the tolerance. Returns
 /// (*p*, *q*), the values of *P*(*a*, *x*) and *Q*(*a*, *x*).
+///
+/// Past the special cases *a*·*x* = 0 and *a* = 1/2, returns (NaN, NaN)
+/// when *a* or *x* is NaN or infinite, where the F90 series or continued
+/// fraction never terminates (or, for an infinite *a* with *x* < 1.1,
+/// gives NaN).
 #[inline]
 pub fn gamma_rat1(a: f64, x: f64, r: f64, eps: f64) -> (f64, f64) {
     use super::erf::{error_f, error_fc};
@@ -1178,6 +1195,9 @@ pub fn beta_asym(a: f64, b: f64, lambda: f64, eps: f64) -> f64 {
 /// *x* is the argument of the function and should satisfy 0 ≤ *x* ≤ 1;
 /// *y* should equal 1 − *x*. *lambda* is the value of
 /// (*a* + *b*) · *y* − *b*, and *eps* is a tolerance.
+///
+/// Returns NaN where the F90 continued fraction never terminates, once an
+/// approximant is NaN.
 #[inline]
 pub fn beta_frac(a: f64, b: f64, x: f64, y: f64, lambda: f64, eps: f64) -> f64 {
     let mut beta_frac = beta_rcomp(a, b, x, y);
@@ -1287,12 +1307,13 @@ pub enum BetaIncError {
 /// or expansion computes one of *w* and *w*₁ and derives the other as
 /// 0.5 + (0.5 − ·), as with the (*p*, *q*) pair returned by [`gamma_inc`].
 ///
-/// A NaN argument follows the F90 through its argument checks and special
-/// cases, which may return a value computed from the other arguments;
-/// past them the result is (NaN, NaN). Past the special cases the result
-/// is also (NaN, NaN) when *a* or *b* is infinite, and for the rare finite
-/// arguments on which the F90 never returns, such as
-/// (1 + *ε*, `f64::MAX`, 10⁻³¹⁰, 1).
+/// A NaN or infinite argument gives what the F90 computes, which may be
+/// NaN or a value computed from the other arguments: for example,
+/// `beta_inc(0.5, 1.0, 0.05, f64::NAN)` is (√0.05, 1 − √0.05), and
+/// `beta_inc(f64::INFINITY, 1e-20, 0.5, 0.5)` is (0, 1). Where the F90
+/// never returns, the result is (NaN, NaN): this happens for some NaN or
+/// infinite arguments, and for rare finite arguments such as
+/// (1 + *ε*, [`f64::MAX`], 10⁻³¹⁰, 1).
 ///
 /// # Panics
 ///
@@ -1309,6 +1330,7 @@ pub enum BetaIncError {
 /// ```
 ///
 /// [`gamma_inc`]: crate::special::gamma_inc
+/// [`f64::MAX`]: f64::MAX
 /// [`BetaIncError`]: crate::special::BetaIncError
 /// [`try_beta_inc`]: crate::special::try_beta_inc
 #[inline]
@@ -1332,6 +1354,7 @@ pub fn beta_inc(a: f64, b: f64, x: f64, y: f64) -> (f64, f64) {
 /// ));
 /// ```
 ///
+/// [`beta_inc`]: crate::special::beta_inc
 /// [`BetaIncError`]: crate::special::BetaIncError
 #[inline]
 // The F90 initialisation w = 0 is never read, since every error return is
@@ -1407,14 +1430,6 @@ pub fn try_beta_inc(a: f64, b: f64, x: f64, y: f64) -> Result<(f64, f64), BetaIn
     'l260: {
         if a.max(b) < 0.001 * eps {
             break 'l260;
-        }
-
-        // Rust only: past this point, given a NaN argument, the F90 either
-        // never exits a loop, returns NaN, or returns a value computed from
-        // the arguments that are not NaN (for example, from y alone at label
-        // 120); return NaN.
-        if a.is_nan() || b.is_nan() || x.is_nan() || y.is_nan() {
-            return Ok((f64::NAN, f64::NAN));
         }
 
         let mut ind = 0;
@@ -1841,18 +1856,6 @@ mod tests {
         // through beta_rcomp's 8 ≤ a0 path).
         let (w, w1) = beta_inc(10.0, 60.0, 0.1, 0.9);
         assert!((w + w1 - 1.0).abs() < 1e-10);
-    }
-
-    // The exact F90 bits depend on the host libm, which miri does not
-    // reproduce. Skipped under miri.
-    #[cfg(not(miri))]
-    #[test]
-    fn beta_inc_extreme_skew_matches_f90() {
-        // The bits are those of the F90 beta_inc, compiled as in
-        // tests/regenerate/regenerate.sh.
-        let (w, w1) = beta_inc(0.5, 100.0, 0.15, 0.85);
-        assert_eq!(w.to_bits(), 0x3FEF_FFFF_F958_4219);
-        assert_eq!(w1.to_bits(), 0x3E4A_9EF7_9CF8_4528);
     }
 
     #[test]

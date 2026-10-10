@@ -326,7 +326,7 @@ pub fn stvaln(p: f64) -> f64 {
 /// ```
 /// use cdflib::special::{cumnor, dlanor};
 ///
-/// // At x = 8 the complementary probability is around 1.24e-15.
+/// // At x = 8 the complementary probability is around 6.22e-16.
 /// // dlanor returns its log; exp(dlanor) should match cumnor's ccum.
 /// let log_q = dlanor(8.0);
 /// let (_, q) = cumnor(8.0);

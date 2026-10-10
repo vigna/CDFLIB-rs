@@ -39,11 +39,13 @@ const TOL: f64 = 1.0e-8;
 ///
 /// let g = Gamma::new(2.0, 1.0);
 ///
-/// // Pr[X ≤ 2.0]
+/// // Pr[X ≤ 2.0] = 1 - 3 e⁻²
 /// let p = g.cdf(2.0);
+/// assert!((p - 0.5939941502901619).abs() < 1e-12);
 ///
 /// // Compute shape parameter given Pr[X ≤ 5.0] = 0.9 and rate = 2.0
 /// let shape = Gamma::search_shape(0.9, 0.1, 5.0, 2.0).unwrap();
+/// assert!((shape - 6.574843866).abs() < 1e-6);
 /// ```
 ///
 /// [`cdf`]: ContinuousCdf::cdf
@@ -270,7 +272,10 @@ impl Gamma {
     /// *q* = 1 − *p*; they must sum to 1 within 3ε.
     ///
     /// A computed shape of 0, at the lower end of the search interval, is
-    /// reported as [`ShapeNotPositive`].
+    /// reported as [`ShapeNotPositive`]. At *p* = 0, where the answer is +∞,
+    /// the search stops, as the F90 does, where the computed probability
+    /// becomes 0, and returns that finite value:
+    /// `search_shape(0.0, 1.0, 1.0, 1.0)` returns about 395.
     ///
     /// [`ShapeNotPositive`]: GammaError::ShapeNotPositive
     #[inline]
@@ -402,6 +407,10 @@ impl ContinuousCdf for Gamma {
         // returns (0, 1) there.
         // cdflib.f90:5102-5110. F90 sets status 10 for the error value of
         // gamma_inc by testing porq, which is not set when which = 1.
+        // Rust only: NaN for a NaN x.
+        if x.is_nan() {
+            return f64::NAN;
+        }
         let xscale = x * self.rate;
         // Rust only: exact endpoint where xscale is +inf, for which cumgam
         // gives NaN; this includes x = +inf.
@@ -427,6 +436,10 @@ impl ContinuousCdf for Gamma {
         // returns (0, 1) there.
         // cdflib.f90:5102-5110. F90 sets status 10 for the error value of
         // gamma_inc by testing porq, which is not set when which = 1.
+        // Rust only: NaN for a NaN x.
+        if x.is_nan() {
+            return f64::NAN;
+        }
         let xscale = x * self.rate;
         // Rust only: exact endpoint where xscale is +inf, for which cumgam
         // gives NaN; this includes x = +inf.
@@ -497,7 +510,9 @@ impl Mean for Gamma {
 impl Variance for Gamma {
     #[inline]
     fn variance(&self) -> f64 {
-        self.shape / (self.rate * self.rate)
+        // shape / rate², divided in two steps so that rate² cannot overflow
+        // or underflow.
+        self.shape / self.rate / self.rate
     }
 }
 
@@ -626,5 +641,17 @@ mod tests {
         assert_eq!(Gamma::new(0.5, 1.0).pdf(0.0), f64::INFINITY);
         assert_eq!(Gamma::new(2.0, 1.0).pdf(0.0), 0.0);
         assert_eq!(Gamma::new(1.0, 2.0).pdf(-1.0), 0.0);
+    }
+
+    #[test]
+    fn nan_argument_gives_nan() {
+        let d = Gamma::new(2.0, 1.0);
+        assert!(d.cdf(f64::NAN).is_nan());
+        assert!(d.ccdf(f64::NAN).is_nan());
+    }
+
+    #[test]
+    fn variance_does_not_overflow() {
+        assert!((Gamma::new(1e300, 1e200).variance() / 1e-100 - 1.0).abs() < 1e-12);
     }
 }

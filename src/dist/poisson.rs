@@ -37,14 +37,17 @@ const TOL: f64 = 1.0e-8;
 /// let p = Poisson::new(3.0);
 /// assert_eq!(p.mean(), 3.0);
 ///
-/// // Probability of observing exactly 2 events
+/// // Probability of observing exactly 2 events, 9/2 e⁻³
 /// let pmf = p.pmf(2);
+/// assert!((pmf - 0.22404180765538775).abs() < 1e-12);
 ///
 /// // Probability of observing 2 or fewer events
 /// let cdf = p.cdf(2);
+/// assert!((cdf - 0.42319008112684353).abs() < 1e-12);
 ///
 /// // Compute lambda given Pr[X ≤ 3] = 0.5
 /// let lambda = Poisson::search_lambda(0.5, 0.5, 3).unwrap();
+/// assert!((lambda - 3.672060749).abs() < 1e-6);
 /// ```
 ///
 /// [`Entropy`]: crate::traits::Entropy
@@ -70,7 +73,7 @@ pub enum PoissonError {
     LambdaNegative(f64),
     /// The rate parameter *λ* was not finite, or so large that 2*λ*, the χ²
     /// argument of `cumpoi`, is not finite (checked only in Rust).
-    #[error("lambda must be finite, got {0}")]
+    #[error("lambda and twice lambda must be finite, got {0}")]
     LambdaNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdfpoi` status −2); NaN is
     /// also rejected.
@@ -175,7 +178,8 @@ impl Poisson {
     /// Fallible counterpart of [`new`](Self::new) returning a
     /// [`PoissonError`] instead of panicking.
     ///
-    /// Returns [`LambdaNegative`] or [`LambdaNotFinite`] otherwise.
+    /// Returns [`LambdaNegative`] if *λ* < 0, and [`LambdaNotFinite`] if *λ*
+    /// is NaN or so large that 2*λ* is not finite.
     ///
     /// [`LambdaNegative`]: PoissonError::LambdaNegative
     /// [`LambdaNotFinite`]: PoissonError::LambdaNotFinite
@@ -196,6 +200,10 @@ impl Poisson {
     ///
     /// CDFLIB's `cdfpoi` with `which = 3`. The caller passes both *p* and
     /// *q* = 1 − *p*; they must sum to 1 within 3ε.
+    ///
+    /// At *p* = 0, where the answer is +∞, the search stops, as the F90 does,
+    /// where the computed probability becomes 0, and returns that finite value:
+    /// `search_lambda(0.0, 1.0, 3)` returns about 1957.5.
     #[inline]
     pub fn search_lambda(p: f64, q: f64, s: u64) -> Result<f64, PoissonError> {
         check_p(p)?;

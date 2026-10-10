@@ -111,7 +111,7 @@ contains
       20.0_rk, 100.0_rk, 0.25_rk, &
       50.0_rk, 100.0_rk, 0.5_rk /), (/3, 8/))
     integer :: i, fs, fxn, fpr, which, status
-    real(kind=rk) :: s, xn, pr, ompr, p, q, bound, ss, xx_xn, pp, qq
+    real(kind=rk) :: s, xn, pr, ompr, p, q, bound, ss, xx_xn, pp, qq, ps
 
     open(newunit=fs,  file='tests/data/cdfbin_s.csv',  status='replace', action='write')
     open(newunit=fxn, file='tests/data/cdfbin_xn.csv', status='replace', action='write')
@@ -125,10 +125,12 @@ contains
       which = 1
       call cdfbin(which, p, q, s, xn, pr, ompr, status, bound)
       if (status /= 0) cycle
+      ! The Rust inverse_ccdf derives p = 1 - q.
+      ps = 1.0_rk - q
       ss = 0.0_rk; which = 2
-      call cdfbin(which, p, q, ss, xn, pr, ompr, status, bound)
+      call cdfbin(which, ps, q, ss, xn, pr, ompr, status, bound)
       if (status == 0) then
-        call putval(fs, p, .false.); call putval(fs, q, .false.)
+        call putval(fs, ps, .false.); call putval(fs, q, .false.)
         call putval(fs, xn, .false.); call putval(fs, pr, .false.); call putval(fs, ss, .true.)
       end if
       xx_xn = 5.0_rk; which = 3
@@ -393,7 +395,7 @@ contains
       20.0_rk,  5.0_rk, 0.5_rk, &
       15.0_rk,  3.0_rk, 0.7_rk /), (/3, 7/))
     integer :: i, fs, fxn, fpr, which, status
-    real(kind=rk) :: s, xn, pr, ompr, p, q, bound, ss, xx, pp, qq
+    real(kind=rk) :: s, xn, pr, ompr, p, q, bound, ss, xx, pp, qq, ps
 
     open(newunit=fs,  file='tests/data/cdfnbn_s.csv',  status='replace', action='write')
     open(newunit=fxn, file='tests/data/cdfnbn_xn.csv', status='replace', action='write')
@@ -407,10 +409,12 @@ contains
       which = 1
       call cdfnbn(which, p, q, s, xn, pr, ompr, status, bound)
       if (status /= 0) cycle
+      ! The Rust inverse_ccdf derives p = 1 - q.
+      ps = 1.0_rk - q
       ss = 5.0_rk; which = 2
-      call cdfnbn(which, p, q, ss, xn, pr, ompr, status, bound)
+      call cdfnbn(which, ps, q, ss, xn, pr, ompr, status, bound)
       if (status == 0) then
-        call putval(fs, p, .false.); call putval(fs, q, .false.)
+        call putval(fs, ps, .false.); call putval(fs, q, .false.)
         call putval(fs, xn, .false.); call putval(fs, pr, .false.); call putval(fs, ss, .true.)
       end if
       xx = 5.0_rk; which = 3
@@ -482,7 +486,7 @@ contains
       100.0_rk, 100.0_rk, &
         3.0_rk,   7.7537_rk /), (/2, 7/))
     integer :: i, fs, fl, which, status
-    real(kind=rk) :: s, xlam, p, q, bound, ss, ll
+    real(kind=rk) :: s, xlam, p, q, bound, ss, ll, ps
 
     open(newunit=fs, file='tests/data/cdfpoi_s.csv',    status='replace', action='write')
     open(newunit=fl, file='tests/data/cdfpoi_xlam.csv', status='replace', action='write')
@@ -493,10 +497,12 @@ contains
       which = 1
       call cdfpoi(which, p, q, s, xlam, status, bound)
       if (status /= 0) cycle
+      ! The Rust inverse_ccdf derives p = 1 - q.
+      ps = 1.0_rk - q
       ss = 5.0_rk; which = 2
-      call cdfpoi(which, p, q, ss, xlam, status, bound)
+      call cdfpoi(which, ps, q, ss, xlam, status, bound)
       if (status == 0) then
-        call putval(fs, p, .false.); call putval(fs, q, .false.)
+        call putval(fs, ps, .false.); call putval(fs, q, .false.)
         call putval(fs, xlam, .false.); call putval(fs, ss, .true.)
       end if
       ll = 5.0_rk; which = 3

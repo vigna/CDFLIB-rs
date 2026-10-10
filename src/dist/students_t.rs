@@ -28,9 +28,11 @@ const TOL: f64 = 1.0e-8;
 ///
 /// // Two-sided 95% critical value
 /// let t = d.inverse_cdf(0.975).unwrap();
+/// assert!((t - 2.228138852).abs() < 1e-6);
 ///
 /// // Pr[T ≤ 2.228] ≈ 0.975
 /// let p = d.cdf(2.228);
+/// assert!((p - 0.9749941140914443).abs() < 1e-12);
 /// ```
 ///
 /// [`cdf`]: ContinuousCdf::cdf
@@ -260,6 +262,12 @@ impl ContinuousCdf for StudentsT {
     /// CDFLIB's `cdft` with `which = 1`.
     #[inline]
     fn cdf(&self, t: f64) -> f64 {
+        // Rust only: NaN for a NaN t, which cumt passes to beta_inc; as in
+        // the F90, beta_inc can then return a value computed from the other
+        // arguments.
+        if t.is_nan() {
+            return f64::NAN;
+        }
         // cdflib.f90:6399
         cumt(t, self.df).0
     }
@@ -267,6 +275,10 @@ impl ContinuousCdf for StudentsT {
     /// CDFLIB's `cdft` with `which = 1`.
     #[inline]
     fn ccdf(&self, t: f64) -> f64 {
+        // Rust only: NaN for a NaN t, as in cdf.
+        if t.is_nan() {
+            return f64::NAN;
+        }
         // cdflib.f90:6399
         cumt(t, self.df).1
     }
@@ -297,8 +309,17 @@ impl Continuous for StudentsT {
         let df = self.df;
         // ln f(t) = -ln(√df · Β(df/2, 1/2)) - (df + 1)/2 · ln(1 + t²/df).
         // For large df, beta_log and ln_1p keep the precision that
-        // ln Γ((df + 1)/2) - ln Γ(df/2) and ln(1 + t²/df) would lose.
-        -0.5 * df.ln() - beta_log(0.5 * df, 0.5) - 0.5 * (df + 1.0) * (t * t / df).ln_1p()
+        // ln Γ((df + 1)/2) - ln Γ(df/2) and ln(1 + t²/df) would lose. Where
+        // t * t overflows, ln(1 + t²/df) = ln((df + t²) / df) is computed as
+        // 2 ln hypot(√df, t) - ln df, which cannot overflow; there t²/df > 1,
+        // so the difference does not cancel. This includes t = ±inf.
+        let r = t * t / df;
+        let ln_term = if r.is_finite() {
+            r.ln_1p()
+        } else {
+            2.0 * df.sqrt().hypot(t).ln() - df.ln()
+        };
+        -0.5 * df.ln() - beta_log(0.5 * df, 0.5) - 0.5 * (df + 1.0) * ln_term
     }
 }
 
@@ -411,5 +432,23 @@ mod tests {
         assert!(ln_pdf.is_finite());
         assert!((d.pdf(x) - ln_pdf.exp()).abs() < 1e-15);
         assert!(d.entropy().is_finite());
+    }
+
+    #[test]
+    fn nan_argument_gives_nan() {
+        let d = StudentsT::new(5e-324);
+        assert!(d.cdf(f64::NAN).is_nan());
+        assert!(d.ccdf(f64::NAN).is_nan());
+        assert!(StudentsT::new(10.0).pdf(f64::NAN).is_nan());
+    }
+
+    #[test]
+    fn log_density_where_t_squared_overflows() {
+        let ln_pdf = StudentsT::new(0.1).ln_pdf(-1e160);
+        assert!((ln_pdf + 408.43131890946705).abs() < 1e-10);
+        assert_eq!(
+            StudentsT::new(10.0).ln_pdf(f64::INFINITY),
+            f64::NEG_INFINITY
+        );
     }
 }

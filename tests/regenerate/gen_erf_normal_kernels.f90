@@ -21,7 +21,7 @@ program gen_erf_normal_kernels
 contains
 
   ! Write a single double-precision value to `unit` followed by a comma,
-  ! or by a newline if `last` is true. Uses 17 significant digits so each
+  ! or by a newline if `last` is true. Uses 18 significant digits so each
   ! distinct f64 round-trips through decimal.
   subroutine putval(unit, v, last)
     integer, intent(in) :: unit
@@ -115,6 +115,14 @@ contains
       end if
       x = x + 0.0625_rk
     end do
+    ! The endpoints, where the Newton steps never converge and the result
+    ! is the NaN start value (cdflib.f90:8128, :8130).
+    call putval(unit, 0.0_rk, .false.)
+    call putval(unit, 1.0_rk, .false.)
+    call putval(unit, dinvnr(0.0_rk, 1.0_rk), .true.)
+    call putval(unit, 1.0_rk, .false.)
+    call putval(unit, 0.0_rk, .false.)
+    call putval(unit, dinvnr(1.0_rk, 0.0_rk), .true.)
     close(unit)
   end subroutine gen_dinvnr
 

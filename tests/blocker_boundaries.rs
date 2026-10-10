@@ -1,9 +1,9 @@
+#![cfg(not(miri))]
+
 // Tests of the boundary-input contract: inverse_cdf and inverse_ccdf at
 // p ∈ {0, 1} return the support endpoints, search_* reject NaN and infinite
 // arguments with typed errors instead of panicking or hanging, and cdf and
 // ccdf propagate NaN without panicking through beta_inc and gamma_inc.
-
-#![cfg(not(miri))]
 
 use cdflib::traits::{ContinuousCdf, DiscreteCdf};
 use cdflib::{
@@ -90,9 +90,9 @@ fn binomial_endpoints() {
     assert_eq!(b.inverse_cdf(1.0).unwrap(), 10);
     // inverse_ccdf returns the real-valued F90 cdfbin which=2 quantile.
     // At q=0 (p=1) the search converges at s=n; at q=1 (p=0) it walks
-    // to the lower bound and fails per F90's status=1.
-    let s = b.inverse_ccdf(0.0).unwrap();
-    assert!((s - 10.0).abs() < 1e-6, "got s={s}");
+    // to the lower bound and fails per F90's status=1. Both calls are
+    // rows of tests/data/cdfbin_calls.csv, where F90 returns s = 10.
+    assert_eq!(b.inverse_ccdf(0.0).unwrap(), 10.0);
     assert!(matches!(
         b.inverse_ccdf(1.0),
         Err(cdflib::BinomialError::Search(_))
@@ -255,13 +255,14 @@ fn binomial_search_pr_all_successes_errors_instead_of_panicking() {
 }
 
 #[test]
-fn negative_binomial_search_pr_r_zero_converges_like_f90() {
-    // With r = 0 the cumulative is a step from 0 (pr = 0, via cumbet's
-    // endpoint guard, cdflib.f90:6772-6780) to 1 (pr > 0), so the search
-    // converges to the discontinuity at 0 instead of panicking inside
-    // beta_inc.
-    let pr = NegativeBinomial::search_pr(0.5, 0.5, 0, 5).unwrap();
-    assert!(pr.abs() < 1e-7, "pr = {pr}");
+fn negative_binomial_search_pr_r_zero_is_rejected() {
+    use cdflib::NegativeBinomialError;
+    // cdfnbn accepts r = 0 and converges to the step of the cumulative at
+    // pr = 0; the Rust rejects r = 0, as NegativeBinomial::try_new does.
+    assert_eq!(
+        NegativeBinomial::search_pr(0.5, 0.5, 0, 5),
+        Err(NegativeBinomialError::RNotPositive)
+    );
 }
 
 #[test]
@@ -302,11 +303,13 @@ fn binomial_search_pr_all_successes_upper_tail_branch() {
 }
 
 #[test]
-fn negative_binomial_search_pr_r_zero_upper_tail_branch() {
-    // r = 0 through the p > q side: cumbet's endpoint guards keep the
-    // ompr search away from beta_inc at both endpoints, as in the F90.
-    let pr = NegativeBinomial::search_pr(0.7, 0.3, 0, 5).unwrap();
-    assert!(pr.abs() < 1e-7, "pr = {pr}");
+fn negative_binomial_search_pr_r_zero_upper_tail_branch_is_rejected() {
+    use cdflib::NegativeBinomialError;
+    // The same rejection on the p > q side, where cdfnbn searches on ompr.
+    assert_eq!(
+        NegativeBinomial::search_pr(0.7, 0.3, 0, 5),
+        Err(NegativeBinomialError::RNotPositive)
+    );
 }
 
 // ---- cdf and ccdf are exact at the infinite ends of the support ----

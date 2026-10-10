@@ -64,19 +64,18 @@ fn cdfbet_b_matches_beta_search_b() {
 
 #[test]
 fn cdfbin_s_matches_binomial_inverse_ccdf() {
+    let mut n = 0;
     for row in read_csv("tests/data/cdfbin_s.csv") {
         let [p, q, xn, pr, s_ref] = row[..] else {
             panic!("width")
         };
-        // The Rust API derives p = 1 - q; rows where F90 received a
-        // different p are covered with exact complements by
-        // tests/dispatcher_calls.rs.
-        if (1.0 - q).to_bits() != p.to_bits() && p <= q {
-            continue;
-        }
+        // The generator passes p = 1 - q, as the Rust API derives it.
+        assert_eq!(p.to_bits(), (1.0 - q).to_bits(), "{row:?}");
         let got = Binomial::new(xn as u64, pr).inverse_ccdf(q).unwrap();
         assert_exact(got, s_ref, &row);
+        n += 1;
     }
+    assert_eq!(n, 8);
 }
 
 #[test]
@@ -305,19 +304,18 @@ fn cdfgam_scale_matches_gamma_search_rate() {
 
 #[test]
 fn cdfnbn_s_matches_negative_binomial_inverse_ccdf() {
+    let mut n = 0;
     for row in read_csv("tests/data/cdfnbn_s.csv") {
         let [p, q, r, pr, s_ref] = row[..] else {
             panic!("width")
         };
-        // The Rust API derives p = 1 - q; rows where F90 received a
-        // different p are covered with exact complements by
-        // tests/dispatcher_calls.rs.
-        if (1.0 - q).to_bits() != p.to_bits() && p <= q {
-            continue;
-        }
+        // The generator passes p = 1 - q, as the Rust API derives it.
+        assert_eq!(p.to_bits(), (1.0 - q).to_bits(), "{row:?}");
         let got = NegativeBinomial::new(r as u64, pr).inverse_ccdf(q).unwrap();
         assert_exact(got, s_ref, &row);
+        n += 1;
     }
+    assert_eq!(n, 7);
 }
 
 #[test]
@@ -395,13 +393,18 @@ fn cdfnor_sd_matches_normal_search_sd() {
 
 #[test]
 fn cdfpoi_s_matches_poisson_inverse_ccdf() {
+    let mut n = 0;
     for row in read_csv("tests/data/cdfpoi_s.csv") {
-        let [_p, q, lambda, s_ref] = row[..] else {
+        let [p, q, lambda, s_ref] = row[..] else {
             panic!("width")
         };
+        // The generator passes p = 1 - q, as the Rust API derives it.
+        assert_eq!(p.to_bits(), (1.0 - q).to_bits(), "{row:?}");
         let got = Poisson::new(lambda).inverse_ccdf(q).unwrap();
         assert_exact(got, s_ref, &row);
+        n += 1;
     }
+    assert_eq!(n, 7);
 }
 
 #[test]

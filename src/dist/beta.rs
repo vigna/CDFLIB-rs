@@ -30,9 +30,11 @@ const TOL: f64 = 1.0e-8;
 ///
 /// // Pr[X ≤ 0.3]
 /// let p = b.cdf(0.3);
+/// assert!((p - 0.579825).abs() < 1e-12);
 ///
 /// // Compute parameter a given Pr[X ≤ 0.5] = 0.9 and b = 2.0
 /// let a = Beta::search_a(0.9, 0.1, 0.5, 2.0).unwrap();
+/// assert!((a - 0.4372679774).abs() < 1e-6);
 /// ```
 ///
 /// [`cdf`]: ContinuousCdf::cdf
@@ -59,20 +61,20 @@ pub enum BetaError {
     /// computes is 0.
     ///
     /// [`search_a`]: crate::Beta::search_a
-    #[error("shape parameter `a` must be positive, got {0}")]
+    #[error("shape parameter a must be positive, got {0}")]
     ANotPositive(f64),
     /// The shape parameter *a* was not finite (checked only in Rust).
-    #[error("shape parameter `a` must be finite, got {0}")]
+    #[error("shape parameter a must be finite, got {0}")]
     ANotFinite(f64),
     /// The shape parameter *b* was not strictly positive (`cdfbet` status −7).
     /// [`search_b`] also returns it, checked only in Rust, when the *b* it
     /// computes is 0.
     ///
     /// [`search_b`]: crate::Beta::search_b
-    #[error("shape parameter `b` must be positive, got {0}")]
+    #[error("shape parameter b must be positive, got {0}")]
     BNotPositive(f64),
     /// The shape parameter *b* was not finite (checked only in Rust).
-    #[error("shape parameter `b` must be finite, got {0}")]
+    #[error("shape parameter b must be finite, got {0}")]
     BNotFinite(f64),
     /// The argument *x* fell outside [0 . . 1] (`cdfbet` status −4); NaN is also
     /// rejected.
@@ -227,7 +229,10 @@ impl Beta {
     /// keeps its precision; they must sum to 1 within 3ε.
     ///
     /// A computed *a* of 0, at the lower end of the search interval, is
-    /// reported as [`ANotPositive`].
+    /// reported as [`ANotPositive`]. At *p* = 0, where the answer is +∞, the
+    /// search stops, as the F90 does, where the computed probability becomes 0,
+    /// and returns that finite value: `search_a(0.0, 1.0, 0.5, 2.0)` returns
+    /// about 1957.5.
     ///
     /// [`ANotPositive`]: BetaError::ANotPositive
     #[inline]
@@ -273,7 +278,10 @@ impl Beta {
     /// keeps its precision; they must sum to 1 within 3ε.
     ///
     /// A computed *b* of 0, at the lower end of the search interval, is
-    /// reported as [`BNotPositive`].
+    /// reported as [`BNotPositive`]. At *q* = 0, where the answer is +∞, the
+    /// search stops, as the F90 does, where the computed probability becomes 0,
+    /// and returns that finite value: `search_b(1.0, 0.0, 0.5, 2.0)` returns
+    /// about 1957.5.
     ///
     /// [`BNotPositive`]: BetaError::BNotPositive
     #[inline]
@@ -374,8 +382,17 @@ impl ContinuousCdf for Beta {
     type Error = BetaError;
 
     /// CDFLIB's `cdfbet` with `which = 1`, with *y* = 1 − *x*.
+    ///
+    /// The result is NaN when *a* + *b* overflows, where the F90 `beta_inc`
+    /// never returns.
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
+        // Rust only: NaN for a NaN x, which cumbet passes to beta_inc; as in
+        // the F90, beta_inc can then return a value computed from the other
+        // arguments (b / (a + b) for tiny a and b, for example).
+        if x.is_nan() {
+            return f64::NAN;
+        }
         // Rust only: no status -4 for x outside [0..1] (cdflib.f90:2641-2659);
         // cumbet returns (0, 1) for x <= 0 and (1, 0) for 1 < x.
         // cdflib.f90:2735
@@ -383,8 +400,16 @@ impl ContinuousCdf for Beta {
     }
 
     /// CDFLIB's `cdfbet` with `which = 1`, with *y* = 1 − *x*.
+    ///
+    /// The result is NaN when *a* + *b* overflows, as for [`cdf`].
+    ///
+    /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
+        // Rust only: NaN for a NaN x, as in cdf.
+        if x.is_nan() {
+            return f64::NAN;
+        }
         // Rust only: no status -4 for x outside [0..1] (cdflib.f90:2641-2659);
         // cumbet returns (0, 1) for x <= 0 and (1, 0) for 1 < x.
         // cdflib.f90:2735
@@ -428,10 +453,12 @@ impl Continuous for Beta {
         } else {
             (self.a - 1.0) * x.ln()
         };
+        // ln_1p keeps the precision of ln(1 - x) for small x, which matters
+        // when b is large.
         let ln_y_term = if self.b == 1.0 && x == 1.0 {
             0.0
         } else {
-            (self.b - 1.0) * (1.0 - x).ln()
+            (self.b - 1.0) * (-x).ln_1p()
         };
         ln_x_term + ln_y_term - beta_log(self.a, self.b)
     }
@@ -440,21 +467,31 @@ impl Continuous for Beta {
 impl Mean for Beta {
     #[inline]
     fn mean(&self) -> f64 {
-        self.a / (self.a + self.b)
+        // a / (a + b), written so that a + b cannot overflow.
+        1.0 / (1.0 + self.b / self.a)
     }
 }
 
 impl Variance for Beta {
     #[inline]
     fn variance(&self) -> f64 {
-        let s = self.a + self.b;
-        self.a * self.b / (s * s * (s + 1.0))
+        // ab / ((a + b)² (a + b + 1)), written as the product of the two
+        // means a / (a + b) and b / (a + b) divided by a + b + 1, so that no
+        // intermediate overflows or underflows.
+        1.0 / (1.0 + self.b / self.a) / (1.0 + self.a / self.b) / (self.a + self.b + 1.0)
     }
 }
 
 impl Entropy for Beta {
     #[inline]
     fn entropy(&self) -> f64 {
+        // For a or b below about 5.6e-309, ψ overflows to -inf, and the
+        // expression below can be inf - inf. The entropy tends to -inf as
+        // the smaller parameter tends to 0 (it is below -0.8 / min(a, b)),
+        // so return the limit.
+        if self.a.min(self.b).recip() == f64::INFINITY {
+            return f64::NEG_INFINITY;
+        }
         // H = ln Β(a,b) - (a-1)ψ(a) - (b-1)ψ(b) + (a+b-2)ψ(a+b)
         beta_log(self.a, self.b) - (self.a - 1.0) * psi(self.a) - (self.b - 1.0) * psi(self.b)
             + (self.a + self.b - 2.0) * psi(self.a + self.b)
@@ -542,5 +579,34 @@ mod tests {
         assert_eq!(Beta::new(2.0, 1.0).pdf(1.5), 0.0);
         assert!(Beta::new(1.0, 1.0).pdf(f64::NAN).is_nan());
         assert!(Beta::new(1.0, 1.0).ln_pdf(f64::NAN).is_nan());
+    }
+
+    #[test]
+    fn nan_argument_gives_nan() {
+        // beta_inc returns b / (a + b) for tiny a and b whatever x is.
+        let d = Beta::new(1e-300, 1e-300);
+        assert!(d.cdf(f64::NAN).is_nan());
+        assert!(d.ccdf(f64::NAN).is_nan());
+        assert!(Beta::new(2.0, 3.0).cdf(f64::NAN).is_nan());
+    }
+
+    #[test]
+    fn density_keeps_precision_for_large_b() {
+        // 10¹⁷ (1 - 10⁻¹⁷)^(10¹⁷ - 1), about 10¹⁷ / e.
+        let pdf = Beta::new(1.0, 1e17).pdf(1e-17);
+        assert!((pdf / 3.678794411714423e16 - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn moments_do_not_overflow() {
+        assert_eq!(Beta::new(1e308, 1e308).mean(), 0.5);
+        assert!((Beta::new(1e103, 1e103).variance() / 1.25e-104 - 1.0).abs() < 1e-12);
+        assert!((Beta::new(1e-200, 1e-200).variance() - 0.25).abs() < 1e-12);
+    }
+
+    #[test]
+    fn entropy_with_subnormal_parameters_is_the_limit() {
+        assert_eq!(Beta::new(5e-324, 5e-324).entropy(), f64::NEG_INFINITY);
+        assert_eq!(Beta::new(5e-324, 2.0).entropy(), f64::NEG_INFINITY);
     }
 }

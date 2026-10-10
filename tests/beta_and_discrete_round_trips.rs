@@ -38,10 +38,10 @@ fn students_t_known_quantiles() {
         CHAINED_INVERSE_REL_TOL,
         CHAINED_INVERSE_REL_TOL,
     );
-    // Symmetry: P(T < 0) = 0.5 exactly.
+    // Symmetry: Pr[T ≤ 0] = 0.5 exactly.
     for &df in &[1.0, 3.0, 30.0] {
         let d = StudentsT::new(df);
-        assert!((d.cdf(0.0) - 0.5).abs() < DEFAULT_REL_TOL);
+        assert_eq!(d.cdf(0.0), 0.5);
     }
 }
 

@@ -42,11 +42,10 @@ fn gamma_inc_matches_reference() {
     }
 }
 
-// Truncation-depth fidelity at Digits6 and Digits3: both Rust and the F90
-// reference use the same shallower expansion at these accuracy levels, so the
-// per-row agreement should still be at iterative-routine precision (the
-// regimes are nominally "6 digits" and "3 digits", but each implementation
-// rounds the same way on the same expansion).
+// Truncation-depth fidelity at Digits6 and Digits3: Rust and the F90
+// reference use the same shallower expansions at these accuracy levels, so
+// the results agree exactly although the regimes are nominally accurate to
+// 6 and 3 digits only.
 #[test]
 fn gamma_inc_digits6_matches_reference() {
     for row in read_csv("tests/data/gamma_inc_d6.csv") {

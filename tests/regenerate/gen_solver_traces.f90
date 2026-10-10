@@ -12,6 +12,12 @@
 ! <xhi> <abstol> <reltol>"; the dinvr step parameters are 0.5, 0.5 and 5,
 ! as in every cdf* routine.
 !
+! qleft and qhi are set to .false. before each case. dzror assigns them
+! only when the function has the same sign at both ends of the interval
+! (label 20, cdflib.f90:8959), so on a failure at label 240
+! (cdflib.f90:9125) the recorded flags are these initial values, not
+! outputs of cdflib.f90.
+!
 ! Companion Rust test: solver_traces_match_f90 in src/search/mod.rs,
 ! which replays the recorded fx values and checks every requested x and
 ! the outcome bit for bit.

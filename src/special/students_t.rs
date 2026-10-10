@@ -15,8 +15,11 @@ use super::normal::dinvnr;
 /// This is CDFLIB's `dt1` (cdflib.f90:8735).
 ///
 /// As in the F90, the result is NaN when *p* or *q* is 0, as for
-/// [`dinvnr`], and it is ±∞, possibly with the wrong sign, when *df* is
-/// so small that the polynomial terms overflow.
+/// [`dinvnr`]. For small *df* the terms of the polynomial in 1/*df* grow
+/// without bound, and the result can have the wrong sign
+/// (`dt1(0.6, 0.4, 0.1)` ≈ −36.3, although the 0.6-quantile is positive),
+/// be huge or ±∞, or be NaN when overflowing terms of opposite sign meet
+/// (`dt1(0.3, 0.7, 1e-300)`).
 ///
 /// # Example
 ///
@@ -74,7 +77,7 @@ mod tests {
     fn dt1_at_median_is_essentially_zero() {
         // p = 0.5 ⇒ x = |dinvnr(0.5, 0.5)| ≈ 0 ⇒ all terms vanish.
         // dinvnr's Newton iteration leaves a sub-ULP residual (~8e-17)
-        // rather than exact zero; the cdft_t.csv fixture records the
+        // rather than exact zero; the dt1.csv fixture records the
         // same residual, so the match against CDFLIB is exact.
         for &df in &[1.0_f64, 5.0, 50.0, 1.0e6] {
             let r = dt1(0.5, 0.5, df);

@@ -78,12 +78,12 @@ fn beta_grat_matches_reference() {
     for r in read_csv("tests/data/beta_grat.csv") {
         match beta_grat(r[0], r[1], r[2], r[3], r[4], r[5]) {
             Ok(w) => {
-                assert_eq!(r[7], 0.0, "{r:?}");
+                assert_eq!(0.0, r[7], "{r:?}");
                 assert_exact(w, r[6], &r);
             }
             Err(_) => {
                 // CDFLIB ierr = 1 leaves w unchanged.
-                assert_eq!(r[7], 1.0, "{r:?}");
+                assert_eq!(1.0, r[7], "{r:?}");
                 assert_exact(r[4], r[6], &r);
             }
         }
@@ -205,7 +205,7 @@ fn gamma_edge_cases_match_reference() {
     for r in read_csv("tests/data/gamma_edge.csv") {
         match try_gamma(r[0]) {
             Ok(g) => assert_exact(g, r[1], &r),
-            Err(_) => assert_eq!(r[1], 0.0, "{r:?}"),
+            Err(_) => assert_eq!(0.0, r[1], "{r:?}"),
         }
         if r[1] == 0.0 {
             assert!(try_gamma(r[0]).is_err(), "{r:?}");
@@ -219,7 +219,7 @@ fn psi_edge_cases_match_reference() {
     for r in read_csv("tests/data/psi_edge.csv") {
         match try_psi(r[0]) {
             Ok(v) => assert_exact(v, r[1], &r),
-            Err(_) => assert_eq!(r[1], 0.0, "{r:?}"),
+            Err(_) => assert_eq!(0.0, r[1], "{r:?}"),
         }
         if r[1] == 0.0 {
             assert!(try_psi(r[0]).is_err(), "{r:?}");
@@ -238,11 +238,11 @@ fn gamma_inc_edge_cases_match_reference() {
         };
         match try_gamma_inc_with_acc(r[0], r[1], acc) {
             Ok((p, q)) => {
-                assert_eq!(r[5], 0.0, "{r:?}");
+                assert_eq!(0.0, r[5], "{r:?}");
                 assert_exact(p, r[3], &r);
                 assert_exact(q, r[4], &r);
             }
-            Err(_) => assert_eq!(r[5], 1.0, "{r:?}"),
+            Err(_) => assert_eq!(1.0, r[5], "{r:?}"),
         }
     }
 }

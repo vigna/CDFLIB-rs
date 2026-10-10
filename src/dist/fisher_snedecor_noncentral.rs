@@ -36,9 +36,11 @@ const TOL: f64 = 1.0e-8;
 ///
 /// // Pr[X ≤ 4.0]
 /// let p = d.cdf(4.0);
+/// assert!((p - 0.9281722121).abs() < 1e-5);
 ///
 /// // Compute noncentrality λ given Pr[X ≤ 4.0] = 0.5, dfn = 5, dfd = 10
 /// let ncp = FisherSnedecorNoncentral::search_ncp(0.5, 4.0, 5.0, 10.0).unwrap();
+/// assert!((ncp - 14.766).abs() < 1e-2);
 /// ```
 ///
 /// [`Continuous`]: crate::traits::Continuous
@@ -365,6 +367,20 @@ impl FisherSnedecorNoncentral {
 
     /// Fallible counterpart of [`new`](Self::new) returning a
     /// [`FisherSnedecorNoncentralError`] instead of panicking.
+    ///
+    /// Returns [`DfnNotPositive`], [`DfnNotFinite`], [`DfdNotPositive`],
+    /// [`DfdNotFinite`], [`NcpNegative`], or [`NcpNotFinite`] if an argument
+    /// fails its validity check, and then [`DfnTooSmall`] or [`DfdTooSmall`]
+    /// if *dfn* < 1 or *dfd* < 1, where `cumfnc` stops with a fatal error.
+    ///
+    /// [`DfnNotPositive`]: FisherSnedecorNoncentralError::DfnNotPositive
+    /// [`DfnNotFinite`]: FisherSnedecorNoncentralError::DfnNotFinite
+    /// [`DfdNotPositive`]: FisherSnedecorNoncentralError::DfdNotPositive
+    /// [`DfdNotFinite`]: FisherSnedecorNoncentralError::DfdNotFinite
+    /// [`NcpNegative`]: FisherSnedecorNoncentralError::NcpNegative
+    /// [`NcpNotFinite`]: FisherSnedecorNoncentralError::NcpNotFinite
+    /// [`DfnTooSmall`]: FisherSnedecorNoncentralError::DfnTooSmall
+    /// [`DfdTooSmall`]: FisherSnedecorNoncentralError::DfdTooSmall
     #[inline]
     pub fn try_new(dfn: f64, dfd: f64, ncp: f64) -> Result<Self, FisherSnedecorNoncentralError> {
         check_dfn(dfn)?;
@@ -397,11 +413,14 @@ impl FisherSnedecorNoncentral {
     /// Pr[*X* ≤ *f*] = *p*, searched for in [1 . . 10³⁰].
     ///
     /// CDFLIB's `cdffnc` with `which = 3`. As in CDFLIB, the lower bound
-    /// reported on failure is 0, not 1.
+    /// reported on failure is 0, not 1. The precision limits of [`cdf`]
+    /// apply.
     ///
     /// # Panics
     ///
-    /// Panics as [`cdf`](ContinuousCdf::cdf) does.
+    /// Panics as [`cdf`] does.
+    ///
+    /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
     pub fn search_dfn(
         p: f64,
@@ -439,11 +458,14 @@ impl FisherSnedecorNoncentral {
     /// Pr[*X* ≤ *f*] = *p*, searched for in [1 . . 10³⁰].
     ///
     /// CDFLIB's `cdffnc` with `which = 4`. As in CDFLIB, the lower bound
-    /// reported on failure is 0, not 1.
+    /// reported on failure is 0, not 1. The precision limits of [`cdf`]
+    /// apply.
     ///
     /// # Panics
     ///
-    /// Panics as [`cdf`](ContinuousCdf::cdf) does.
+    /// Panics as [`cdf`] does.
+    ///
+    /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
     pub fn search_dfd(
         p: f64,
@@ -480,7 +502,11 @@ impl FisherSnedecorNoncentral {
     /// Returns the noncentrality parameter *λ* satisfying
     /// Pr[*X* ≤ *f*] = *p*, searched for in [0 . . 10⁴].
     ///
-    /// CDFLIB's `cdffnc` with `which = 5`.
+    /// CDFLIB's `cdffnc` with `which = 5`. At *p* = 0, where the answer is
+    /// +∞, the search stops, as the F90 does, where the computed probability
+    /// becomes 0, and returns that finite value:
+    /// `search_ncp(0.0, 2.0, 5.0, 10.0)` returns about 9770. The precision
+    /// limits of [`cdf`] apply.
     ///
     /// # Panics
     ///
@@ -526,10 +552,14 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
 
     /// CDFLIB's `cdffnc` with `which = 1`.
     ///
-    /// The series stops when a term is less than 10⁻⁴ times the sum, and
-    /// for very large degrees of freedom (*dfd* beyond about 10¹⁴, for
-    /// example) its terms lose their digits, so that, as in the F90, the
-    /// result can fall outside [0 . . 1].
+    /// The series stops when a term is less than 10⁻⁴ times the sum. For a
+    /// large *λ*, whose Poisson weights spread over many terms, this happens
+    /// before the sum is complete, and, as in the F90, the result is badly
+    /// wrong: with *dfn* = 10 and *dfd* = 1000 the true cdf at twice the mean
+    /// is close to 1, but the computed one is 0.9992 for *λ* = 10³, 0.988 for
+    /// *λ* = 10⁵ and 0.51 for *λ* = 10⁸. For very large degrees of freedom
+    /// (*dfd* beyond about 10¹⁴, for example) the terms lose their digits, so
+    /// that the result can fall outside [0 . . 1].
     ///
     /// # Panics
     ///
@@ -540,6 +570,10 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
     /// series is NaN, where the F90 never returns.
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
+        // Rust only: NaN for a NaN x.
+        if x.is_nan() {
+            return f64::NAN;
+        }
         // Rust only: exact endpoint at +inf, where cumfnc truncates its sum short of 1.
         if x == f64::INFINITY {
             return 1.0;
@@ -553,9 +587,10 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
     /// CDFLIB's `cdffnc` with `which = 1`.
     ///
     /// Unlike the central distributions, CDFLIB computes this as
-    /// 1 − [`cdf`], from a series that stops when a term is less than
-    /// 10⁻⁴ times the sum, so the result has no relative precision in the
-    /// right tail.
+    /// 1 − [`cdf`] (except for *λ* < 10⁻¹⁰, where it uses the central *F*),
+    /// from a series that stops when a term is less than 10⁻⁴ times the
+    /// sum, so the result has no relative precision in the right tail. The
+    /// precision limits of [`cdf`] apply.
     ///
     /// # Panics
     ///
@@ -564,6 +599,10 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
     /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
+        // Rust only: NaN for a NaN x.
+        if x.is_nan() {
+            return f64::NAN;
+        }
         // Rust only: exact endpoint at +inf, where cumfnc truncates its sum short of 1.
         if x == f64::INFINITY {
             return 0.0;
@@ -576,9 +615,13 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
 
     /// CDFLIB's `cdffnc` with `which = 2`, searched for in [0 . . 10³⁰].
     ///
+    /// The precision limits of [`cdf`] apply.
+    ///
     /// # Panics
     ///
-    /// Panics as [`cdf`](ContinuousCdf::cdf) does.
+    /// Panics as [`cdf`] does.
+    ///
+    /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, FisherSnedecorNoncentralError> {
         check_p(p)?;
@@ -617,7 +660,9 @@ impl Mean for FisherSnedecorNoncentral {
     #[inline]
     fn mean(&self) -> f64 {
         if self.dfd > 2.0 {
-            self.dfd * (self.dfn + self.ncp) / (self.dfn * (self.dfd - 2.0))
+            // dfd (dfn + λ) / (dfn (dfd - 2)), written as a product of ratios
+            // so that no intermediate overflows.
+            self.dfd / (self.dfd - 2.0) * ((self.dfn + self.ncp) / self.dfn)
         } else {
             f64::NAN
         }
@@ -631,8 +676,14 @@ impl Variance for FisherSnedecorNoncentral {
         let dfd = self.dfd;
         let ncp = self.ncp;
         if dfd > 4.0 {
-            2.0 * dfd * dfd * ((dfn + ncp).powi(2) + (dfd - 2.0) * (dfn + 2.0 * ncp))
-                / (dfn * dfn * (dfd - 2.0).powi(2) * (dfd - 4.0))
+            // 2 dfd² ((dfn + λ)² + (dfd - 2)(dfn + 2λ))
+            //     / (dfn² (dfd - 2)² (dfd - 4)),
+            // written with m = dfd / (dfd - 2), r = (dfn + λ) / dfn and
+            // t = (dfn + 2λ) / dfn² so that no intermediate overflows.
+            let m = dfd / (dfd - 2.0);
+            let r = (dfn + ncp) / dfn;
+            let t = (dfn + 2.0 * ncp) / dfn / dfn;
+            2.0 * m * m * (r * r / (dfd - 4.0) + (dfd - 2.0) / (dfd - 4.0) * t)
         } else {
             f64::NAN
         }
@@ -731,5 +782,14 @@ mod tests {
     fn huge_ncp_overflows_the_f90_integers() {
         // pnonc / 2 >= 2^31 - 1: int(xnonc) overflows in F90.
         FisherSnedecorNoncentral::new(3.0, 4.0, 5.0e9).cdf(1.0);
+    }
+
+    #[test]
+    fn moments_do_not_overflow() {
+        // For large dfd the mean tends to (dfn + λ) / dfn and the variance
+        // to 2 (dfn + 2λ) / dfn² + ((dfn + λ) / dfn)² · 2 / dfd.
+        let d = FisherSnedecorNoncentral::new(1.0, f64::MAX, 1.0);
+        assert_eq!(d.mean(), 2.0);
+        assert_eq!(d.variance(), 6.0);
     }
 }

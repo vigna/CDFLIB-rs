@@ -136,7 +136,7 @@ contains
 
   subroutine log_cdfbin()
     ! which, p, q, s, xn, pr, ompr
-    real(kind=rk), parameter :: r(7, 37) = reshape((/ &
+    real(kind=rk), parameter :: r(7, 39) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 3.0_rk, 10.0_rk, 0.3_rk, auto, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, 10.0_rk, 0.3_rk, auto, &
       1.0_rk, 0.0_rk, 0.0_rk, 10.0_rk, 10.0_rk, 0.3_rk, auto, &
@@ -173,7 +173,9 @@ contains
       3.0_rk, 0.5_rk, auto, -1.0_rk, 0.0_rk, 0.3_rk, auto, &
       4.0_rk, 0.8_rk, auto, 10.0_rk, 10.0_rk, 0.0_rk, auto, &
       3.0_rk, 0.5_rk, auto, 3.0_rk, 0.0_rk, 0.0_rk, auto, &
-      3.0_rk, 0.01_rk, auto, 3.0_rk, 0.0_rk, 1.0e-300_rk, auto /), (/ 7, 37 /))
+      3.0_rk, 0.01_rk, auto, 3.0_rk, 0.0_rk, 1.0e-300_rk, auto, &
+      2.0_rk, 1.0_rk, auto, 0.0_rk, 10.0_rk, 0.3_rk, auto, &
+      2.0_rk, 0.0_rk, auto, 0.0_rk, 10.0_rk, 0.3_rk, auto /), (/ 7, 39 /))
     real(kind=rk) :: v(6), a(6), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdfbin_calls.csv', status='replace', action='write')
@@ -194,7 +196,7 @@ contains
 
   subroutine log_cdfchi()
     ! which, p, q, x, df
-    real(kind=rk), parameter :: r(5, 26) = reshape((/ &
+    real(kind=rk), parameter :: r(5, 29) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 3.84_rk, 1.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, 5.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 1000.0_rk, 5.0_rk, &
@@ -220,7 +222,10 @@ contains
       2.0_rk, 0.5_rk, auto, 0.0_rk, 1.0e300_rk, &
       2.0_rk, 0.5_rk, auto, 0.0_rk, 1.0e305_rk, &
       3.0_rk, 0.5_rk, auto, 1.0e300_rk, 0.0_rk, &
-      3.0_rk, 0.5_rk, auto, 1.42108547152020022e29_rk, 0.0_rk /), (/ 5, 26 /))
+      3.0_rk, 0.5_rk, auto, 1.42108547152020022e29_rk, 0.0_rk, &
+      2.0_rk, 0.7_rk, auto, 0.0_rk, 1.0e305_rk, &
+      3.0_rk, 0.5_rk, auto, 1.5e300_rk, 0.0_rk, &
+      3.0_rk, 0.7_rk, auto, 1.5e300_rk, 0.0_rk /), (/ 5, 29 /))
     real(kind=rk) :: v(4), a(4), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdfchi_calls.csv', status='replace', action='write')
@@ -390,7 +395,7 @@ contains
 
   subroutine log_cdfgam()
     ! which, p, q, x, shape, scale
-    real(kind=rk), parameter :: r(6, 30) = reshape((/ &
+    real(kind=rk), parameter :: r(6, 32) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 2.0_rk, 2.0_rk, 1.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, 2.0_rk, 1.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 2.0_rk, 0.0_rk, 1.0_rk, &
@@ -420,7 +425,9 @@ contains
       2.0_rk, 1.5_rk, auto, 0.0_rk, 2.0_rk, 3.0_rk, &
       2.0_rk, 0.5_rk, -0.5_rk, 0.0_rk, 2.0_rk, 3.0_rk, &
       2.0_rk, 0.5_rk, 1.5_rk, 0.0_rk, 2.0_rk, 3.0_rk, &
-      3.0_rk, 0.5_rk, auto, 1.0e300_rk, 0.0_rk, 1.0_rk /), (/ 6, 30 /))
+      3.0_rk, 0.5_rk, auto, 1.0e300_rk, 0.0_rk, 1.0_rk, &
+      3.0_rk, 0.5_rk, auto, 1.5e300_rk, 0.0_rk, 1.0_rk, &
+      3.0_rk, 0.7_rk, auto, 1.5e300_rk, 0.0_rk, 1.0_rk /), (/ 6, 32 /))
     real(kind=rk) :: v(5), a(5), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdfgam_calls.csv', status='replace', action='write')
@@ -440,7 +447,7 @@ contains
 
   subroutine log_cdfnbn()
     ! which, p, q, f, s, pr, ompr
-    real(kind=rk), parameter :: r(7, 33) = reshape((/ &
+    real(kind=rk), parameter :: r(7, 34) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 3.0_rk, 5.0_rk, 0.5_rk, auto, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, 5.0_rk, 0.5_rk, auto, &
       1.0_rk, 0.0_rk, 0.0_rk, 3.0_rk, 5.0_rk, 1.0_rk, auto, &
@@ -473,7 +480,8 @@ contains
       3.0_rk, 0.5_rk, auto, -1.0_rk, 0.0_rk, 0.5_rk, auto, &
       2.0_rk, 0.5_rk, auto, 0.0_rk, -1.0_rk, 0.5_rk, auto, &
       2.0_rk, 0.5_rk, auto, 0.0_rk, 5.0_rk, 1.0e-300_rk, auto, &
-      3.0_rk, 0.5_rk, auto, 3.0_rk, 0.0_rk, 1.0_rk, auto /), (/ 7, 33 /))
+      3.0_rk, 0.5_rk, auto, 3.0_rk, 0.0_rk, 1.0_rk, auto, &
+      3.0_rk, 0.7_rk, auto, 5.0_rk, 0.0_rk, 1.0_rk, auto /), (/ 7, 34 /))
     real(kind=rk) :: v(6), a(6), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdfnbn_calls.csv', status='replace', action='write')

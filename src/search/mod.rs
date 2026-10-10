@@ -452,6 +452,10 @@ mod tests {
                     }
                     "fail" => {
                         assert_eq!(status, -1, "{head}: {line}");
+                        // On a dzror failure at label 240 (cdflib.f90:9125)
+                        // the F90 does not assign qleft and qhi, so the
+                        // trace records the false values the generator
+                        // initializes them to.
                         assert_eq!(qleft, flag(t[1]), "{head}: {line}");
                         assert_eq!(qhi, flag(t[2]), "{head}: {line}");
                         assert_eq!(x.to_bits(), hex(t[3]).to_bits(), "{head}: {line}");
