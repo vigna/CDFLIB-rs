@@ -84,12 +84,19 @@ contains
     write(unit, '(a)') header
   end subroutine openf
 
-  ! algdiv requires 8 <= b; covers b < a and a <= b, and v < u.
+  ! algdiv requires 8 <= b; covers b < a and a <= b, and v < u. The two
+  ! branches agree in exact arithmetic, so the last rows pair a huge a
+  ! with a non-dyadic b, where they round differently.
   subroutine gen_algdiv()
     real(kind=rk), parameter :: av(10) = (/ 0.5_rk, 1.0_rk, 2.0_rk, 5.0_rk, &
       7.9_rk, 8.0_rk, 10.0_rk, 30.0_rk, 100.0_rk, 1.0e5_rk /)
     real(kind=rk), parameter :: bv(7) = (/ 8.0_rk, 9.5_rk, 10.0_rk, 20.0_rk, &
       50.0_rk, 1.0e3_rk, 1.0e8_rk /)
+    real(kind=rk), parameter :: ab(2, 4) = reshape((/ &
+      5306957300056088.0_rk, 7430.870691999832_rk, &
+      5306957300056088.0_rk, 99.99999_rk, &
+      9.87654321098765e15_rk, 333.3333333_rk, &
+      9.87654321098765e15_rk, 1001.001_rk /), (/ 2, 4 /))
     integer :: unit, i, j
     call openf(unit, 'algdiv.csv', '# a, b, algdiv(a, b)')
     do i = 1, size(av)
@@ -98,6 +105,11 @@ contains
         call putval(unit, bv(j), .false.)
         call putval(unit, algdiv(av(i), bv(j)), .true.)
       end do
+    end do
+    do i = 1, size(ab, 2)
+      call putval(unit, ab(1, i), .false.)
+      call putval(unit, ab(2, i), .false.)
+      call putval(unit, algdiv(ab(1, i), ab(2, i)), .true.)
     end do
     close(unit)
   end subroutine gen_algdiv
@@ -492,9 +504,9 @@ contains
   end subroutine gen_gamma_ln1
 
   ! gamma_rat1 for a <= 1: a*x == 0 both ways, a == 0.5 both ways, the
-  ! Taylor series with labels 30, 40, 50 and the q < 0 exit, and the
-  ! continued fraction. r is the value exp(-x)*x^a/Gamma(a) passed by
-  ! beta_grat.
+  ! Taylor series with labels 30, 40, 50, and the continued fraction (the
+  ! q < 0 exit is never taken; see unreachable.txt). r is the value
+  ! exp(-x)*x^a/Gamma(a) passed by beta_grat.
   subroutine gen_gamma_rat1()
     real(kind=rk), parameter :: av(13) = (/ 0.0_rk, 1.0e-300_rk, 1.0e-100_rk, &
       1.0e-20_rk, 1.0e-16_rk, 1.0e-10_rk, 0.01_rk, 0.1_rk, 0.5_rk, 0.7_rk, &
@@ -677,8 +689,8 @@ contains
       a = 1.0e36_rk
       x = a * (1.0_rk + 2.0_rk * epsilon(1.0_rk))
       call ginc_row(unit, a, x, ind)
-      ! Tiny a with x < 1.1, where the Taylor series for P(A,X)/X^A can
-      ! yield a negative qans.
+      ! Tiny a with x < 1.1, where the Taylor series for P(A,X)/X^A
+      ! gives a qans close to 0 (never negative; see unreachable.txt).
       do i = 1, size(tiny_a)
         do j = 1, size(tiny_x)
           call ginc_row(unit, tiny_a(i), tiny_x(j), ind)

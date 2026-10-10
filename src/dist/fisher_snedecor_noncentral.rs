@@ -69,53 +69,51 @@ pub struct FisherSnedecorNoncentral {
 pub enum FisherSnedecorNoncentralError {
     /// The numerator degrees of freedom *dfn* was not strictly positive
     /// (`cdffnc` status −5).
-    #[error("numerator df must be positive, got {0}")]
+    #[error("numerator df must be positive, got {0:?}")]
     DfnNotPositive(f64),
     /// The numerator degrees of freedom *dfn* was less than 1, where
     /// `cumfnc` stops with a fatal error (cdflib.f90:7317-7322). It is
     /// checked after the `cdffnc` status checks.
-    #[error("numerator df must be at least 1, got {0}")]
+    #[error("numerator df must be at least 1, got {0:?}")]
     DfnTooSmall(f64),
     /// The numerator degrees of freedom *dfn* was not finite (checked only
     /// in Rust).
-    #[error("numerator df must be finite, got {0}")]
+    #[error("numerator df must be finite, got {0:?}")]
     DfnNotFinite(f64),
     /// The denominator degrees of freedom *dfd* was not strictly positive
     /// (`cdffnc` status −6).
-    #[error("denominator df must be positive, got {0}")]
+    #[error("denominator df must be positive, got {0:?}")]
     DfdNotPositive(f64),
     /// The denominator degrees of freedom *dfd* was less than 1, where
     /// `cumfnc` stops with a fatal error (cdflib.f90:7324-7329). It is
     /// checked after the `cdffnc` status checks.
-    #[error("denominator df must be at least 1, got {0}")]
+    #[error("denominator df must be at least 1, got {0:?}")]
     DfdTooSmall(f64),
     /// The denominator degrees of freedom *dfd* was not finite (checked
     /// only in Rust).
-    #[error("denominator df must be finite, got {0}")]
+    #[error("denominator df must be finite, got {0:?}")]
     DfdNotFinite(f64),
     /// The noncentrality parameter *λ* was negative (`cdffnc` status −7).
-    #[error("noncentrality parameter must be nonnegative, got {0}")]
+    #[error("noncentrality parameter must be nonnegative, got {0:?}")]
     NcpNegative(f64),
     /// The noncentrality parameter *λ* was not finite (checked only in
     /// Rust).
-    #[error("noncentrality parameter must be finite, got {0}")]
+    #[error("noncentrality parameter must be finite, got {0:?}")]
     NcpNotFinite(f64),
     /// The value *f* was not strictly positive (`cdffnc` status −4 for
-    /// *f* < 0; Rust also rejects *f* = 0, where Pr[*X* ≤ *f*] = 0 whatever
-    /// the parameters).
-    #[error("f must be positive, got {0}")]
+    /// *f* < 0; Rust also rejects *f* = 0).
+    #[error("f must be positive, got {0:?}")]
     FNotPositive(f64),
     /// The value *f* was not finite (checked only in Rust).
-    #[error("f must be finite, got {0}")]
+    #[error("f must be finite, got {0:?}")]
     FNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdffnc` status −2); NaN is
     /// also rejected.
-    #[error("probability p {0} outside [0..1]")]
+    #[error("probability p {0:?} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1]; NaN is also rejected.
-    /// No method of [`FisherSnedecorNoncentral`] returns it, since CDFLIB's
-    /// `cdffnc` does not use *q*.
-    #[error("probability q {0} outside [0..1]")]
+    /// The probability *q* fell outside [0 . . 1]. No method returns it,
+    /// since `cdffnc` does not use *q*.
+    #[error("probability q {0:?} outside [0..1]")]
     QNotInRange(f64),
     /// The search for the answer failed (`cdffnc` status 1 or 2); see
     /// [`SearchError`].
@@ -130,7 +128,10 @@ pub enum FisherSnedecorNoncentralError {
 /// *pnonc* (`cumfnc`, cdflib.f90:7219).
 ///
 /// The series of incomplete Β functions weighted by Poisson terms is
-/// summed backwards and forwards from the central term.
+/// summed backwards and forwards from the central term; each sum stops
+/// when a term is less than `EPS` times the sum or when the sum is less
+/// than the machine epsilon, so the backward sum does not start if the
+/// central term is below it.
 ///
 /// # Panics
 ///
@@ -167,7 +168,7 @@ pub(crate) fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
     // integer, which is undefined in Fortran; a NaN pnonc is caught here
     // too.
     if xnonc.is_nan() || f64::from(i32::MAX) <= xnonc {
-        panic!("cumfnc: integer overflow for pnonc = {pnonc}");
+        panic!("cumfnc: integer overflow for pnonc = {pnonc:?}");
     }
     // Calculate the central term of the Poisson weighting factor.
     let mut icent = xnonc as i32;
@@ -213,6 +214,13 @@ pub(crate) fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
             break;
         }
 
+        // Rust only: once sum1 is NaN neither exit test can succeed, and the
+        // loop runs until i is 0, up to 2³¹ - 2 times, before the forward
+        // loop below panics for the same reason.
+        if sum1.is_nan() {
+            panic!("cumfnc: the sum is NaN for dfn = {dfn:?}, dfd = {dfd:?}, pnonc = {pnonc:?}");
+        }
+
         if sum1 < f64::EPSILON || xmult * betdn < EPS * sum1 {
             break;
         }
@@ -248,13 +256,13 @@ pub(crate) fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
         // Rust only: i + 1 overflows the default integer, which is
         // undefined in Fortran.
         if i == i32::MAX {
-            panic!("cumfnc: integer overflow for pnonc = {pnonc}");
+            panic!("cumfnc: integer overflow for pnonc = {pnonc:?}");
         }
         // Rust only: once sum1 is NaN neither exit test below can succeed,
         // and the F90 loop never ends; this happens when dfn or dfd is so
         // large that the terms lose all their digits.
         if sum1.is_nan() {
-            panic!("cumfnc: the sum is NaN for dfn = {dfn}, dfd = {dfd}, pnonc = {pnonc}");
+            panic!("cumfnc: the sum is NaN for dfn = {dfn:?}, dfd = {dfd:?}, pnonc = {pnonc:?}");
         }
         xmult = xmult * (xnonc / i as f64);
         i = i + 1;
@@ -382,6 +390,7 @@ impl FisherSnedecorNoncentral {
     /// [`DfnTooSmall`]: FisherSnedecorNoncentralError::DfnTooSmall
     /// [`DfdTooSmall`]: FisherSnedecorNoncentralError::DfdTooSmall
     /// [`new`]: Self::new
+    /// [`FisherSnedecorNoncentralError`]: crate::FisherSnedecorNoncentralError
     #[inline]
     pub fn try_new(dfn: f64, dfd: f64, ncp: f64) -> Result<Self, FisherSnedecorNoncentralError> {
         check_dfn(dfn)?;
@@ -411,11 +420,11 @@ impl FisherSnedecorNoncentral {
     }
 
     /// Returns the numerator degrees of freedom *dfn* satisfying
-    /// Pr[*X* ≤ *f*] = *p*, searched for in [1 . . 10³⁰].
+    /// Pr\[*X* ≤ *f*\] = *p*, searched for in [1 . . 10³⁰].
     ///
-    /// CDFLIB's `cdffnc` with `which = 3`. As in CDFLIB, the lower bound
-    /// reported on failure is 0, not 1. The precision limits of [`cdf`]
-    /// apply.
+    /// CDFLIB's `cdffnc` with `which = 3`. The lower bound reported on
+    /// failure is 0, not 1. The precision limits of [`cdf`] apply: in the
+    /// left tail the search can return a wrong answer without an error.
     ///
     /// # Panics
     ///
@@ -456,11 +465,11 @@ impl FisherSnedecorNoncentral {
     }
 
     /// Returns the denominator degrees of freedom *dfd* satisfying
-    /// Pr[*X* ≤ *f*] = *p*, searched for in [1 . . 10³⁰].
+    /// Pr\[*X* ≤ *f*\] = *p*, searched for in [1 . . 10³⁰].
     ///
-    /// CDFLIB's `cdffnc` with `which = 4`. As in CDFLIB, the lower bound
-    /// reported on failure is 0, not 1. The precision limits of [`cdf`]
-    /// apply.
+    /// CDFLIB's `cdffnc` with `which = 4`. The lower bound reported on
+    /// failure is 0, not 1. The precision limits of [`cdf`] apply: in the
+    /// left tail the search can return a wrong answer without an error.
     ///
     /// # Panics
     ///
@@ -501,13 +510,14 @@ impl FisherSnedecorNoncentral {
     }
 
     /// Returns the noncentrality parameter *λ* satisfying
-    /// Pr[*X* ≤ *f*] = *p*, searched for in [0 . . 10⁴].
+    /// Pr\[*X* ≤ *f*\] = *p*, searched for in [0 . . 10⁴].
     ///
     /// CDFLIB's `cdffnc` with `which = 5`. At *p* = 0, where the answer is
-    /// +∞, the search stops, as the F90 does, where the computed probability
-    /// becomes 0, and returns that finite value:
-    /// `search_ncp(0.0, 2.0, 5.0, 10.0)` returns about 9770. The precision
-    /// limits of [`cdf`] apply.
+    /// +∞, the search returns the finite point where the computed
+    /// probability becomes 0 (about 9770 for
+    /// `search_ncp(0.0, 2.0, 5.0, 10.0)`). The precision limits of [`cdf`]
+    /// apply: in the left tail the search can return a wrong answer without
+    /// an error.
     ///
     /// # Panics
     ///
@@ -553,25 +563,27 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
 
     /// CDFLIB's `cdffnc` with `which = 1`.
     ///
-    /// The series stops when a term is less than 10⁻⁴ times the sum. For a
-    /// large *λ*, whose Poisson weights spread over many terms, this happens
-    /// before the sum is complete, and, as in the F90, the result is badly
-    /// wrong: with *dfn* = 10 and *dfd* = 1000 the true cdf at twice the mean
-    /// is close to 1, but the computed one is 0.9992 for *λ* = 10³, 0.988 for
-    /// *λ* = 10⁵ and 0.51 for *λ* = 10⁸. For very large degrees of freedom
-    /// (*dfd* beyond about 10¹⁴, for example) the terms lose their digits, so
-    /// that the result can fall outside [0 . . 1]. For a small *λ* the sum can
-    /// also exceed 1 by a few ulps in the right tail, so that [`ccdf`] is
-    /// slightly negative: with *dfn* = 3.7, *dfd* = 30 and *λ* = 10⁻⁹, the
-    /// cdf at 100 is 1 + 4.4 · 10⁻¹⁶.
+    /// The series stops when a term is less than 10⁻⁴ times the sum or when
+    /// the sum is less than the machine epsilon, and, as in the F90, the
+    /// result can be badly wrong. For a large *λ*, whose Poisson weights
+    /// spread over many terms, the sum stops too early: with *dfn* = 10 and
+    /// *dfd* = 1000, the cdf at twice the mean should be close to 1, but is
+    /// 0.51 for *λ* = 10⁸. In the left tail, where the terms around the
+    /// central one are below the machine epsilon, the low-index terms that
+    /// carry the probability are never added: with *dfn* = 1, *dfd* = 10 and
+    /// *λ* = 10, cdf(0.001) is 5.3 · 10⁻²¹ instead of 1.66 · 10⁻⁴. For very
+    /// large degrees of freedom (e.g., *dfd* beyond about 10¹⁴) the result
+    /// can fall outside [0 . . 1]. For a small *λ* it can exceed 1 by a few
+    /// ulps in the right tail, making [`ccdf`] slightly negative
+    /// (1 + 4.4 · 10⁻¹⁶ at 100 for *dfn* = 3.7, *dfd* = 30 and *λ* = 10⁻⁹).
     ///
     /// # Panics
     ///
-    /// Panics if *λ*/2 ≥ 2³¹ − 1, or if the forward sum of `cumfnc` runs
-    /// past index 2³¹ − 1, where CDFLIB's default integers overflow; the
-    /// latter needs *λ*/2 within a few hundred thousand of 2³¹. Panics
-    /// also when the degrees of freedom are so large that the sum of the
-    /// series is NaN, where the F90 never returns.
+    /// Panics where CDFLIB's default integers overflow: if *λ*/2 ≥ 2³¹ − 1,
+    /// or if the forward sum of `cumfnc` runs past index 2³¹ − 1, which
+    /// needs *λ*/2 within a few hundred thousand of 2³¹. Panics also when
+    /// the degrees of freedom are so large that the sum of the series is
+    /// NaN, where the F90 never returns.
     ///
     /// [`ccdf`]: ContinuousCdf::ccdf
     #[inline]
@@ -590,13 +602,10 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
         cumfnc(x, self.dfn, self.dfd, self.ncp).0
     }
 
-    /// CDFLIB's `cdffnc` with `which = 1`.
-    ///
-    /// Unlike the central distributions, CDFLIB computes this as
-    /// 1 − [`cdf`] (except for *λ* < 10⁻¹⁰, where it uses the central *F*),
-    /// from a series that stops when a term is less than 10⁻⁴ times the
-    /// sum, so the result has no relative precision in the right tail. The
-    /// precision limits of [`cdf`] apply.
+    /// CDFLIB's `cdffnc` with `which = 1`, computed as 1 − [`cdf`] (except
+    /// for *λ* < 10⁻¹⁰, where the central *F* is used), so the result has no
+    /// relative precision in the right tail. The precision limits of
+    /// [`cdf`] apply.
     ///
     /// # Panics
     ///
@@ -621,7 +630,9 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
 
     /// CDFLIB's `cdffnc` with `which = 2`, searched for in [0 . . 10³⁰].
     ///
-    /// The precision limits of [`cdf`] apply.
+    /// The precision limits of [`cdf`] apply: in the left tail the search
+    /// returns a wrong answer without an error (about 0.0077 instead of
+    /// 3.6 · 10⁻⁴ for *dfn* = 1, *dfd* = 10, *λ* = 10 and *p* = 10⁻⁴).
     ///
     /// # Panics
     ///
@@ -669,7 +680,7 @@ impl Mean for FisherSnedecorNoncentral {
         if self.dfd > 2.0 {
             // dfd (dfn + λ) / (dfn (dfd - 2)), written as a product of ratios
             // so that no intermediate overflows.
-            self.dfd / (self.dfd - 2.0) * ((self.dfn + self.ncp) / self.dfn)
+            self.dfd / (self.dfd - 2.0) * (1.0 + self.ncp / self.dfn)
         } else {
             f64::NAN
         }
@@ -686,12 +697,13 @@ impl Variance for FisherSnedecorNoncentral {
         if dfd > 4.0 {
             // 2 dfd² ((dfn + λ)² + (dfd - 2)(dfn + 2λ))
             //     / (dfn² (dfd - 2)² (dfd - 4)),
-            // written with m = dfd / (dfd - 2), r = (dfn + λ) / dfn and
-            // t = (dfn + 2λ) / dfn² so that no intermediate overflows.
+            // written with m = dfd / (dfd - 2), r = 1 + λ / dfn and
+            // t = (1 + 2λ / dfn) / dfn so that no intermediate overflows.
             let m = dfd / (dfd - 2.0);
-            let r = (dfn + ncp) / dfn;
-            let t = (dfn + 2.0 * ncp) / dfn / dfn;
-            2.0 * m * m * (r * r / (dfd - 4.0) + (dfd - 2.0) / (dfd - 4.0) * t)
+            let ratio = ncp / dfn;
+            let r = 1.0 + ratio;
+            let t = (1.0 + 2.0 * ratio) / dfn;
+            2.0 * m * m * (r * (r / (dfd - 4.0)) + (dfd - 2.0) / (dfd - 4.0) * t)
         } else {
             f64::NAN
         }
@@ -793,11 +805,35 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "the sum is NaN")]
+    fn nan_sum_panics_in_the_backward_sum() {
+        // Without the check in the backward sum, about 2 · 10⁹ terms would
+        // be added before the forward sum panics.
+        FisherSnedecorNoncentral::new(f64::MAX, 1.0, 4e9).cdf(2.0);
+    }
+
+    #[test]
+    #[should_panic(expected = "the sum is NaN")]
+    fn nan_sum_panics_in_the_forward_sum() {
+        FisherSnedecorNoncentral::new(f64::MAX, 1.0, 1.0).cdf(2.0);
+    }
+
+    #[test]
     fn moments_do_not_overflow() {
         // For large dfd the mean tends to (dfn + λ) / dfn and the variance
         // to 2 (dfn + 2λ) / dfn² + ((dfn + λ) / dfn)² · 2 / dfd.
         let d = FisherSnedecorNoncentral::new(1.0, f64::MAX, 1.0);
         assert_eq!(d.mean(), 2.0);
         assert_eq!(d.variance(), 6.0);
+        // dfn + λ, 2λ and ((dfn + λ) / dfn)² overflow.
+        let d = FisherSnedecorNoncentral::new(1e308, 10.0, 1e308);
+        assert!((d.mean() / 2.5 - 1.0).abs() < 1e-15);
+        assert!((d.variance() / 2.0833333333333335 - 1.0).abs() < 1e-15);
+        let d = FisherSnedecorNoncentral::new(1e154, 10.0, 1e308);
+        assert!((d.variance() / 5.208333333333333e307 - 1.0).abs() < 1e-15);
+        let d = FisherSnedecorNoncentral::new(1e300, 10.0, 1e308);
+        assert!((d.variance() / 5.2083334375e15 - 1.0).abs() < 1e-15);
+        let d = FisherSnedecorNoncentral::new(1.0, 1e300, 1e200);
+        assert!((d.variance() / 4e200 - 1.0).abs() < 1e-15);
     }
 }

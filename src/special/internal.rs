@@ -1,22 +1,12 @@
 //! CDFLIB helper routines that the user-facing routines build on.
 //!
-//! Every function here is part of the public API and is documented with its
-//! CDFLIB role; they live in a separate module so the user-facing
-//! [`cdflib::special`] namespace stays focused on the
-//! routines a statistical user is likely to call directly ([`beta_inc`],
-//! [`gamma_inc`], [`error_f`], [`cumnor`], etc.).
+//! Each function here ([`algdiv`], [`bcorr`], [`gam1`], [`rlog`],
+//! [`stvaln`], etc.) is a port of the routine of the same name in the
+//! Fortran 90 CDFLIB, documented after its Fortran header; `ierr`
+//! out-parameters become `Result` types (see for example
+//! [`BetaGratError`]). They live here so that [`cdflib::special`] keeps to
+//! the routines a statistical user is likely to call directly.
 //!
-//! Users porting code that calls these helpers by name (for example
-//! [`algdiv`], [`bcorr`], [`gam1`], [`rlog`], [`stvaln`]) can find
-//! each routine here under its CDFLIB name. Each one is a port of the routine
-//! of the same name in the Fortran 90 CDFLIB, and its documentation follows
-//! the Fortran header; `ierr` out-parameters are surfaced through the
-//! matching Rust `Result` types (see for example [`BetaGratError`]).
-//!
-//! [`beta_inc`]: crate::special::beta_inc
-//! [`gamma_inc`]: crate::special::gamma_inc
-//! [`error_f`]: crate::special::error_f
-//! [`cumnor`]: crate::special::cumnor
 //! [`algdiv`]: crate::special::internal::algdiv
 //! [`bcorr`]: crate::special::internal::bcorr
 //! [`gam1`]: crate::special::internal::gam1

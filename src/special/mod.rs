@@ -1,37 +1,25 @@
 //! Special functions underlying the distributions.
 //!
-//! This module is split into two surfaces.
-//!
-//! The top-level [`cdflib::special`] namespace exposes the
-//! user-facing special functions a statistical user is likely to call directly:
-//! [`beta`], [`beta_log`], [`beta_inc`], [`gamma`], [`gamma_log`],
-//! [`gamma_inc`], [`gamma_inc_inv`], [`psi`], [`error_f`], [`error_fc`],
-//! [`error_fc_scaled`], [`cumnor`], [`dinvnr`], [`dlanor`], and [`dt1`].
-//!
-//! The functions that can fail have a fallible `try_*` form
+//! This module exposes the special functions a statistical user is likely
+//! to call directly: [`beta`], [`beta_log`], [`beta_inc`], [`gamma`],
+//! [`gamma_log`], [`gamma_inc`], [`gamma_inc_inv`], [`psi`], [`error_f`],
+//! [`error_fc`], [`error_fc_scaled`], [`cumnor`], [`dinvnr`], [`dlanor`],
+//! and [`dt1`]. Those that can fail have a fallible `try_*` form
 //! ([`try_beta_inc`], [`try_gamma`], [`try_gamma_inc`],
 //! [`try_gamma_inc_with_acc`], [`try_gamma_inc_inv`], [`try_psi`]), except
-//! [`dlanor`], which panics when its argument is outside the range of its
-//! asymptotic expansion; [`gamma_inc_with_acc`] exposes the accuracy selector
-//! of CDFLIB's `gamma_inc`.
+//! [`dlanor`], which panics outside the range of its asymptotic expansion;
+//! [`gamma_inc_with_acc`] exposes the accuracy selector of CDFLIB's
+//! `gamma_inc`.
 //!
-//! The companion [`internal`] submodule exposes the CDFLIB-style helper
-//! routines used inside the routines above ([`algdiv`], [`bcorr`], [`gam1`],
-//! [`rlog`], etc.). They are public so users porting C/Fortran code that calls these
-//! directly can find each routine under its CDFLIB name, but they are not part
-//! of the user-facing statistical API.
+//! The [`internal`] submodule exposes, under their CDFLIB names, the
+//! helper routines used by the routines above ([`algdiv`], [`bcorr`],
+//! [`gam1`], [`rlog`], etc.).
 //!
-//! The two-output (*cum*, *ccum*) convention from CDFLIB is preserved on the
-//! routines that drive distribution tail accuracy: [`cumnor`], [`gamma_inc`],
-//! and [`beta_inc`]. Returning both tail probabilities directly is essential to
-//! the library's tail accuracy.
-//!
-//! CDFLIB's other `cum*` helpers (`cumbet`, `cumbin`, `cumchi`, `cumchn`,
-//! `cumf`, `cumfnc`, `cumgam`, `cumnbn`, `cumpoi`, `cumt`) are folded into the
-//! corresponding distribution modules and are not exposed here; if you want
-//! their behavior, use the distribution's [`ContinuousCdf::cdf`] /
-//! [`ContinuousCdf::ccdf`] or [`DiscreteCdf::cdf`] / [`DiscreteCdf::ccdf`]
-//! methods.
+//! As in CDFLIB, [`cumnor`], [`gamma_inc`] and [`beta_inc`] return both
+//! tail probabilities, each computed directly, which keeps the small tail
+//! accurate. CDFLIB's other `cum*` routines are part of the distributions:
+//! use their [`ContinuousCdf::cdf`] / [`ContinuousCdf::ccdf`] or
+//! [`DiscreteCdf::cdf`] / [`DiscreteCdf::ccdf`] methods.
 //!
 //! [`beta`]: crate::special::beta()
 //! [`beta_log`]: crate::special::beta_log
@@ -64,7 +52,6 @@
 //! [`ContinuousCdf::ccdf`]: crate::traits::ContinuousCdf::ccdf
 //! [`DiscreteCdf::cdf`]: crate::traits::DiscreteCdf::cdf
 //! [`DiscreteCdf::ccdf`]: crate::traits::DiscreteCdf::ccdf
-//! [`cdflib::special`]: crate::special
 
 pub(crate) mod beta;
 pub(crate) mod erf;

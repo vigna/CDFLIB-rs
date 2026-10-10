@@ -1,6 +1,7 @@
-//! Student's *t* special functions: [`dt1`] (cdflib.f90:8735), the
-//! approximate inverse of the *t* CDF that CDFLIB's `cdft` uses as the
-//! starting point of its search for *t*.
+//! Student's *t* special functions: [`dt1`] (cdflib.f90:8735), an
+//! approximate inverse of the *t* CDF.
+//!
+//! [`dt1`]: dt1
 
 use super::eval_pol;
 use super::normal::dinvnr;
@@ -8,17 +9,12 @@ use super::normal::dinvnr;
 /// Computes an approximate inverse of the cumulative *t* distribution.
 ///
 /// Returns the approximate value of *x* for which the *t* CDF with *df*
-/// degrees of freedom has value *p*; *q* is 1 − *p*. This is an initial
-/// approximation: `cdft` (cdflib.f90:6409-6412) uses it as the starting
-/// point of the `dinvr` search for *t*.
+/// degrees of freedom has value *p*; *q* is 1 − *p*. This is CDFLIB's
+/// `dt1` (cdflib.f90:8735), which `cdft` (cdflib.f90:6409-6412) uses as
+/// the starting point of its search for *t*.
 ///
-/// This is CDFLIB's `dt1` (cdflib.f90:8735).
-///
-/// As in the F90, the result is NaN when *p* or *q* is 0, as for
-/// [`dinvnr`]. For small *df* the terms of the polynomial in 1/*df* grow
-/// without bound, and the result can have the wrong sign
-/// (`dt1(0.6, 0.4, 0.1)` ≈ −36.3, although the 0.6-quantile is positive),
-/// be huge or ±∞, or be NaN when overflowing terms of opposite sign meet
+/// The result is NaN when *p* or *q* is 0. For small *df* it can have the
+/// wrong sign (`dt1(0.6, 0.4, 0.1)` ≈ −36.3), be huge or ±∞, or be NaN
 /// (`dt1(0.3, 0.7, 1e-300)`).
 ///
 /// # Example
@@ -32,8 +28,6 @@ use super::normal::dinvnr;
 /// let t = dt1(0.975, 0.025, 10.0);
 /// assert!((t - 2.228138851).abs() < 5e-3);
 /// ```
-///
-/// [`dinvnr`]: crate::special::dinvnr
 #[inline]
 #[allow(clippy::needless_late_init)]
 pub fn dt1(p: f64, q: f64, df: f64) -> f64 {

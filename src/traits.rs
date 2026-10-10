@@ -37,13 +37,11 @@ pub trait ContinuousCdf {
 
     /// Returns Pr\[*X* > *x*\], the complementary CDF, or NaN if *x* is NaN.
     ///
-    /// Implementations compute this independently of [`cdf`] rather than as
-    /// `1 − cdf(x)`, so the small tail keeps its precision deep into the
-    /// tails where the subtraction would lose digits to cancellation. The
+    /// Implementations compute this independently of [`cdf`], not as
+    /// `1 − cdf(x)`, so that a small upper tail keeps its precision. The
     /// exceptions are [`ChiSquaredNoncentral`] and
-    /// [`FisherSnedecorNoncentral`], for which CDFLIB computes
-    /// `1 − cdf(x)`, except when the noncentrality is below about 10⁻¹⁰,
-    /// where it uses the central distribution.
+    /// [`FisherSnedecorNoncentral`] with a noncentrality above about
+    /// 10⁻¹⁰, for which CDFLIB computes `1 − cdf(x)`.
     ///
     /// [`cdf`]: ContinuousCdf::cdf
     /// [`ChiSquaredNoncentral`]: crate::ChiSquaredNoncentral
@@ -53,9 +51,8 @@ pub trait ContinuousCdf {
     /// Returns the smallest *x* such that [cdf]\(*x*\) ≥ *p*, for *p* ∈ [0 . . 1].
     ///
     /// At *p* = 0 returns the infimum of support, at *p* = 1 the supremum
-    /// (either may be infinite). Where CDFLIB computes the inverse with its
-    /// root finder, the result is precise only within the tolerances of the
-    /// search (see [`SearchError`]).
+    /// (either may be infinite). Inverses computed by CDFLIB's root finder
+    /// are precise only within its tolerances (see [`SearchError`]).
     ///
     /// [cdf]: ContinuousCdf::cdf
     /// [`SearchError`]: crate::SearchError
@@ -65,8 +62,8 @@ pub trait ContinuousCdf {
 /// Cumulative distribution function (CDF), complementary CDF, and inverse CDF for
 /// a discrete distribution over the nonnegative integers.
 ///
-/// The integer arguments and parameters are converted to `f64`, as the
-/// arguments of CDFLIB are real numbers, so beyond 2⁵³ they are rounded.
+/// Integer arguments and parameters are converted to `f64`, so beyond 2⁵³
+/// they are rounded.
 ///
 /// # Example
 ///
@@ -91,9 +88,8 @@ pub trait DiscreteCdf {
     /// Returns Pr\[*X* > *x*\] = 1 − [cdf]\(*x*\).
     ///
     /// Required method: implementors must compute the upper tail
-    /// independently from the lower tail rather than as `1.0 - cdf(x)`,
-    /// so the small tail keeps its precision deep into the tails (where
-    /// the subtraction would lose digits to cancellation).
+    /// independently of the lower tail, not as `1.0 - cdf(x)`, so that a
+    /// small upper tail keeps its precision.
     ///
     /// [cdf]: DiscreteCdf::cdf
     fn ccdf(&self, x: u64) -> f64;
@@ -105,6 +101,7 @@ pub trait DiscreteCdf {
     /// ones, also when the parameters reduce the support to {0}.
     ///
     /// [cdf]: DiscreteCdf::cdf
+    /// [`u64::MAX`]: u64::MAX
     fn inverse_cdf(&self, p: f64) -> Result<u64, Self::Error>;
 }
 
@@ -125,13 +122,13 @@ pub trait Continuous {
 
 /// Probability mass function (and its log) for a discrete distribution.
 ///
-/// The mass is computed from a closed-form expression whose terms can
-/// cancel when the parameters are very large: at the mode, the logarithm
-/// of the binomial mass has an absolute error of about 2 · 10⁻⁶ for
-/// *n* = 10⁹ and about 4 for *n* = 10¹⁵, and that of the Poisson mass an
-/// error of about 0.04 for *λ* = 10¹⁴. Beyond about 2⁵³ the masses of the
-/// binomial, negative binomial and Poisson distributions are meaningless:
-/// they can exceed 1, overflow, or underflow to 0.
+/// The mass is computed from a closed-form expression whose terms cancel
+/// for very large parameters. At the mode, the logarithm of the mass has
+/// an absolute error of up to about 2 · 10⁻⁷ for a binomial with
+/// *n* = 10⁹ and 0.05 with *n* = 10¹⁵, about 3 · 10⁻⁷ and 0.3 for a
+/// negative binomial with *r* and the mode of these sizes, and about 0.04
+/// for a Poisson with *λ* = 10¹⁴. Beyond about 2⁵³ the masses are
+/// meaningless: they can exceed 1, overflow, or underflow to 0.
 pub trait Discrete {
     /// Returns the mass Pr\[*X* = *x*\] at the support point *x*.
     fn pmf(&self, x: u64) -> f64;

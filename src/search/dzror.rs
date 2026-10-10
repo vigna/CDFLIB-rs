@@ -10,6 +10,8 @@
 //! Reference: J. C. P. Bus and T. J. Dekker, Two Efficient Algorithms with
 //! Guaranteed Convergence for Finding a Zero of a Function, *ACM
 //! Transactions on Mathematical Software*, 1(4):330-345, 1975.
+//!
+//! [`ZrorState`]: ZrorState
 
 /// The arguments of the F90 entry `dstzr` (cdflib.f90:9130).
 ///
@@ -43,6 +45,8 @@ enum Resume {
 pub(crate) enum ZrorAction {
     /// `status` = 1: the function must be evaluated at *x*, and the value
     /// passed as `fx` to the next [`ZrorState::step`] call.
+    ///
+    /// [`ZrorState::step`]: ZrorState::step
     NeedEval(f64),
     /// `status` = 0: `xlo` and `xhi` bound the answer. `x` is the F90
     /// reverse-communication variable, the last point handed out for
@@ -157,6 +161,10 @@ impl ZrorState {
     /// if it finds an error (which implies that F(`xlo`) − *Y* and
     /// F(`xhi`) − *Y* have the same sign), it returns
     /// [`ZrorAction::Failed`] (`status` = -1).
+    ///
+    /// [`ZrorAction::NeedEval`]: ZrorAction::NeedEval
+    /// [`ZrorAction::Converged`]: ZrorAction::Converged
+    /// [`ZrorAction::Failed`]: ZrorAction::Failed
     #[allow(clippy::collapsible_if, clippy::assign_op_pattern)]
     #[inline]
     pub(crate) fn step(&mut self, fx: f64) -> ZrorAction {

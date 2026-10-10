@@ -54,31 +54,31 @@ pub struct StudentsT {
 pub enum StudentsTError {
     /// The degrees of freedom *df* was not strictly positive (`cdft`
     /// status −5).
-    #[error("degrees of freedom must be positive, got {0}")]
+    #[error("degrees of freedom must be positive, got {0:?}")]
     DfNotPositive(f64),
     /// The degrees of freedom *df* was not finite (checked only in Rust).
-    #[error("degrees of freedom must be finite, got {0}")]
+    #[error("degrees of freedom must be finite, got {0:?}")]
     DfNotFinite(f64),
     /// The argument *t* was not finite (checked only in Rust).
-    #[error("argument t must be finite, got {0}")]
+    #[error("argument t must be finite, got {0:?}")]
     TNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdft` status −2); NaN is
     /// also rejected.
-    #[error("probability p {0} outside [0..1]")]
+    #[error("probability p {0:?} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdft` status −3); NaN is
     /// also rejected.
-    #[error("probability q {0} outside [0..1]")]
+    #[error("probability q {0:?} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdft` status 3).
-    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
+    #[error("p ({p:?}) and q ({q:?}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
     /// The search for the answer failed (`cdft` status 1 or 2); see
     /// [`SearchError`]. The quantile methods also return
-    /// [`StartOutOfRange`] when the starting value given by `dt1` falls
-    /// outside the search interval, or is NaN, as for a tiny *df*, where
-    /// CDFLIB stops with a fatal error.
+    /// [`StartOutOfRange`] when the start value from `dt1` is NaN or outside
+    /// the search interval, as for a tiny *df*, where CDFLIB stops with a
+    /// fatal error.
     ///
     /// [`SearchError`]: crate::error::SearchError
     /// [`StartOutOfRange`]: crate::error::SearchError::StartOutOfRange
@@ -165,6 +165,7 @@ impl StudentsT {
     /// [`DfNotPositive`]: StudentsTError::DfNotPositive
     /// [`DfNotFinite`]: StudentsTError::DfNotFinite
     /// [`new`]: Self::new
+    /// [`StudentsTError`]: crate::StudentsTError
     #[inline]
     pub fn try_new(df: f64) -> Result<Self, StudentsTError> {
         check_df(df)?;
@@ -310,23 +311,32 @@ impl Continuous for StudentsT {
         let df = self.df;
         // ln f(t) = -ln(√df · Β(df/2, 1/2)) - (df + 1)/2 · ln(1 + t²/df).
         // For large df, beta_log and ln_1p keep the precision that
-        // ln Γ((df + 1)/2) - ln Γ(df/2) and ln(1 + t²/df) would lose. Where
-        // t * t overflows, ln(1 + t²/df) = ln((df + t²) / df) is computed as
-        // 2 ln hypot(√df, t) - ln df, which cannot overflow; there t²/df > 1,
-        // so the difference does not cancel. This includes t = ±inf.
-        let r = t * t / df;
+        // ln Γ((df + 1)/2) - ln Γ(df/2) and ln(1 + t²/df) would lose. t²/df
+        // is computed as t (t/df), so that a subnormal t² does not lose
+        // digits. Where it overflows, ln(1 + t²/df) = ln((df + t²) / df) is
+        // computed as 2 ln hypot(√df, t) - ln df, which cannot overflow;
+        // there t²/df > 1, so the difference does not cancel. This includes
+        // t = ±inf.
+        let r = t * (t / df);
         let ln_term = if r.is_finite() {
             r.ln_1p()
         } else {
             2.0 * df.sqrt().hypot(t).ln() - df.ln()
         };
-        -0.5 * df.ln() - beta_log(0.5 * df, 0.5) - 0.5 * (df + 1.0) * ln_term
+        // Where df/2 is subnormal or 0, so that it loses digits or
+        // underflows, ln Β(df/2, 1/2) is computed as -ln(df/2) =
+        // ln 2 - ln df, with an absolute error below 1e-307.
+        let ln_beta = if 0.5 * df < f64::MIN_POSITIVE {
+            2.0_f64.ln() - df.ln()
+        } else {
+            beta_log(0.5 * df, 0.5)
+        };
+        -0.5 * df.ln() - ln_beta - 0.5 * (df + 1.0) * ln_term
     }
 }
 
 impl Mean for StudentsT {
-    /// Defined only for *df* > 1; we return 0 for *df* > 1 and NaN
-    /// for *df* ≤ 1.
+    /// 0 for *df* > 1, NaN otherwise.
     #[inline]
     fn mean(&self) -> f64 {
         if self.df > 1.0 {
@@ -451,5 +461,25 @@ mod tests {
             StudentsT::new(10.0).ln_pdf(f64::INFINITY),
             f64::NEG_INFINITY
         );
+        // t / df overflows, but t² / df does not.
+        let ln_pdf = StudentsT::new(1e-320).ln_pdf(1e-10);
+        assert!((ln_pdf / -714.4945371415934 - 1.0).abs() < 1e-13);
+    }
+
+    #[test]
+    fn log_density_where_t_squared_is_subnormal() {
+        let ln_pdf = StudentsT::new(5e-320).ln_pdf(2.2e-160);
+        assert!((ln_pdf / -368.64056030711684 - 1.0).abs() < 1e-13);
+    }
+
+    #[test]
+    fn density_for_a_subnormal_df() {
+        // df/2 underflows to 0 for the smallest subnormal df, and rounds to
+        // 4/3 of the true value for df = 1.5e-323.
+        let d = StudentsT::new(f64::from_bits(1));
+        assert!((d.ln_pdf(1.0) / -745.1332191019412 - 1.0).abs() < 1e-13);
+        assert!((d.ln_pdf(0.0) / -372.9131831412506 - 1.0).abs() < 1e-13);
+        let d = StudentsT::new(1.5e-323);
+        assert!((d.ln_pdf(2.0) / -744.727753993833 - 1.0).abs() < 1e-13);
     }
 }

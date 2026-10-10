@@ -117,7 +117,7 @@ fn psi_reflection_and_overflow_branches() {
 }
 
 #[test]
-#[should_panic(expected = "psi(0): ψ has a pole at 0")]
+#[should_panic(expected = "psi(0.0): ψ has a pole at 0.0")]
 fn psi_panics_on_pole() {
     let _ = psi(0.0);
 }

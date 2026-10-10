@@ -18,9 +18,8 @@ const TOL: f64 = 1.0e-8;
 /// The methods correspond to CDFLIB's `cdff` (cdflib.f90:4028):
 /// `which = 1` is [`cdf`] / [`ccdf`], `which = 2` is [`inverse_cdf`] /
 /// [`inverse_ccdf`], `which = 3` is [`search_dfn`], `which = 4` is
-/// [`search_dfd`]. As CDFLIB warns, the CDF is not necessarily monotone in
-/// either degrees of freedom, so the searches assume monotonicity and find
-/// one of possibly two solutions.
+/// [`search_dfd`]. As CDFLIB warns, the CDF need not be monotone in either
+/// degrees of freedom, so a search finds one of possibly two solutions.
 ///
 /// # Example
 ///
@@ -61,41 +60,40 @@ pub struct FisherSnedecor {
 pub enum FisherSnedecorError {
     /// The numerator degrees of freedom *dfn* was not strictly positive
     /// (`cdff` status −5). Rust also rejects the smallest subnormal number,
-    /// whose half, which `cumf` passes to `beta_inc`, is 0.
-    #[error("numerator df must be positive and not the smallest subnormal, got {0}")]
+    /// whose half is 0.
+    #[error("numerator df must be positive and not the smallest subnormal, got {0:?}")]
     DfnNotPositive(f64),
     /// The numerator degrees of freedom *dfn* was not finite (checked only
     /// in Rust).
-    #[error("numerator df must be finite, got {0}")]
+    #[error("numerator df must be finite, got {0:?}")]
     DfnNotFinite(f64),
     /// The denominator degrees of freedom *dfd* was not strictly positive
     /// (`cdff` status −6). Rust also rejects the smallest subnormal number,
-    /// whose half, which `cumf` passes to `beta_inc`, is 0.
-    #[error("denominator df must be positive and not the smallest subnormal, got {0}")]
+    /// whose half is 0.
+    #[error("denominator df must be positive and not the smallest subnormal, got {0:?}")]
     DfdNotPositive(f64),
     /// The denominator degrees of freedom *dfd* was not finite (checked
     /// only in Rust).
-    #[error("denominator df must be finite, got {0}")]
+    #[error("denominator df must be finite, got {0:?}")]
     DfdNotFinite(f64),
-    /// The value *f* (the point at which the CDF is evaluated) was not
-    /// strictly positive (`cdff` status −4 for *f* < 0; Rust also rejects
-    /// *f* = 0, where Pr[*X* ≤ *f*] = 0 whatever the parameters).
-    #[error("f must be positive, got {0}")]
+    /// The value *f* was not strictly positive (`cdff` status −4 for
+    /// *f* < 0; Rust also rejects *f* = 0).
+    #[error("f must be positive, got {0:?}")]
     FNotPositive(f64),
     /// The value *f* was not finite (checked only in Rust).
-    #[error("f must be finite, got {0}")]
+    #[error("f must be finite, got {0:?}")]
     FNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdff` status −2); NaN is
     /// also rejected.
-    #[error("probability p {0} outside [0..1]")]
+    #[error("probability p {0:?} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdff` status −3); NaN is
     /// also rejected.
-    #[error("probability q {0} outside [0..1]")]
+    #[error("probability q {0:?} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdff` status 3).
-    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
+    #[error("p ({p:?}) and q ({q:?}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
     /// The search for the answer failed (`cdff` status 1 or 2); see
     /// [`SearchError`].
@@ -235,6 +233,7 @@ impl FisherSnedecor {
     /// [`DfdNotPositive`]: FisherSnedecorError::DfdNotPositive
     /// [`DfdNotFinite`]: FisherSnedecorError::DfdNotFinite
     /// [`new`]: Self::new
+    /// [`FisherSnedecorError`]: crate::FisherSnedecorError
     #[inline]
     pub fn try_new(dfn: f64, dfd: f64) -> Result<Self, FisherSnedecorError> {
         check_dfn(dfn)?;
@@ -375,11 +374,20 @@ impl ContinuousCdf for FisherSnedecor {
     /// CDFLIB's `cdff` with `which = 1`.
     ///
     /// The result can be NaN when *dfn* or *dfd* is above about
-    /// 2 · 10³⁰⁷, where the F90 `beta_inc` never returns; the inverses and
-    /// the parameter searches then return meaningless values (see
-    /// [`SearchError`]).
+    /// 2 · 10³⁰⁷, where the F90 never returns; the inverses and searches
+    /// then return meaningless values (see [`SearchError`]).
+    ///
+    /// The result is exactly 1, and [`ccdf`] exactly 0, where *dfn*·*x*
+    /// overflows, even if the upper tail is not negligible: with
+    /// *dfn* = 10³⁰⁰ and *dfd* = 1, ccdf(10⁹) is 0 instead of 2.52 · 10⁻⁵.
+    /// Where *dfd*/(*dfn*·*x*) is subnormal, the result can be wrong, as for
+    /// `beta_inc` at a subnormal argument: with *dfn* = 0.5 and
+    /// *dfd* = 10⁻¹⁰, cdf([`f64::MAX`]) is 3.6 · 10⁻¹⁰, below
+    /// cdf(10³⁰⁰) = 3.6 · 10⁻⁸.
     ///
     /// [`SearchError`]: crate::SearchError
+    /// [`ccdf`]: ContinuousCdf::ccdf
+    /// [`f64::MAX`]: f64::MAX
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
         // Rust only: NaN for a NaN x, which cumf passes to beta_inc; as in
@@ -396,7 +404,8 @@ impl ContinuousCdf for FisherSnedecor {
 
     /// CDFLIB's `cdff` with `which = 1`.
     ///
-    /// The result can be NaN for huge parameters, as for [`cdf`].
+    /// The result can be NaN for huge parameters, and it is 0 where
+    /// *dfn*·*x* overflows, as described for [`cdf`].
     ///
     /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
@@ -523,12 +532,9 @@ impl Variance for FisherSnedecor {
 }
 
 impl Entropy for FisherSnedecor {
-    /// When *dfn* and *dfd* are both small, the terms in *ψ*(*dfn*/2) ≈
-    /// −2/*dfn* and *ψ*(*dfd*/2) ≈ −2/*dfd* cancel, and the result loses
-    /// accuracy (for *dfn* = *dfd* = 10⁻¹⁰ the relative error is about
-    /// 6 · 10⁻⁸, and for *dfn* = *dfd* = 10⁻²⁰ the result is −1 instead of
-    /// about 48.4); it is NaN when both are below about 1.1 · 10⁻³⁰⁸,
-    /// where *ψ*(*dfn*/2) and *ψ*(*dfd*/2) overflow to −∞.
+    /// When *dfn* and *dfd* are both small, the result loses accuracy to
+    /// cancellation (for *dfn* = *dfd* = 10⁻²⁰ it is −1 instead of about
+    /// 48.4), and it is NaN when both are below about 1.1 · 10⁻³⁰⁸.
     #[inline]
     fn entropy(&self) -> f64 {
         // Closed-form: H = ln(dfd/dfn · Β(dfn/2, dfd/2))

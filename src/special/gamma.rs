@@ -294,31 +294,23 @@ pub fn gam1(a: f64) -> f64 {
 // Γ(a): the Γ function itself
 // =====================================================================
 
-/// Errors of [`try_gamma`].
-///
-/// CDFLIB's `gamma_user` (cdflib.f90:10300) sets its result to 0 on entry
-/// (cdflib.f90:10379) and returns that sentinel on each path where Γ(*a*)
-/// cannot be computed; each such path maps onto one variant.
+/// Errors of [`try_gamma`]: the paths on which CDFLIB's `gamma_user`
+/// (cdflib.f90:10300) returns its error sentinel 0.
 ///
 /// [`try_gamma`]: crate::special::try_gamma
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
 pub enum GammaDomainError {
     /// Argument is zero or a negative integer; Γ has a pole there.
-    #[error("Γ has a pole at {0}")]
+    #[error("Γ has a pole at {0:?}")]
     Pole(f64),
-    /// Result would overflow f64: 1/*t* can overflow for tiny |*a*|,
-    /// *a* ≥ 1000, or exp(*w*) in the final assembly would overflow for
-    /// positive *a* (beyond about 171.6).
-    #[error("Γ({0}) overflows f64")]
+    /// Result would overflow f64: *a* is beyond about 171.6, or |*a*| is
+    /// tiny.
+    #[error("Γ({0:?}) overflows f64")]
     Overflow(f64),
-    /// Result would underflow f64: the argument is too negative. CDFLIB's
-    /// `gamma_user` returns its sentinel 0 for every *a* ≤ −1000
-    /// (cdflib.f90:10457-10459), and for negative *a* beyond about −171.6
-    /// when exp(*w*), the magnitude of Γ(−*a*), would overflow in the
-    /// final assembly (cdflib.f90:10499-10501). Γ(*a*) underflows there,
-    /// except at the negative integers, which are poles and get the same
-    /// sentinel for *a* ≤ −1000.
-    #[error("Γ({0}) underflows f64")]
+    /// Result would underflow f64: *a* ≤ −1000, poles included
+    /// (cdflib.f90:10457-10459), or *a* is below about −171.6 and not an
+    /// integer (cdflib.f90:10499-10501).
+    #[error("Γ({0:?}) underflows f64")]
     Underflow(f64),
 }
 
@@ -340,9 +332,10 @@ pub enum GammaDomainError {
 /// ```
 ///
 /// [`try_gamma`]: crate::special::try_gamma
+/// [`GammaDomainError`]: crate::special::GammaDomainError
 #[inline]
 pub fn gamma(a: f64) -> f64 {
-    try_gamma(a).unwrap_or_else(|e| panic!("gamma({a}): {e}"))
+    try_gamma(a).unwrap_or_else(|e| panic!("gamma({a:?}): {e}"))
 }
 
 /// Evaluates the Γ function, port of CDFLIB's `gamma_user`
@@ -360,6 +353,8 @@ pub fn gamma(a: f64) -> f64 {
 /// assert!(matches!(try_gamma(2000.0), Err(GammaDomainError::Overflow(_))));
 /// assert!((try_gamma(3.0).unwrap() - 2.0).abs() < 1e-14);
 /// ```
+///
+/// [`GammaDomainError`]: crate::special::GammaDomainError
 #[inline]
 #[allow(clippy::assign_op_pattern)]
 pub fn try_gamma(a: f64) -> Result<f64, GammaDomainError> {
@@ -565,22 +560,18 @@ pub fn gamma_ln1(a: f64) -> f64 {
     }
 }
 
-/// Errors of [`try_psi`].
-///
-/// CDFLIB's `psi` (cdflib.f90:13446) documents that “PSI is assigned the
-/// value 0 when the psi function is undefined”; each path that returns
-/// that sentinel maps onto one variant.
+/// Errors of [`try_psi`]: the paths on which CDFLIB's `psi`
+/// (cdflib.f90:13446) returns 0, its value where ψ is undefined.
 ///
 /// [`try_psi`]: crate::special::try_psi
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
 pub enum PsiError {
     /// Argument is zero or a negative integer; ψ has a pole there.
-    #[error("ψ has a pole at {0}")]
+    #[error("ψ has a pole at {0:?}")]
     Pole(f64),
-    /// Argument is at or below −*xmax1*, where *xmax1* = 2³¹ − 1 is the
-    /// largest integer (CDFLIB's `ipmpar(3)`), the lower bound on
-    /// acceptable negative arguments.
-    #[error("ψ argument {0} is too large in magnitude (overflow)")]
+    /// Argument is at or below −(2³¹ − 1), the lower bound on negative
+    /// arguments (CDFLIB's `ipmpar(3)`).
+    #[error("ψ argument {0:?} is too large in magnitude (overflow)")]
     Overflow(f64),
 }
 
@@ -602,9 +593,10 @@ pub enum PsiError {
 /// ```
 ///
 /// [`try_psi`]: crate::special::try_psi
+/// [`PsiError`]: crate::special::PsiError
 #[inline]
 pub fn psi(xx: f64) -> f64 {
-    try_psi(xx).unwrap_or_else(|e| panic!("psi({xx}): {e}"))
+    try_psi(xx).unwrap_or_else(|e| panic!("psi({xx:?}): {e}"))
 }
 
 /// Evaluates the ψ or digamma function, d/d*x* ln Γ(*x*), port of CDFLIB's
@@ -614,8 +606,8 @@ pub fn psi(xx: f64) -> f64 {
 /// approximations. `psi` was written at Argonne National Laboratory for
 /// FUNPACK, and subsequently modified by A. H. Morris of NSWC.
 ///
-/// Returns [`PsiError`] where CDFLIB returns its sentinel 0 because ψ is
-/// undefined: at a pole, or when *xx* ≤ −*xmax1*.
+/// Returns [`PsiError`] where CDFLIB returns its sentinel 0: at a pole, or
+/// for *xx* ≤ −(2³¹ − 1).
 ///
 /// # References
 ///
@@ -630,6 +622,8 @@ pub fn psi(xx: f64) -> f64 {
 /// assert!(matches!(try_psi(0.0), Err(PsiError::Pole(_))));
 /// assert!((try_psi(1.0).unwrap() + 0.57721566).abs() < 1e-8);
 /// ```
+///
+/// [`PsiError`]: crate::special::PsiError
 #[inline]
 #[allow(clippy::assign_op_pattern)]
 pub fn try_psi(xx: f64) -> Result<f64, PsiError> {
@@ -887,7 +881,7 @@ pub fn dstrem(z: f64) -> f64 {
     const HLN2PI: f64 = 0.91893853320467274178;
 
     if z <= 0.0 {
-        panic!("dstrem: argument z must be positive (got {z})");
+        panic!("dstrem: argument z must be positive (got {z:?})");
     }
 
     if 6.0 < z {
@@ -931,17 +925,15 @@ pub fn rcomp(a: f64, x: f64) -> f64 {
 // gamma_inc: regularized incomplete gamma P(a,x), Q(a,x)
 // =====================================================================
 
-/// Accuracy request of [`gamma_inc_with_acc`] and [`try_gamma_inc_with_acc`].
-///
-/// This is the argument `ind` of CDFLIB's `gamma_inc`
-/// (cdflib.f90:10537-10540), which selects `iop` = `ind` + 1. The
-/// [`gamma_inc`] and [`try_gamma_inc`] entry points are equivalent to
-/// passing [`GammaIncAcc::Max`].
+/// Accuracy request of [`gamma_inc_with_acc`] and [`try_gamma_inc_with_acc`]:
+/// the argument `ind` of CDFLIB's `gamma_inc` (cdflib.f90:10537-10540).
+/// [`gamma_inc`] and [`try_gamma_inc`] use [`GammaIncAcc::Max`].
 ///
 /// [`gamma_inc`]: crate::special::gamma_inc
 /// [`try_gamma_inc`]: crate::special::try_gamma_inc
 /// [`gamma_inc_with_acc`]: crate::special::gamma_inc_with_acc
 /// [`try_gamma_inc_with_acc`]: crate::special::try_gamma_inc_with_acc
+/// [`GammaIncAcc::Max`]: crate::special::GammaIncAcc::Max
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum GammaIncAcc {
     /// As much accuracy as possible (`ind` = 0).
@@ -953,50 +945,48 @@ pub enum GammaIncAcc {
     Digits3,
 }
 
-/// Errors of [`gamma_inc`].
-///
-/// CDFLIB's `gamma_inc` reports each of these conditions by setting `ans`
-/// to 2 (cdflib.f90:10544-10548); [`try_gamma_inc`] and
-/// [`try_gamma_inc_with_acc`] return them as errors.
+/// Errors of [`gamma_inc`]: the conditions for which CDFLIB's `gamma_inc`
+/// sets `ans` to 2 (cdflib.f90:10544-10548).
 ///
 /// [`gamma_inc`]: crate::special::gamma_inc
-/// [`try_gamma_inc`]: crate::special::try_gamma_inc
-/// [`try_gamma_inc_with_acc`]: crate::special::try_gamma_inc_with_acc
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
 pub enum GammaIncError {
     /// *a* is negative.
-    #[error("parameter a must be nonnegative, got {0}")]
+    #[error("parameter a must be nonnegative, got {0:?}")]
     ANegative(f64),
     /// *x* is negative.
-    #[error("argument x must be nonnegative, got {0}")]
+    #[error("argument x must be nonnegative, got {0:?}")]
     XNegative(f64),
     /// *a* and *x* are both 0.
     #[error("both a and x are zero")]
     BothZero,
     /// The answer is computationally indeterminate because *a* is extremely
     /// large and *x* is very close to *a*.
-    #[error("indeterminate at a = {a}, x = {x} (deep asymptotic regime)")]
+    #[error("indeterminate at a = {a:?}, x = {x:?} (deep asymptotic regime)")]
     Indeterminate { a: f64, x: f64 },
 }
 
 /// Evaluates the incomplete Γ ratio functions *P*(*a*, *x*) and
 /// *Q*(*a*, *x*) with as much accuracy as possible.
 ///
-/// *a* and *x* are the arguments of the incomplete Γ ratio. *a* and *x*
-/// must be nonnegative, and they cannot both be zero. Returns
+/// *a* and *x* must be nonnegative, and they cannot both be zero. Returns
 /// (*P*(*a*, *x*), *Q*(*a*, *x*)).
+///
+/// Where *a*·*x* underflows to 0, the result is that for *a* = 0 or
+/// *x* = 0, as in the F90, which is badly wrong for a small *a*:
+/// `gamma_inc(1e-5, 1e-320)` is (0, 1) instead of (0.99266, 0.00734).
+///
+/// A NaN argument gives NaN components, unless the other argument is
+/// negative. *x* = +∞ gives NaN components (also where the F90 never
+/// returns, for *a* < 1, or is undefined, for *a* = +∞), except that
+/// *a* = 1/2 gives (1, 0). *a* = +∞ with finite *x* gives (0, 1).
 ///
 /// # Panics
 ///
 /// Panics on a [`GammaIncError`]: if *a* or *x* is negative, if both are
 /// 0, or when the answer is computationally indeterminate because *a* is
-/// extremely large and *x* is very close to *a*. A NaN argument gives NaN
-/// components, unless the other argument is negative. *x* = +∞ gives NaN
-/// components too: as in the F90 for finite *a* ≥ 1, while for *a* < 1
-/// the F90 never returns, and for *a* = +∞ its result is undefined. The
-/// exception is *a* = 1/2, where the result is (1, 0);
-/// *a* = +∞ with finite *x* gives (0, 1). Use [`try_gamma_inc`] for the
-/// fallible form.
+/// extremely large and *x* is very close to *a*. Use [`try_gamma_inc`]
+/// for the fallible form.
 ///
 /// # Example
 ///
@@ -1008,6 +998,7 @@ pub enum GammaIncError {
 /// assert!((q - 0.63856992).abs() < 1e-8);
 /// ```
 ///
+/// [`GammaIncError`]: crate::special::GammaIncError
 /// [`try_gamma_inc`]: crate::special::try_gamma_inc
 #[inline]
 pub fn gamma_inc(a: f64, x: f64) -> (f64, f64) {
@@ -1023,9 +1014,8 @@ pub fn gamma_inc(a: f64, x: f64) -> (f64, f64) {
 ///
 /// # Panics
 ///
-/// Panics on a [`GammaIncError`], exactly where
-/// [`try_gamma_inc_with_acc`] returns one. Use [`try_gamma_inc_with_acc`]
-/// for the fallible form.
+/// Panics on a [`GammaIncError`]. Use [`try_gamma_inc_with_acc`] for the
+/// fallible form.
 ///
 /// # Example
 ///
@@ -1039,10 +1029,11 @@ pub fn gamma_inc(a: f64, x: f64) -> (f64, f64) {
 ///
 /// [`gamma_inc`]: crate::special::gamma_inc
 /// [`try_gamma_inc_with_acc`]: crate::special::try_gamma_inc_with_acc
+/// [`GammaIncError`]: crate::special::GammaIncError
 #[inline]
 pub fn gamma_inc_with_acc(a: f64, x: f64, accuracy: GammaIncAcc) -> (f64, f64) {
     try_gamma_inc_with_acc(a, x, accuracy)
-        .unwrap_or_else(|e| panic!("gamma_inc_with_acc({a}, {x}, {accuracy:?}): {e}"))
+        .unwrap_or_else(|e| panic!("gamma_inc_with_acc({a:?}, {x:?}, {accuracy:?}): {e}"))
 }
 
 /// Fallible form of [`gamma_inc`]: returns [`GammaIncError`] where CDFLIB
@@ -1062,6 +1053,7 @@ pub fn gamma_inc_with_acc(a: f64, x: f64, accuracy: GammaIncAcc) -> (f64, f64) {
 /// ));
 /// ```
 ///
+/// [`gamma_inc`]: crate::special::gamma_inc
 /// [`GammaIncError`]: crate::special::GammaIncError
 #[inline]
 pub fn try_gamma_inc(a: f64, x: f64) -> Result<(f64, f64), GammaIncError> {
@@ -1152,19 +1144,10 @@ const D6: [f64; 2] = [-0.592166437353694e-3, 0.270878209671804e-3];
 const D70: f64 = 0.344367606892378e-3;
 
 /// Fallible form of [`gamma_inc_with_acc`]; this is CDFLIB's `gamma_inc`
-/// (cdflib.f90:10513-11305).
+/// (cdflib.f90:10513-11305), with `accuracy` as its argument `ind`.
 ///
-/// Evaluates the incomplete Γ ratio functions *P*(*a*, *x*) and
-/// *Q*(*a*, *x*). *a* and *x* must be nonnegative, and they cannot both be
-/// zero. On normal output returns (`ans`, `qans`) = (*P*(*a*, *x*),
-/// *Q*(*a*, *x*)). Where CDFLIB sets `ans` to 2 (*a* or *x* is negative,
-/// both are 0, or the answer is computationally indeterminate because *a*
-/// is extremely large and *x* is very close to *a*) this function returns
-/// the corresponding [`GammaIncError`].
-///
-/// `accuracy` is the accuracy request `ind`: as much accuracy as possible,
-/// to within 1 unit of the 6-th significant digit, or to within 1 unit of
-/// the 3rd significant digit.
+/// Returns (`ans`, `qans`) = (*P*(*a*, *x*), *Q*(*a*, *x*)), or the
+/// [`GammaIncError`] where CDFLIB sets `ans` to 2.
 ///
 /// [`gamma_inc_with_acc`]: crate::special::gamma_inc_with_acc
 /// [`GammaIncError`]: crate::special::GammaIncError
@@ -1793,32 +1776,30 @@ fn special_cases_410(a: f64, x: f64, s: f64, e: f64) -> Result<(f64, f64), Gamma
 
 /// Errors of [`gamma_inc_inv`].
 ///
-/// Each variant corresponds to a negative value of the error flag `ierr`
-/// of CDFLIB's `gamma_inc_inv`, except [`AtInfinity`], which corresponds
-/// to the result *x* = `huge(x)` that the F90 routine gives with `ierr` =
-/// 0 when *q* = 0. Variants for which the F90 routine gives a value for
-/// *x* carry it as a field.
+/// Each variant is a negative `ierr` of CDFLIB's `gamma_inc_inv`, except
+/// [`AtInfinity`] (*q* = 0). Variants for which the F90 gives a value for
+/// *x* carry it.
 ///
 /// [`gamma_inc_inv`]: crate::special::gamma_inc_inv
 /// [`AtInfinity`]: GammaIncInvError::AtInfinity
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
 pub enum GammaIncInvError {
     /// *a* ≤ 0 (`ierr` = −2).
-    #[error("parameter a must be positive, got {0}")]
+    #[error("parameter a must be positive, got {0:?}")]
     ANotPositive(f64),
-    /// No solution was obtained: the ratio *q*/*a* is too large (`ierr` =
-    /// −3).
+    /// No solution was obtained: the ratio *q*/*a* is too large, or *p* is
+    /// so small that the solution underflows, as for *a* = 0.159 and
+    /// *p* = 2.47 · 10⁻²¹⁷ (`ierr` = −3).
     #[error("no solution: q/a is too large")]
     NoSolution,
     /// *p* + *q* ≠ 1 (`ierr` = −4). Rust also returns it when *p* or *q* is
-    /// NaN, which the F90 test lets through, or negative, which the F90
-    /// requires but does not check.
+    /// NaN or negative, which the F90 does not check.
     #[error("inconsistent inputs: p + q must equal 1")]
     InconsistentPq,
-    /// 20 iterations were performed (`ierr` = −6). The F90 documentation
-    /// says that this cannot occur if `x0` ≤ 0, but it does, for example
-    /// when the solution is subnormal.
-    #[error("iteration did not converge in 20 steps; last value: {partial}")]
+    /// 20 iterations were performed (`ierr` = −6). Despite the F90
+    /// documentation, this can occur with `x0` ≤ 0, for example when the
+    /// solution is subnormal.
+    #[error("iteration did not converge in 20 steps; last value: {partial:?}")]
     NotConverged {
         /// The most recent value obtained for *x*.
         partial: f64,
@@ -1828,20 +1809,20 @@ pub enum GammaIncInvError {
     #[error("iteration failed: intermediate x went nonpositive")]
     IterationFailed,
     /// A value for *x* has been obtained, but the routine is not certain
-    /// of its accuracy. Iteration cannot be performed in this case. If
-    /// `x0` is positive then this can occur when *a* is exceedingly close
-    /// to *x* and *a* is extremely large (say *a* ≥ 10²⁰) (`ierr` = −8).
-    /// The F90 documentation says that if `x0` ≤ 0 this can occur only
-    /// when *p* or *q* is approximately 0, but it also occurs, for
-    /// example, when the solution is subnormal.
-    #[error("solution obtained but accuracy cannot be certified; value: {value}")]
+    /// of its accuracy, and iteration cannot be performed (`ierr` = −8).
+    /// With `x0` > 0 this can occur when *a* is extremely large (say
+    /// *a* ≥ 10²⁰) and exceedingly close to *x*; with `x0` ≤ 0, when *p*
+    /// or *q* is approximately 0 or the solution is subnormal.
+    #[error("solution obtained but accuracy cannot be certified; value: {value:?}")]
     UncertainAccuracy {
         /// The value obtained for *x*; [`f64::MAX`] where the F90 routine
         /// sets *x* to `huge(x)`.
+        ///
+        /// [`f64::MAX`]: f64::MAX
         value: f64,
     },
-    /// *q* = 0: the solution is +∞, for which the F90 routine gives *x* =
-    /// `huge(x)` with `ierr` = 0.
+    /// *q* = 0: the solution is +∞ (the F90 gives *x* = `huge(x)` with
+    /// `ierr` = 0).
     #[error("inverse is +∞ (q = 0 means P(a, x) = 1 only as x → +∞)")]
     AtInfinity,
 }
@@ -1862,15 +1843,18 @@ pub enum GammaIncInvError {
 /// Returns (*x*, `ierr`), where `ierr` is 0 if iteration was not used, and
 /// otherwise the number of iterations performed.
 ///
-/// A NaN *a* gives NaN, as in the F90. For *a* = +∞, where the F90 never
-/// returns, the result is NaN or [`NotConverged`].
+/// A NaN or infinite *a* gives what the F90 computes, NaN or an error.
+/// Where the F90 never returns (for some NaN or infinite *a*, an infinite
+/// `x0`, or an `x0` that drives the iteration to NaN, such as 10⁻²⁰ for
+/// *a* = 15.49), the result is NaN or [`NotConverged`] with a NaN partial
+/// value. A *p* so small that the solution underflows gives
+/// [`NoSolution`].
 ///
 /// # Panics
 ///
-/// Panics on a [`GammaIncInvError`], exactly where [`try_gamma_inc_inv`]
-/// returns one; a NaN or negative *p* or *q* is reported as
-/// [`InconsistentPq`]. Use
-/// [`try_gamma_inc_inv`] for the fallible form.
+/// Panics on a [`GammaIncInvError`]; a NaN or negative *p* or *q* is
+/// reported as [`InconsistentPq`]. Use [`try_gamma_inc_inv`] for the
+/// fallible form.
 ///
 /// # Example
 ///
@@ -1884,19 +1868,19 @@ pub enum GammaIncInvError {
 ///
 /// [`try_gamma_inc_inv`]: crate::special::try_gamma_inc_inv
 /// [`NotConverged`]: GammaIncInvError::NotConverged
+/// [`NoSolution`]: GammaIncInvError::NoSolution
 /// [`InconsistentPq`]: GammaIncInvError::InconsistentPq
+/// [`GammaIncInvError`]: crate::special::GammaIncInvError
 #[inline]
 pub fn gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> (f64, u32) {
     try_gamma_inc_inv(a, x0, p, q)
-        .unwrap_or_else(|e| panic!("gamma_inc_inv(a={a}, x0={x0}, p={p}, q={q}): {e}"))
+        .unwrap_or_else(|e| panic!("gamma_inc_inv(a={a:?}, x0={x0:?}, p={p:?}, q={q:?}): {e}"))
 }
 
 /// Fallible form of [`gamma_inc_inv`].
 ///
-/// Returns (*x*, `ierr`) when the solution was obtained: `ierr` is 0 if
-/// iteration was not used, and otherwise the number of iterations
-/// performed. Each negative `ierr` of the F90 routine, and the result
-/// *x* = `huge(x)` at *q* = 0, is returned as a [`GammaIncInvError`].
+/// Returns (*x*, `ierr`) as [`gamma_inc_inv`] does, or the
+/// [`GammaIncInvError`] for a negative `ierr` or for *q* = 0.
 ///
 /// # Example
 ///
@@ -1912,6 +1896,7 @@ pub fn gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> (f64, u32) {
 /// ```
 ///
 /// [`GammaIncInvError`]: crate::special::GammaIncInvError
+/// [`gamma_inc_inv`]: crate::special::gamma_inc_inv
 #[inline]
 #[allow(clippy::assign_op_pattern)]
 pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<(f64, u32), GammaIncInvError> {
@@ -3016,7 +3001,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "gamma(1001): Γ(1001) overflows f64")]
+    #[should_panic(expected = "gamma(1001.0): Γ(1001.0) overflows f64")]
     fn gamma_overflow_panics() {
         let _ = gamma(1001.0);
     }
@@ -3073,7 +3058,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "gamma(0): Γ has a pole at 0")]
+    #[should_panic(expected = "gamma(0.0): Γ has a pole at 0.0")]
     fn gamma_at_zero_panics() {
         let _ = gamma(0.0);
     }

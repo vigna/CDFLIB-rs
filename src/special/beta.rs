@@ -94,9 +94,8 @@ pub fn algdiv(a: f64, b: f64) -> f64 {
 ///
 /// *a0* and *b0* should be nonnegative.
 ///
-/// The arguments are ordered with [`f64::min`] and [`f64::max`], which,
-/// like gfortran's `min` and `max` on the reference platform, ignore a NaN
-/// argument: `beta_log(NaN, b)` is `beta_log(b, b)`, as in the F90.
+/// As in the F90, whose `min` and `max` ignore a NaN argument,
+/// `beta_log(NaN, b)` is `beta_log(b, b)`.
 ///
 /// # Example
 ///
@@ -107,9 +106,6 @@ pub fn algdiv(a: f64, b: f64) -> f64 {
 /// // Β(3, 4) = 1/60
 /// assert!((y - (1.0/60.0_f64).ln()).abs() < 1e-14);
 /// ```
-///
-/// [`f64::min`]: f64::min
-/// [`f64::max`]: f64::max
 #[inline]
 pub fn beta_log(a0: f64, b0: f64) -> f64 {
     const E: f64 = 0.918938533204673;
@@ -303,10 +299,10 @@ pub fn dbetrm(a: f64, b: f64) -> f64 {
 /// This routine is appropriate for use when *b* < min(*eps*, *eps*·*a*) and
 /// *x* ≤ 0.5.
 ///
-/// Arguments outside this domain, such as *a* ≤ 0, *x* = 1 or *eps* ≤ 0,
-/// can make the series run forever, or practically so, as in the F90. The
-/// function returns NaN where the F90 series never terminates because the
-/// tolerance is NaN or a term is NaN or infinite.
+/// Outside this domain, for example with *a* ≤ 0, *x* close to 1 or
+/// *eps* ≤ 0, the series can run forever, or practically so, as in the
+/// F90. Where the F90 never terminates because *eps*/*a* is negative or
+/// NaN, or the terms stay NaN or infinite, the result is NaN.
 #[inline]
 #[allow(clippy::assign_op_pattern)]
 pub fn fpser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
@@ -339,9 +335,11 @@ pub fn fpser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
         if c.abs() <= tol {
             break;
         }
-        // Rust only: the F90 loop never exits once tol is NaN or a term is
-        // NaN or infinite.
-        if tol.is_nan() || !c.is_finite() {
+        // Rust only: the F90 loop never exits if tol is negative or NaN, or
+        // once t is NaN or infinite. A term that is infinite because an is 0
+        // is not tested: the next terms are finite and the loop exits as in
+        // the F90.
+        if tol.is_nan() || tol < 0.0 || !t.is_finite() {
             return f64::NAN;
         }
     }
@@ -354,10 +352,10 @@ pub fn fpser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
 /// `apser` is used only for cases where *a* ≤ min(*eps*, *eps*·*b*),
 /// *b*·*x* ≤ 1, and *x* ≤ 0.5.
 ///
-/// Arguments outside this domain, such as *x* = 1 or *eps* ≤ 0, can make
-/// the series run forever, or practically so, as in the F90. The function
-/// returns NaN where the F90 series never terminates because the tolerance
-/// is NaN or a term is NaN or infinite.
+/// Outside this domain, for example with *x* close to 1 or *eps* ≤ 0, the
+/// series can run forever, or practically so, as in the F90. Where the F90
+/// never terminates because its tolerance is negative or NaN, or a term is
+/// NaN or infinite, the result is NaN.
 #[inline]
 pub fn apser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
     const G: f64 = 0.577215664901533;
@@ -386,9 +384,9 @@ pub fn apser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
         if aj.abs() <= tol {
             break;
         }
-        // Rust only: the F90 loop never exits once tol is NaN or a term is
-        // NaN or infinite.
-        if tol.is_nan() || !aj.is_finite() {
+        // Rust only: the F90 loop never exits if tol is negative or NaN, or
+        // once a term is NaN or infinite.
+        if tol.is_nan() || tol < 0.0 || !aj.is_finite() {
             return f64::NAN;
         }
     }
@@ -401,10 +399,10 @@ pub fn apser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
 ///
 /// `beta_pser` is used when *b* ≤ 1 or *b*·*x* ≤ 0.7. *eps* is the tolerance.
 ///
-/// Arguments outside this domain or with *x* = 1 or *eps* ≤ 0 can make the
-/// series run forever, or practically so, as in the F90. The function
-/// returns NaN where the F90 series never terminates because the tolerance
-/// is NaN or a term is NaN or infinite.
+/// Outside this domain, for example with *x* close to 1 or *eps* ≤ 0, the
+/// series can run forever, or practically so, as in the F90. Where the F90
+/// never terminates because *eps*/*a* is negative or NaN, or the terms stay
+/// NaN or infinite, the result is NaN.
 #[inline]
 #[allow(clippy::assign_op_pattern)]
 pub fn beta_pser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
@@ -489,9 +487,11 @@ pub fn beta_pser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
         if w.abs() <= tol {
             break;
         }
-        // Rust only: the F90 loop never exits once tol is NaN or a term is
-        // NaN or infinite.
-        if tol.is_nan() || !w.is_finite() {
+        // Rust only: the F90 loop never exits if tol is negative or NaN, or
+        // once c is NaN or infinite. A term that is infinite because a + n
+        // is 0 is not tested: the next terms are finite and the loop exits as
+        // in the F90.
+        if tol.is_nan() || tol < 0.0 || !c.is_finite() {
             return f64::NAN;
         }
     }
@@ -838,11 +838,9 @@ pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
 /// exp(−*x*) · *xᵃ* / Γ(*a*), and *eps* is the tolerance. Returns
 /// (*p*, *q*), the values of *P*(*a*, *x*) and *Q*(*a*, *x*).
 ///
-/// Past the special cases *a*·*x* = 0 and *a* = 1/2, returns (NaN, NaN)
-/// when *a* or *x* is NaN or infinite or *eps* is NaN, where the F90
-/// series or continued fraction never terminates (or, for an infinite *a*
-/// with *x* < 1.1, gives NaN), and when the continued fraction overflows,
-/// for *x* above about 1.3 · 10¹⁵⁴, where the F90 never terminates either.
+/// Except at *a*·*x* = 0 and *a* = 1/2, returns (NaN, NaN) where *a* or *x*
+/// is NaN or infinite, *eps* is NaN, or *x* is above about 1.3 · 10¹⁵⁴; in
+/// all these cases the F90 never terminates or gives NaN.
 #[inline]
 pub fn gamma_rat1(a: f64, x: f64, r: f64, eps: f64) -> (f64, f64) {
     use super::erf::{error_f, error_fc};
@@ -984,9 +982,8 @@ pub fn gamma_rat1(a: f64, x: f64, r: f64, eps: f64) -> (f64, f64) {
 
 /// Failure modes of [`beta_grat`].
 ///
-/// CDFLIB's `beta_grat` reports each of them as `ierr = 1` and returns
-/// without changing *w*; callers recover with `result.unwrap_or(w)`, as
-/// CDFLIB's `beta_inc` does by ignoring `ierr`.
+/// CDFLIB reports each of them as `ierr = 1` and leaves *w* unchanged;
+/// callers recover with `result.unwrap_or(w)`, as CDFLIB's `beta_inc` does.
 ///
 /// [`beta_grat`]: crate::special::internal::beta_grat
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
@@ -1012,9 +1009,8 @@ pub enum BetaGratError {
 /// 0 ≤ *x* ≤ 1; *y* should equal 1 − *x*. *w* is a quantity to which the
 /// result of the computation is added, and *eps* is a tolerance.
 ///
-/// Returns *w* plus the expansion. CDFLIB's `ierr = 1` is returned as a
-/// [`BetaGratError`]; in that case CDFLIB leaves *w* unchanged, so callers
-/// recover with `result.unwrap_or(w)`.
+/// Returns *w* plus the expansion, or a [`BetaGratError`] where CDFLIB sets
+/// `ierr = 1`.
 ///
 /// [`BetaGratError`]: crate::special::internal::BetaGratError
 #[inline]
@@ -1296,19 +1292,19 @@ pub fn beta_frac(a: f64, b: f64, x: f64, y: f64, lambda: f64, eps: f64) -> f64 {
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
 pub enum BetaIncError {
     /// *a* or *b* is negative (CDFLIB `ierr = 1`).
-    #[error("a or b is negative: a = {a}, b = {b}")]
+    #[error("a or b is negative: a = {a:?}, b = {b:?}")]
     NegativeParameter { a: f64, b: f64 },
     /// *a* = *b* = 0 (CDFLIB `ierr = 2`).
     #[error("both a and b are zero")]
     BothZero,
     /// *x* < 0 or 1 < *x* (CDFLIB `ierr = 3`).
-    #[error("x must be in [0..1], got {0}")]
+    #[error("x must be in [0..1], got {0:?}")]
     XOutOfRange(f64),
     /// *y* < 0 or 1 < *y* (CDFLIB `ierr = 4`).
-    #[error("y must be in [0..1], got {0}")]
+    #[error("y must be in [0..1], got {0:?}")]
     YOutOfRange(f64),
     /// *x* + *y* ≠ 1, that is, 3*ε* < |*x* + *y* − 1| (CDFLIB `ierr = 5`).
-    #[error("x + y must equal 1, got x = {x}, y = {y}")]
+    #[error("x + y must equal 1, got x = {x:?}, y = {y:?}")]
     InconsistentSum { x: f64, y: f64 },
     /// *x* = *a* = 0 (CDFLIB `ierr = 6`).
     #[error("degenerate: x = 0 and a = 0")]
@@ -1323,20 +1319,17 @@ pub enum BetaIncError {
 /// *a* and *b* are the parameters of the function and should be
 /// nonnegative. *x* is the argument of the function and should satisfy
 /// *x* ∈ [0 . . 1]; *y* should equal 1 − *x*. Returns (*w*, *w*₁), the values of
-/// *Iₓ*(*a*, *b*) and 1 − *Iₓ*(*a*, *b*).
+/// *Iₓ*(*a*, *b*) and 1 − *Iₓ*(*a*, *b*). The caller supplies *y* because
+/// computing 1 − *x* would lose digits in the tail.
 ///
-/// The caller supplies *y* rather than letting the routine compute 1 − *x*,
-/// because in the deep tail that subtraction would lose digits. Each series
-/// or expansion computes one of *w* and *w*₁ and derives the other as
-/// 0.5 + (0.5 − ·), as with the (*p*, *q*) pair returned by [`gamma_inc`].
-///
-/// A NaN or infinite argument gives what the F90 computes, which may be
-/// NaN or a value computed from the other arguments: for example,
-/// `beta_inc(0.5, 1.0, 0.05, f64::NAN)` is (√0.05, 1 − √0.05), and
-/// `beta_inc(f64::INFINITY, 1e-20, 0.5, 0.5)` is (0, 1). Where the F90
-/// never returns, the result is (NaN, NaN): this happens for some NaN or
-/// infinite arguments, and for rare finite arguments such as
-/// (1 + *ε*, [`f64::MAX`], 10⁻³¹⁰, 1).
+/// A NaN or infinite argument gives what the F90 computes, which may be a
+/// value computed from the other arguments:
+/// `beta_inc(0.5, 1.0, 0.05, f64::NAN)` is (√0.05, 1 − √0.05). Where the
+/// F90 never returns, as for some NaN or infinite arguments and rare finite
+/// ones such as (1 + *ε*, [`f64::MAX`], 10⁻³¹⁰, 1), the result is
+/// (NaN, NaN). As in the F90, the result can be wrong for a subnormal *x*
+/// or *y*: `beta_inc(1e-10, 0.5, 5e-324, 1.0)` gives *w*₁ = 4.96 · 10⁻¹⁰
+/// instead of 7.46 · 10⁻⁸.
 ///
 /// # Panics
 ///
@@ -1352,13 +1345,12 @@ pub enum BetaIncError {
 /// assert!((w - 0.579825).abs() < 1e-6);
 /// ```
 ///
-/// [`gamma_inc`]: crate::special::gamma_inc
 /// [`f64::MAX`]: f64::MAX
 /// [`BetaIncError`]: crate::special::BetaIncError
 /// [`try_beta_inc`]: crate::special::try_beta_inc
 #[inline]
 pub fn beta_inc(a: f64, b: f64, x: f64, y: f64) -> (f64, f64) {
-    try_beta_inc(a, b, x, y).unwrap_or_else(|e| panic!("beta_inc({a}, {b}, {x}, {y}): {e}"))
+    try_beta_inc(a, b, x, y).unwrap_or_else(|e| panic!("beta_inc({a:?}, {b:?}, {x:?}, {y:?}): {e}"))
 }
 
 /// Fallible form of [`beta_inc`]: returns a [`BetaIncError`] where CDFLIB's
@@ -1706,17 +1698,17 @@ mod tests {
     // miri's soft-float ln pushes it over. Skipped under miri.
     #[cfg(not(miri))]
     #[test]
-    fn dbetrm_matches_beta_log_minus_sterling() {
+    fn dbetrm_matches_beta_log_minus_stirling() {
         // For each (a, b), dbetrm should equal ln Β(a, b) − Stirling decomposition.
         const HLN2PI: f64 = 0.91893853320467274178;
-        fn sterling(z: f64) -> f64 {
+        fn stirling(z: f64) -> f64 {
             HLN2PI + (z - 0.5) * z.ln() - z
         }
         for &(a, b) in &[(2.5_f64, 3.5), (10.0, 20.0), (50.0, 60.0), (100.0, 100.0)] {
             let r = dbetrm(a, b);
             let lnb = beta_log(a, b);
-            let sterling_sum = sterling(a) + sterling(b) - sterling(a + b);
-            let expected = lnb - sterling_sum;
+            let stirling_sum = stirling(a) + stirling(b) - stirling(a + b);
+            let expected = lnb - stirling_sum;
             assert!(
                 (r - expected).abs() < 1e-12,
                 "a={a}, b={b}: dbetrm={r}, expected={expected}"

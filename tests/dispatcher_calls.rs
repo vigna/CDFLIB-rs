@@ -477,7 +477,7 @@ fn cdfchn_calls() {
         }
         n += 1;
     }
-    assert_eq!(n, 28);
+    assert_eq!(n, 29);
 }
 
 #[test]
@@ -512,7 +512,7 @@ fn cdff_calls() {
         }
         n += 1;
     }
-    assert_eq!(n, 32);
+    assert_eq!(n, 33);
 }
 
 #[test]

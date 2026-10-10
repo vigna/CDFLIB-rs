@@ -17,6 +17,7 @@
 //! enum.
 //!
 //! [`ZrorState`]: super::dzror::ZrorState
+//! [`InvrState`]: InvrState
 
 use super::dzror::{ZrorAction, ZrorConfig, ZrorState};
 
@@ -65,6 +66,8 @@ enum Resume {
 pub(crate) enum InvrAction {
     /// `status` = 1: the function must be evaluated at *x*, and the value
     /// passed as `fx` to the next [`InvrState::step`] call.
+    ///
+    /// [`InvrState::step`]: InvrState::step
     NeedEval(f64),
     /// `status` = 0: *x* is an approximate root of F(*X*).
     Converged(f64),
@@ -157,6 +160,10 @@ impl InvrState {
     ///
     /// If the starting point is not in [*small* . . *big*], where the F90
     /// stops with a fatal error.
+    ///
+    /// [`InvrAction::NeedEval`]: InvrAction::NeedEval
+    /// [`InvrAction::Converged`]: InvrAction::Converged
+    /// [`InvrAction::Failed`]: InvrAction::Failed
     #[allow(clippy::assign_op_pattern)]
     #[inline]
     pub(crate) fn step(&mut self, fx: f64) -> InvrAction {

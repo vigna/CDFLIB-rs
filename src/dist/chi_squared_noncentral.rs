@@ -67,34 +67,32 @@ pub enum ChiSquaredNoncentralError {
     /// when the *df* it computes is 0.
     ///
     /// [`search_df`]: crate::ChiSquaredNoncentral::search_df
-    #[error("degrees of freedom must be positive, got {0}")]
+    #[error("degrees of freedom must be positive, got {0:?}")]
     DfNotPositive(f64),
     /// The degrees of freedom *df* was not finite (checked only in Rust).
-    #[error("degrees of freedom must be finite, got {0}")]
+    #[error("degrees of freedom must be finite, got {0:?}")]
     DfNotFinite(f64),
     /// The noncentrality parameter *λ* was negative (`cdfchn` status −6).
-    #[error("noncentrality parameter must be nonnegative, got {0}")]
+    #[error("noncentrality parameter must be nonnegative, got {0:?}")]
     NcpNegative(f64),
     /// The noncentrality parameter *λ* was not finite (checked only in
     /// Rust).
-    #[error("noncentrality parameter must be finite, got {0}")]
+    #[error("noncentrality parameter must be finite, got {0:?}")]
     NcpNotFinite(f64),
     /// The argument *x* was not strictly positive (`cdfchn` status −4 for
-    /// *x* < 0; Rust also rejects *x* = 0, where Pr[*X* ≤ *x*] = 0 whatever
-    /// the parameter searched for).
-    #[error("argument x must be positive, got {0}")]
+    /// *x* < 0; Rust also rejects *x* = 0).
+    #[error("argument x must be positive, got {0:?}")]
     XNotPositive(f64),
     /// The argument *x* was not finite (checked only in Rust).
-    #[error("argument x must be finite, got {0}")]
+    #[error("argument x must be finite, got {0:?}")]
     XNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdfchn` status −2); NaN is
     /// also rejected.
-    #[error("probability p {0} outside [0..1]")]
+    #[error("probability p {0:?} outside [0..1]")]
     PNotInRange(f64),
-    /// The probability *q* fell outside [0 . . 1]; NaN is also rejected.
-    /// No method of [`ChiSquaredNoncentral`] returns it, since CDFLIB's
-    /// `cdfchn` does not use *q*.
-    #[error("probability q {0} outside [0..1]")]
+    /// The probability *q* fell outside [0 . . 1]. No method returns it,
+    /// since `cdfchn` does not use *q*.
+    #[error("probability q {0:?} outside [0..1]")]
     QNotInRange(f64),
     /// The search for the answer failed (`cdfchn` status 1 or 2); see
     /// [`SearchError`].
@@ -112,7 +110,7 @@ pub enum ChiSquaredNoncentralError {
 fn cumchi_or_panic(x: f64, df: f64) -> (f64, f64) {
     match cumchi(x, df) {
         Ok(r) => r,
-        Err(e) => panic!("cumchi({x}, {df}): {e}"),
+        Err(e) => panic!("cumchi({x:?}, {df:?}): {e}"),
     }
 }
 
@@ -121,8 +119,9 @@ fn cumchi_or_panic(x: f64, df: f64) -> (f64, f64) {
 /// (`cumchn`, cdflib.f90:6910).
 ///
 /// The series is summed backwards and forwards from the central term, the
-/// one with the greatest Poisson weight; each sum stops when a term is
-/// less than `EPS` times the sum or after `NTIRED` terms.
+/// one with the greatest Poisson weight; each sum stops when the sum is
+/// less than 10⁻²⁰, when a term is less than `EPS` times the sum, or after
+/// `NTIRED` terms.
 #[allow(clippy::assign_op_pattern)]
 pub(crate) fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
     const EPS: f64 = 0.00001;
@@ -146,7 +145,7 @@ pub(crate) fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
     // integer, which is undefined in Fortran; a NaN pnonc is caught here
     // too.
     if xnonc.is_nan() || f64::from(i32::MAX) <= xnonc {
-        panic!("cumchn: integer overflow for pnonc = {pnonc}");
+        panic!("cumchn: integer overflow for pnonc = {pnonc:?}");
     }
     // Weight, χ² and adjustment term of the central term of the series,
     // the one in which the Poisson weight is greatest. The adjustment term
@@ -225,7 +224,7 @@ pub(crate) fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
         // Rust only: i + 1 overflows the default integer, which is
         // undefined in Fortran.
         if i == i32::MAX {
-            panic!("cumchn: integer overflow for pnonc = {pnonc}");
+            panic!("cumchn: integer overflow for pnonc = {pnonc:?}");
         }
         wt = wt * (xnonc / (i + 1) as f64);
         // Calculate pterm and add the term to the sum.
@@ -320,6 +319,7 @@ impl ChiSquaredNoncentral {
     /// [`NcpNegative`]: ChiSquaredNoncentralError::NcpNegative
     /// [`NcpNotFinite`]: ChiSquaredNoncentralError::NcpNotFinite
     /// [`new`]: Self::new
+    /// [`ChiSquaredNoncentralError`]: crate::ChiSquaredNoncentralError
     #[inline]
     pub fn try_new(df: f64, ncp: f64) -> Result<Self, ChiSquaredNoncentralError> {
         check_df(df)?;
@@ -339,21 +339,20 @@ impl ChiSquaredNoncentral {
         self.ncp
     }
 
-    /// Returns the degrees of freedom *df* satisfying Pr[*X* ≤ *x*] = *p*,
+    /// Returns the degrees of freedom *df* satisfying Pr\[*X* ≤ *x*\] = *p*,
     /// searched for in [0 . . 10³⁰⁰].
     ///
-    /// CDFLIB's `cdfchn` with `which = 3`. A computed *df* of 0, at the
-    /// lower end of the search interval, is reported as [`DfNotPositive`].
-    /// At *p* = 0, where the answer is +∞, the search stops, as the F90 does,
-    /// where the computed probability becomes 0, and returns that finite
-    /// value: `search_df(0.0, 2.0, 1.0)` returns about 395. The precision
-    /// limits of [`cdf`] apply.
+    /// CDFLIB's `cdfchn` with `which = 3`. A computed *df* of 0 is reported
+    /// as [`DfNotPositive`]. At *p* = 0, where the answer is +∞, the search
+    /// returns the finite point where the computed probability becomes 0
+    /// (about 395 for `search_df(0.0, 2.0, 1.0)`). The precision limits of
+    /// [`cdf`] apply: in the left tail the search can return a wrong answer
+    /// without an error.
     ///
     /// # Panics
     ///
-    /// Panics as [`cdf`] does. Since the search evaluates its upper bound
-    /// 10³⁰⁰, this happens in particular when *x* is within a few ulps of
-    /// 10³⁰⁰.
+    /// Panics as [`cdf`] does, in particular when *x* is within a few ulps
+    /// of 10³⁰⁰, the upper end of the search.
     ///
     /// [`cdf`]: ContinuousCdf::cdf
     /// [`DfNotPositive`]: ChiSquaredNoncentralError::DfNotPositive
@@ -388,19 +387,22 @@ impl ChiSquaredNoncentral {
     }
 
     /// Returns the noncentrality parameter *λ* satisfying
-    /// Pr[*X* ≤ *x*] = *p*, searched for in [0 . . 10⁴]: the cost of
-    /// `cumchn` grows with *λ*, which is why CDFLIB bounds the search.
+    /// Pr\[*X* ≤ *x*\] = *p*, searched for in [0 . . 10⁴].
     ///
-    /// CDFLIB's `cdfchn` with `which = 4`.
-    ///
-    /// At *p* = 0, where the answer is +∞, the search stops, as the F90 does,
-    /// where the computed probability becomes 0, and returns that finite
-    /// value: `search_ncp(0.0, 2.0, 1.0)` returns about 395.
+    /// CDFLIB's `cdfchn` with `which = 4`. At *p* = 0, where the answer is
+    /// +∞, the search returns the finite point where the computed
+    /// probability becomes 0 (about 395 for `search_ncp(0.0, 2.0, 1.0)`).
+    /// The precision limits of [`cdf`] apply: in the left tail the search
+    /// can return a wrong answer without an error, as
+    /// `search_ncp(1e-10, 0.1, 0.5)`, which returns about 22 instead of
+    /// about 46.3.
     ///
     /// # Panics
     ///
     /// Panics where `gamma_inc` fails inside `cumchn`, which needs *df*
     /// beyond about 1.3 · 10²⁹ and *x* within a few ulps of it.
+    ///
+    /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
     pub fn search_ncp(p: f64, x: f64, df: f64) -> Result<f64, ChiSquaredNoncentralError> {
         check_p(p)?;
@@ -432,23 +434,24 @@ impl ContinuousCdf for ChiSquaredNoncentral {
 
     /// CDFLIB's `cdfchn` with `which = 1`.
     ///
-    /// The series sums at most about 1000 terms on each side of its central
-    /// term, and stops earlier when a term is less than 10⁻⁵ times the sum.
-    /// For a large *λ* these terms do not cover the Poisson weights, and, as
-    /// in the F90, the result is badly wrong: with *df* = 1 the true
-    /// cdf(*df* + *λ*) is close to 0.5, but the computed one is 0.42 for
-    /// *λ* = 10⁶ and 0.056 for *λ* = 10⁸. For very large *df* (beyond about
-    /// 10¹⁵) the terms lose their digits, so that the result can fall
-    /// outside [0 . . 1], or be NaN, as for *df* = 10²² and *λ* = 1 at
-    /// *x* = 9.999999999996 · 10²¹. For a small *λ* the sum can also exceed
-    /// 1 by a few ulps in the right tail, so that [`ccdf`] is slightly
-    /// negative: with *df* = 3 and *λ* = 10⁻⁹, the cdf at 100 is
-    /// 1 + 4.4 · 10⁻¹⁶.
+    /// The series stops after about 1000 terms on each side of its central
+    /// term, when a term is less than 10⁻⁵ times the sum, or when the sum
+    /// is less than 10⁻²⁰, and, as in the F90, the result can be badly
+    /// wrong. For a large *λ* the terms do not cover the Poisson weights:
+    /// with *df* = 1, cdf(*df* + *λ*) should be close to 0.5, but is 0.056
+    /// for *λ* = 10⁸. In the left tail, where the terms around the central
+    /// one sum to less than 10⁻²⁰, the low-index terms that carry the
+    /// probability are never added: with *df* = 0.5 and *λ* = 10,
+    /// cdf(5 · 10⁻⁵) is 1.4 · 10⁻²² instead of 5.26 · 10⁻⁴. For *df*
+    /// beyond about 10¹⁵ the result can fall outside [0 . . 1] or be NaN.
+    /// For a small *λ* it can exceed 1 by a few ulps in the right tail,
+    /// making [`ccdf`] slightly negative (1 + 4.4 · 10⁻¹⁶ at 100 for
+    /// *df* = 3 and *λ* = 10⁻⁹).
     ///
     /// # Panics
     ///
     /// Panics where `gamma_inc` fails inside `cumchn`, which needs *df*
-    /// beyond about 1.3 · 10²⁹ and *x* within a few ulps of it. It may also
+    /// beyond about 1.3 · 10²⁹ and *x* within a few ulps of it, and may
     /// panic for *λ*/2 ≥ 2³¹ − 1001, where CDFLIB's default integers can
     /// overflow.
     ///
@@ -469,13 +472,10 @@ impl ContinuousCdf for ChiSquaredNoncentral {
         cumchn(x, self.df, self.ncp).0
     }
 
-    /// CDFLIB's `cdfchn` with `which = 1`.
-    ///
-    /// Unlike the central distributions, CDFLIB computes this as
-    /// 1 − [`cdf`] (except for *λ* ≤ 10⁻¹⁰, where it uses the central χ²),
-    /// from a series that stops when a term is less than 10⁻⁵ times the
-    /// sum, so the result has no relative precision in the right tail. The
-    /// precision limits of [`cdf`] apply.
+    /// CDFLIB's `cdfchn` with `which = 1`, computed as 1 − [`cdf`] (except
+    /// for *λ* ≤ 10⁻¹⁰, where the central χ² is used), so the result has no
+    /// relative precision in the right tail. The precision limits of
+    /// [`cdf`] apply.
     ///
     /// # Panics
     ///
@@ -500,15 +500,16 @@ impl ContinuousCdf for ChiSquaredNoncentral {
 
     /// CDFLIB's `cdfchn` with `which = 2`, searched for in [0 . . 10³⁰⁰].
     ///
-    /// The precision limits of [`cdf`] apply: with *df* = 1 and *λ* ≥ 10⁷,
-    /// for example, the search for the median fails with
-    /// [`AnswerAboveUpperBound`].
+    /// The precision limits of [`cdf`] apply: with *df* = 1 and *λ* ≥ 10⁷
+    /// the search for the median fails with [`AnswerAboveUpperBound`], and
+    /// in the left tail the search returns a wrong answer without an error
+    /// (about 1.37 · 10⁻⁴ instead of 6.5 · 10⁻⁸ for *df* = 0.5, *λ* = 10
+    /// and *p* = 10⁻⁴).
     ///
     /// # Panics
     ///
-    /// Panics as [`cdf`] does. Since the search evaluates its upper bound
-    /// 10³⁰⁰, this happens in particular when *df* is within a few ulps of
-    /// 10³⁰⁰.
+    /// Panics as [`cdf`] does, in particular when *df* is within a few ulps
+    /// of 10³⁰⁰, the upper end of the search.
     ///
     /// [`cdf`]: ContinuousCdf::cdf
     /// [`AnswerAboveUpperBound`]: crate::error::SearchError::AnswerAboveUpperBound

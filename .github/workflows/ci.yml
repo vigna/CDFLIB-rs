@@ -10,7 +10,7 @@ env:
 
 jobs:
   msrv:
-    name: cargo check (MSRV 1.71)
+    name: test (MSRV 1.71)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -19,7 +19,7 @@ jobs:
       # The latest releases of thiserror require Rust 1.77 (see README.md).
       - run: cargo generate-lockfile
       - run: cargo update -p thiserror --precise 2.0.20
-      - run: cargo check --all-targets
+      - run: cargo test
 
   test:
     name: fmt + clippy + doc + test (stable)
@@ -50,3 +50,41 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test
       - run: cargo test --release
+
+  miri:
+    name: test (Miri)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - run: cargo miri test
+
+  semver:
+    name: semver checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: obi1kenobi/cargo-semver-checks-action@v2
+
+  coverage:
+    # Every line of cdflib.f90 is executed by the reference-table
+    # generators or listed in tests/regenerate/unreachable.txt.
+    name: Fortran coverage of the generators
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: sudo apt-get update && sudo apt-get install -y gfortran
+      - run: tests/regenerate/coverage.sh
+
+  regenerate:
+    # The committed reference tables are what the generators write on
+    # macOS on Apple silicon.
+    name: regenerate reference tables (macOS, Apple silicon)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: brew install gcc
+      - run: tests/regenerate/regenerate.sh
+      - run: git diff --exit-code tests/data

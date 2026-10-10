@@ -91,9 +91,9 @@ fn read_csv_rejects_a_table_without_rows() {
 #[test]
 fn search_error_displays_useful_messages() {
     let e = SearchError::AnswerBelowLowerBound { bound: -1.0 };
-    assert!(e.to_string().contains("-1"), "got: {e}");
+    assert!(e.to_string().contains("-1.0"), "got: {e}");
     let e = SearchError::AnswerAboveUpperBound { bound: 1.0 };
-    assert!(e.to_string().contains('1'), "got: {e}");
+    assert!(e.to_string().contains("1.0"), "got: {e}");
 }
 
 // A tiny stub distribution to prove the trait shape compiles.

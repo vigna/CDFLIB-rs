@@ -67,12 +67,11 @@ const S: [f64; 4] = [
 /// Since some compilers already supply a routine named `erf`, CDFLIB gives
 /// this routine the distinct name `error_f` (cdflib.f90:9294).
 ///
-/// As in the F90, a NaN argument fails every range test and reaches the
-/// saturated tail, so `error_f(NaN)` is 1.
+/// A NaN argument gives 1, as in the F90.
 ///
 /// Reference: Armido DiDinato, Alfred Morris, Algorithm 708: Significant
 /// Digit Computation of the Incomplete Beta Function Ratios, ACM Transactions
-/// on Mathematical Software, Volume 18, 1993, pages 360-373.
+/// on Mathematical Software, Volume 18, 1992, pages 360-373.
 ///
 /// # Example
 ///
@@ -131,13 +130,12 @@ pub fn error_f(x: f64) -> f64 {
 /// Evaluates the complementary error function erfc(*x*) = 1 − erf(*x*).
 ///
 /// This is CDFLIB's `error_fc(ind, x)` (cdflib.f90:9450) with *ind* = 0.
-/// The value is computed directly, not as 1 − [`error_f`]\(*x*\), so that
-/// small right-tail values keep full relative accuracy. A NaN argument
-/// gives NaN, as in the F90.
+/// It is computed directly, not as 1 − [`error_f`]\(*x*\), so small values
+/// keep full relative accuracy. A NaN argument gives NaN.
 ///
 /// Reference: Armido DiDinato, Alfred Morris, Algorithm 708: Significant
 /// Digit Computation of the Incomplete Beta Function Ratios, ACM Transactions
-/// on Mathematical Software, Volume 18, 1993, pages 360-373.
+/// on Mathematical Software, Volume 18, 1992, pages 360-373.
 ///
 /// # Example
 ///
@@ -156,14 +154,13 @@ pub fn error_fc(x: f64) -> f64 {
 
 /// Evaluates the scaled complementary error function exp(*x*²) · erfc(*x*).
 ///
-/// This is CDFLIB's `error_fc(ind, x)` (cdflib.f90:9450) with *ind* ≠ 0:
-/// the value returned has been multiplied by exp(*x*²). It stays finite for
-/// large positive *x*, where erfc(*x*) itself underflows. A NaN argument
-/// gives NaN, and −∞ gives +∞, as in the F90.
+/// This is CDFLIB's `error_fc(ind, x)` (cdflib.f90:9450) with *ind* ≠ 0.
+/// It stays finite for large positive *x*, where erfc(*x*) underflows. A
+/// NaN argument gives NaN, and −∞ gives +∞.
 ///
 /// Reference: Armido DiDinato, Alfred Morris, Algorithm 708: Significant
 /// Digit Computation of the Incomplete Beta Function Ratios, ACM Transactions
-/// on Mathematical Software, Volume 18, 1993, pages 360-373.
+/// on Mathematical Software, Volume 18, 1992, pages 360-373.
 #[inline]
 pub fn error_fc_scaled(x: f64) -> f64 {
     error_fc_ind(1, x)

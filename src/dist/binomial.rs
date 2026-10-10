@@ -1,6 +1,6 @@
 use crate::error::SearchError;
 use crate::search::{dstinv, dstzr};
-use crate::special::gamma_log;
+use crate::special::beta_log;
 use crate::traits::{Discrete, DiscreteCdf, Mean, Variance};
 use thiserror::Error;
 
@@ -17,7 +17,7 @@ const TOL: f64 = 1.0e-8;
 /// Models the number of successes in a sequence of *n* independent
 /// Bernoulli trials. The CDF reduces to the incomplete Β
 /// (Abramowitz–Stegun 26.5.24):
-/// Pr[*S* ≤ *s*] = *I*₁ ₋ *ₚ*(*n* − *s*, *s* + 1).
+/// Pr[*S* ≤ *s*] = *I*₁ ₋ ₚᵣ(*n* − *s*, *s* + 1).
 ///
 /// The methods correspond to CDFLIB's `cdfbin` (cdflib.f90:2890), whose
 /// XN is *n*: `which = 1` is [`cdf`] / [`ccdf`], `which = 2` is
@@ -66,7 +66,7 @@ pub struct Binomial {
 pub enum BinomialError {
     /// The success probability *pr* fell outside [0 . . 1] (`cdfbin` status −6);
     /// NaN is also rejected.
-    #[error("success probability {0} outside [0..1]")]
+    #[error("success probability {0:?} outside [0..1]")]
     PrOutOfRange(f64),
     /// The number of trials *n* is zero (`cdfbin` status −5, *xn* ≤ 0).
     /// [`search_trials`] also returns it, checked only in Rust, when the
@@ -81,15 +81,15 @@ pub enum BinomialError {
     SuccessesExceedTrials { s: u64, n: u64 },
     /// The probability *p* fell outside [0 . . 1] (`cdfbin` status −2); NaN is
     /// also rejected.
-    #[error("probability p {0} outside [0..1]")]
+    #[error("probability p {0:?} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdfbin` status −3); NaN is
     /// also rejected.
-    #[error("probability q {0} outside [0..1]")]
+    #[error("probability q {0:?} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdfbin` status 3).
-    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
+    #[error("p ({p:?}) and q ({q:?}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
     /// The search for the answer failed (`cdfbin` status 1 or 2); see
     /// [`SearchError`].
@@ -186,6 +186,7 @@ impl Binomial {
     /// [`TrialsZero`]: BinomialError::TrialsZero
     /// [`PrOutOfRange`]: BinomialError::PrOutOfRange
     /// [`new`]: Self::new
+    /// [`BinomialError`]: crate::BinomialError
     #[inline]
     pub fn try_new(n: u64, pr: f64) -> Result<Self, BinomialError> {
         check_xn(n)?;
@@ -205,19 +206,18 @@ impl Binomial {
         self.pr
     }
 
-    /// Returns the (continuous) number of trials *n* satisfying
-    /// Pr[*S* ≤ *s*] = *p* given the success probability, searched for in
-    /// [0 . . 10³⁰⁰]. The search works on the continuous extension of the CDF.
+    /// Returns the real-valued number of trials *n* satisfying
+    /// Pr[*S* ≤ *s*] = *p* on the continuous extension of the CDF, searched
+    /// for in [0 . . 10³⁰⁰].
     ///
     /// CDFLIB's `cdfbin` with `which = 3`, with *ompr* = 1 − *pr*. The
     /// caller passes both *p* and *q* = 1 − *p*; they must sum to 1 within
     /// 3ε.
     ///
-    /// A computed *n* of 0, at the lower end of the search interval, is
-    /// reported as [`TrialsZero`]. At *p* = 0, where the answer is +∞, the
-    /// search stops, as the F90 does, where the computed probability becomes 0,
-    /// and returns that finite value: `search_trials(0.0, 1.0, 0.5, 3)` returns
-    /// about 1957.5.
+    /// A computed *n* of 0 is reported as [`TrialsZero`]. At *p* = 0, where
+    /// the answer is +∞, the search returns the finite point where the
+    /// computed probability becomes 0: `search_trials(0.0, 1.0, 0.5, 3)`
+    /// returns about 1957.5.
     ///
     /// [`TrialsZero`]: BinomialError::TrialsZero
     #[inline]
@@ -260,12 +260,11 @@ impl Binomial {
     /// given *n*, searched for in [0 . . 1].
     ///
     /// CDFLIB's `cdfbin` with `which = 4`. The caller passes both *p* and
-    /// *q* = 1 − *p*; they must sum to 1 within 3ε. When *p* > *q* the
-    /// search runs on *ompr* = 1 − *pr* and returns *pr* = 1 − *ompr*.
+    /// *q* = 1 − *p*; they must sum to 1 within 3ε.
     ///
-    /// Where the answer is an end of the search interval, as at *p* = 0
-    /// and *p* = 1, the search stops within its tolerance of that end (see
-    /// [`SearchError`]): `search_pr(0.0, 1.0, 10, 3)` returns 0.999999995.
+    /// Where the answer is 0 or 1, as at *p* = 0 and *p* = 1, the result is
+    /// only within the search tolerance of it (see [`SearchError`]):
+    /// `search_pr(0.0, 1.0, 10, 3)` returns 0.999999995.
     ///
     /// [`SearchError`]: crate::SearchError
     #[inline]
@@ -319,14 +318,14 @@ impl Binomial {
     /// Returns the real-valued *s* such that [cdf]\(*s*\) = 1 − *q* on the
     /// continuous extension of the CDF, searched for in [0 . . *n*].
     ///
-    /// CDFLIB's `cdfbin` with `which = 2`, with *p* = 1 − *q*. CDFLIB
-    /// starts the search at *s* = 5, so it fails with
-    /// [`SearchError::StartOutOfRange`] when *n* < 5. At *q* = 0 returns
-    /// *n*, also for *pr* = 0 and for *n* < 5, as [`inverse_cdf`] does at
-    /// *p* = 1.
+    /// CDFLIB's `cdfbin` with `which = 2`, with *p* = 1 − *q*. The search
+    /// starts at *s* = 5, so it fails with [`SearchError::StartOutOfRange`]
+    /// when *n* < 5, except at *q* = 0, where the result is *n* (also for
+    /// *pr* = 0), as for [`inverse_cdf`] at *p* = 1.
     ///
     /// [cdf]: crate::traits::DiscreteCdf::cdf
     /// [`inverse_cdf`]: crate::traits::DiscreteCdf::inverse_cdf
+    /// [`SearchError::StartOutOfRange`]: crate::error::SearchError::StartOutOfRange
     #[inline]
     pub fn inverse_ccdf(&self, q: f64) -> Result<f64, BinomialError> {
         check_q(q)?;
@@ -418,9 +417,15 @@ impl Discrete for Binomial {
         let n = self.n as f64;
         let sf = s as f64;
         let pr = self.pr;
-        // ln C(n,s) + s ln pr + (n-s) ln(1-pr), with ln(1-pr) computed as
+        // ln C(n,s) + s ln pr + (n-s) ln(1-pr). ln C(n,s) is computed as
+        // -ln(n+1) - ln B(s+1, n-s+1), which does not cancel for large n,
+        // and is exactly 0 where C(n,s) = 1; ln(1-pr) is computed as
         // ln_1p(-pr), which keeps its precision for small pr.
-        let log_c = gamma_log(n + 1.0) - gamma_log(sf + 1.0) - gamma_log(n - sf + 1.0);
+        let log_c = if s == 0 || s == self.n {
+            0.0
+        } else {
+            -(n + 1.0).ln() - beta_log(sf + 1.0, n - sf + 1.0)
+        };
         let log_pr = if pr == 0.0 {
             if s == 0 {
                 0.0
@@ -481,9 +486,9 @@ mod tests {
         ));
     }
 
-    // ln_pmf(0) on a degenerate Bernoulli (pr = 0) is exactly 0.0 only
-    // when the FPU evaluates the two gamma_log(11) calls bit-identically.
-    // Miri's soft-float libm shims drift by ~1 ULP; skip under miri.
+    // ln_pmf at the endpoints of a degenerate distribution (pr = 0 or 1)
+    // is exactly 0.0 only when ln(1.0) and ln_1p(-0.0) are exact, which
+    // Miri's float shims do not guarantee; skip under miri.
     #[cfg(not(miri))]
     #[test]
     fn edge_and_moment_cases() {
@@ -495,5 +500,23 @@ mod tests {
         assert_eq!(Binomial::new(10, 1.0).ln_pmf(10), 0.0);
         assert_eq!(b.mean(), 3.0);
         assert!((b.variance() - 2.1).abs() < 1e-15);
+    }
+
+    // The terms of ln_pmf are about 10¹¹ in absolute value, so the result
+    // depends on the last bits of ln and ln_1p, which Miri's float shims do
+    // not guarantee; skip under miri.
+    #[cfg(not(miri))]
+    #[test]
+    fn ln_pmf_at_a_large_mode() {
+        // The three ln Γ terms of ln C(n,s) are up to about 2 · 10¹⁰ and
+        // cancel to about 3 · 10⁸.
+        let b = Binomial::new(1_000_000_000, 0.1);
+        assert!((b.ln_pmf(100_000_000) + 10.076598648194535).abs() < 1e-7);
+        let b = Binomial::new(1_000_000_000_000, 0.3);
+        assert!((b.ln_pmf(300_000_000_000) + 13.954125217036926).abs() < 1e-4);
+        // C(n,s) = 1 for s = 0 and s = n.
+        let b = Binomial::new(13, 0.25);
+        assert_eq!(b.ln_pmf(0), 13.0 * (-0.25_f64).ln_1p());
+        assert_eq!(b.ln_pmf(13), 13.0 * 0.25_f64.ln());
     }
 }

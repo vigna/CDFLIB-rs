@@ -3,9 +3,8 @@
 A pure-Rust port of [CDFLIB], the cumulative distribution function library by
 Barry Brown, James Lovato, and Kathy Russell.
 
-The minimum supported Rust version is 1.71. The latest releases of the
-`thiserror` dependency require Rust 1.77; with Rust 1.71 to 1.76, pin it
-to the last compatible release with
+The minimum supported Rust version is 1.71. The latest releases of
+`thiserror` require Rust 1.77: with Rust 1.71 to 1.76, run
 `cargo update -p thiserror --precise 2.0.20`.
 
 ## What is CDFLIB?
@@ -43,8 +42,7 @@ scope. This is a machine-translated port of the Fortran 90 code. Other
 libraries, such as [`statrs`], can use the high-precision functions provided by
 CDFLIB to build more ergonomic APIs. The only exceptions are convenience
 textbook one-liners for mean, variance, and so on, and the integer quantile of
-the discrete distributions, which CDFLIB does not provide (its searches return
-a real-valued count).
+the discrete distributions.
 
 ## Notation conventions
 
@@ -84,14 +82,11 @@ probabilities directly, without computing one from the other.
 This is the same algorithm family that underlies SciPy's [incomplete-Γ/Β
 routines]. It delivers near-machine precision (13–15 digits) deep into the tails
 and at large parameter values, where continued-fraction implementations lose
-digits to subtractive cancellation or stall on convergence. The noncentral
-distributions are the exception: CDFLIB sums their Poisson mixtures with a
-fixed budget of terms and a loose relative cutoff, so their accuracy degrades
-for large noncentrality (see their documentation). The inverses and the
-parameter searches that CDFLIB computes with its root finder are less precise:
-the search stops once it has located the answer within the larger of an
-absolute tolerance of 10⁻¹⁰ (10⁻⁵⁰ for the noncentral χ²) and a relative
-tolerance of 10⁻⁸ (see [`SearchError`]).
+digits to subtractive cancellation or stall on convergence. The exceptions are
+the noncentral distributions, whose truncated series can be badly wrong (see
+their documentation), and the inverses and parameter searches computed by
+CDFLIB's root finder, which stop at a relative tolerance of 10⁻⁸ or an absolute
+tolerance of 10⁻¹⁰, whichever is larger (see [`SearchError`]).
 
 The Rust statistical ecosystem already has [`statrs`], which covers most of
 CDFLIB's distributions. However, at the time of this writing [`statrs`] does
@@ -151,7 +146,7 @@ _p_, _x_, and the other parameters. For example:
 
 ```rust
 use cdflib::Normal;
-use cdflib::traits::{Continuous, ContinuousCdf, Mean};
+use cdflib::traits::{Continuous, ContinuousCdf};
 
 let n = Normal::try_new(0.0, 1.0)?;
 let p  = n.cdf(1.96);            // 0.9750021048517796
@@ -160,6 +155,9 @@ let x  = n.inverse_cdf(0.975)?;  // 1.9599639845400538
 let xs = n.inverse_ccdf(1e-12)?; // 7.034484, deep into the right tail
 let d  = n.pdf(0.0);             // 0.3989422804014327
 let mu = n.mean();               // 0.0
+# assert!((p - 0.9750021048517796).abs() < 1e-15 && (sf - 2.866516e-7).abs() < 5e-14);
+# assert!((x - 1.9599639845400538).abs() < 1e-12 && (xs - 7.034484).abs() < 5e-7);
+# assert!((d - 0.3989422804014327).abs() < 1e-15 && mu == 0.0);
 # Ok::<(), cdflib::NormalError>(())
 ```
 
@@ -180,6 +178,7 @@ let lambda_hi = Poisson::search_lambda(0.05, 0.95, 3)?;
 // (recovers df = 1, the classic likelihood-ratio test critical value).
 let df = ChiSquared::search_df(0.95, 0.05, 3.84)?;
 // 0.9994
+# assert!((lambda_hi - 7.7537).abs() < 5e-5 && (df - 0.9994).abs() < 5e-5);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
@@ -196,6 +195,7 @@ let crit = ChiSquared::try_new(5.0)?.inverse_cdf(0.95)?;
 // Power against a noncentral alternative with ncp = 10.
 let power = ChiSquaredNoncentral::try_new(5.0, 10.0)?.ccdf(crit);
 // 0.6774
+# assert!((crit - 11.0705).abs() < 5e-5 && (power - 0.6774).abs() < 5e-5);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
@@ -213,7 +213,8 @@ let (p, q) = gamma_inc(2.5, 1.7);
 let e = error_f(0.8);
 // (Φ(1.96), 1 - Φ(1.96)) = (0.9750, 0.0250)
 let (phi, sphi) = cumnor(1.96);
-# let _ = (p, q, e, phi, sphi);
+# assert!((p - 0.3614).abs() < 5e-5 && (q - 0.6386).abs() < 5e-5 && (e - 0.7421).abs() < 5e-5);
+# assert!((phi - 0.9750).abs() < 5e-5 && (sphi - 0.0250).abs() < 5e-5);
 ```
 
 Every special function with possible failure modes, except the helpers
@@ -225,7 +226,7 @@ use cdflib::special::{try_gamma_inc, GammaIncError};
 
 let (p, q) = try_gamma_inc(2.5, 1.7)?;
 assert!(matches!(try_gamma_inc(-1.0, 1.0), Err(GammaIncError::ANegative(_))));
-# let _ = (p, q);
+# assert!((p - 0.3614).abs() < 5e-5 && (q - 0.6386).abs() < 5e-5);
 # Ok::<(), GammaIncError>(())
 ```
 
@@ -237,10 +238,11 @@ Rust allows you to rename the functions:
 use cdflib::special::{beta as Β, cumnor as Φ, gamma as Γ, psi as ψ};
 
 let x = Γ(2.5);            // Γ(5/2) = (3/2)·√π / 2 ≈ 1.3293
-let y = Β(2.0, 3.0);       // Β(2, 3) = 1/12
+let b = Β(2.0, 3.0);       // Β(2, 3) = 1/12
 let (p, _) = Φ(1.96);      // Φ(1.96) ≈ 0.975
 let γ = -ψ(1.0);           // ψ(1) = −γ (Euler–Mascheroni)
-# let _ = (x, y, p, γ);
+# assert!((x - 1.3293).abs() < 5e-5 && (b - 1.0 / 12.0).abs() < 1e-15);
+# assert!((p - 0.975).abs() < 5e-4 && (γ - 0.5772).abs() < 5e-5);
 ```
 
 ## Fidelity to CDFLIB
@@ -265,40 +267,30 @@ digit. The intentional structural divergences are:
 - `error_fc(ind, x)` (which multiplexes plain and exponentially-scaled output
   via an integer flag) is split into two Rust functions, [`error_fc`] and
   [`error_fc_scaled`]. Same numerics, no flag argument.
-- The Fortran `cdf*` routines are split by `which` into the corresponding
-  distribution's [`cdf`] / [`ccdf`] / [`inverse_cdf`] / [`inverse_ccdf`] /
-  `search_*` methods (for the discrete distributions, `which = 2` is
-  `inverse_ccdf`, which returns a real-valued count, and the integer
-  `inverse_cdf` has no Fortran counterpart). The `cum*` routines are
-  crate-private functions with their Fortran names, called by those methods
-  exactly where the Fortran calls them.
+- The Fortran `cdf*` routines are split by `which` into the [`cdf`],
+  [`ccdf`], [`inverse_cdf`], [`inverse_ccdf`], and `search_*` methods of each
+  distribution (for the discrete distributions, `which = 2` is the real-valued
+  `inverse_ccdf`). The `cum*` routines are crate-private functions with their
+  Fortran names.
 - `dinvr` and `dzror` (the reverse-communication root finders) live as internal
   state machines in `crate::search`. They are not part of the public surface.
-- Each distribution module declares the constants of its `cdf*` routine
-  (`atol`, `tol`, `inf`, …) and drives the searches with the same `dstinv`
-  or `dstzr` arguments and the same reverse-communication loop as the Fortran.
-- Where the Fortran never returns, the Rust returns NaN or an error, except
-  that the noncentral _F_ distribution panics when its series sums to NaN;
-  where the Fortran would overflow a default integer, the Rust panics, as
-  documented. The distribution methods also handle explicitly the ends of the
-  support, infinite and NaN arguments (a NaN argument gives NaN), and
-  parameters that a search computes but the constructor would reject. Every
-  such place is marked “Rust only” or “Rust also” in the source.
-- As in the Fortran, a parameter search or an inverse can end at a meaningless
-  point without an error when the function it searches evaluates to NaN (see
-  [`SearchError`]).
+- Each distribution drives its searches with the same constants, `dstinv` or
+  `dstzr` arguments, and reverse-communication loop as the Fortran.
+- Where the Fortran never returns, the Rust returns NaN or an error (the
+  noncentral _F_ distribution panics when its series sums to NaN); where a
+  Fortran default integer would overflow, the Rust panics. The distribution
+  methods also handle the ends of the support, infinite and NaN arguments, and
+  parameters that a search computes but the constructor would reject. Each such
+  place is marked “Rust only” or “Rust also” in the source.
 
 The lower-level CDFLIB-style helpers ([`algdiv`], [`bcorr`], [`gam1`], [`rlog`],
 etc.) live in [`cdflib::special::internal`] so the user-facing
 [`cdflib::special`] surface stays focused on the routines a statistical user is
 likely to call. Each CDFLIB algorithmic routine can be found under its original
 name, modulo the renames and splits enumerated above. The machine-constant
-routines `ipmpar` and `exparg` are crate-private ports; fatal errors that the
-Fortran reports by printing a message and stopping are returned as errors
-through the `Result` types described above, except that the helper `dstrem`,
-and through it `dbetrm`, panics on arguments outside its domain. The helper
-`dlanor` panics too on arguments outside its domain, where the Fortran prints a
-fatal-error message and continues.
+routines `ipmpar` and `exparg` are crate-private ports. Fatal Fortran errors
+are returned as errors, except that the helpers `dlanor`, `dstrem`, and
+`dbetrm` panic on arguments outside their domain.
 
 ## Testing
 
@@ -306,26 +298,21 @@ Reference values for the test suite are pre-generated from the Fortran 90
 sources (`tests/regenerate/`) and committed as CSV fixtures under `tests/data/`.
 `cargo test` reads the CSVs directly; CSV fixtures can be regenerated using the
 shell scripts in `tests/regenerate/` if desired; you will need a Fortran 90
-compiler. The Fortran is compiled without fused multiply-adds, and on the
-platform that generates the fixtures (macOS on Apple silicon) the Rust port
-reproduces every fixture value bit for bit, in debug and release builds,
-including the iteration traces of the root finders and the error status of
-every `cdf*` call; elsewhere the tests allow the last-bit differences of the
-system math library. The script
+compiler. On macOS on Apple silicon, where the fixtures are generated, the
+Rust port reproduces every value bit for bit, in debug and release builds,
+including the iteration traces of the root finders and the status of every
+`cdf*` call; elsewhere the tests allow last-bit differences of the system math
+library.
 `tests/regenerate/coverage.sh` checks that the generators execute every line of
-`cdflib.f90`, except the lines listed with their reason in
-`tests/regenerate/unreachable.txt`, and that no generator executes a listed
-line.
+`cdflib.f90` except those listed, with a reason, in
+`tests/regenerate/unreachable.txt`.
 
 The code has been extensively tested against the original Fortran 90 and C
 sources. In the process, we found [serious bugs in `rmathlib`] and bugs in the
 [Fortran 90 version of the library] that had remained undetected for up to 25
-years: a
-coefficient for the computation of the error function had been transcribed from
-the [original Fortran 77 code] with a wrong exponent (the [C]/[C++] versions are
-unaffected); `gamma_inc`, `gamma_inc_inv`, and `rcomp` called the compiler's
-intrinsic Γ function instead of the library's own `gamma_user`, as the [original
-F77 code] does.
+years: a coefficient of the error function transcribed from the [original
+Fortran 77 code] with a wrong exponent, and calls to the compiler's intrinsic Γ
+function instead of the library's own `gamma_user`.
 
 [CDFLIB]: https://people.sc.fsu.edu/~jburkardt/cpp_src/cdflib/cdflib.html
 [ACM Algorithm 654]: https://dl.acm.org/doi/10.1145/29380.214348
@@ -354,7 +341,6 @@ F77 code] does.
 [noncentral χ²]: https://docs.rs/cdflib/latest/cdflib/struct.ChiSquaredNoncentral.html
 [noncentral _F_]: https://docs.rs/cdflib/latest/cdflib/struct.FisherSnedecorNoncentral.html
 [Fortran 90 version of the library]: https://people.sc.fsu.edu/~jburkardt/f_src/cdflib/cdflib.html
-[original F77 code]: https://people.sc.fsu.edu/~jburkardt/f77_src/cdflib/cdflib.html
 [`cdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.cdf
 [`ccdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.ccdf
 [`inverse_cdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.inverse_cdf

@@ -55,36 +55,36 @@ pub enum NormalError {
     /// when the *σ* it computes is not strictly positive.
     ///
     /// [`search_sd`]: crate::Normal::search_sd
-    #[error("standard deviation must be positive, got {0}")]
+    #[error("standard deviation must be positive, got {0:?}")]
     SdNotPositive(f64),
     /// The mean *μ* was not finite (checked only in Rust). [`search_mean`]
     /// also returns it when the mean it computes is not finite, as at
     /// *p* = 0 and *p* = 1.
     ///
     /// [`search_mean`]: crate::Normal::search_mean
-    #[error("mean must be finite, got {0}")]
+    #[error("mean must be finite, got {0:?}")]
     MeanNotFinite(f64),
     /// The standard deviation *σ* was not finite (checked only in Rust).
     /// [`search_sd`] also returns it when the *σ* it computes is not
     /// finite.
     ///
     /// [`search_sd`]: crate::Normal::search_sd
-    #[error("standard deviation must be finite, got {0}")]
+    #[error("standard deviation must be finite, got {0:?}")]
     SdNotFinite(f64),
     /// The argument *x* was not finite (checked only in Rust).
-    #[error("argument x must be finite, got {0}")]
+    #[error("argument x must be finite, got {0:?}")]
     XNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdfnor` status −2); NaN is
     /// also rejected.
-    #[error("probability p {0} outside [0..1]")]
+    #[error("probability p {0:?} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdfnor` status −3); NaN is
     /// also rejected.
-    #[error("probability q {0} outside [0..1]")]
+    #[error("probability q {0:?} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdfnor` status 3).
-    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
+    #[error("p ({p:?}) and q ({q:?}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
 }
 
@@ -170,6 +170,7 @@ impl Normal {
     /// [`SdNotFinite`]: NormalError::SdNotFinite
     /// [`SdNotPositive`]: NormalError::SdNotPositive
     /// [`new`]: Self::new
+    /// [`NormalError`]: crate::NormalError
     #[inline]
     pub fn try_new(mean: f64, sd: f64) -> Result<Self, NormalError> {
         check_mean(mean)?;
@@ -211,9 +212,8 @@ impl Normal {
     /// Returns the mean *μ* satisfying *p* = Pr[*X* ≤ *x*] given *σ*.
     ///
     /// CDFLIB's `cdfnor` with `which = 3`. The caller passes both *p* and
-    /// *q* = 1 − *p*, so that a small value of either keeps its precision;
-    /// they must sum to 1 within 3ε. A computed mean that is not finite, as
-    /// at *p* = 0 and *p* = 1, where it is ±∞, is reported as
+    /// *q* = 1 − *p*; they must sum to 1 within 3ε. A computed mean that is
+    /// not finite, as at *p* = 0 and *p* = 1, is reported as
     /// [`MeanNotFinite`].
     ///
     /// [`MeanNotFinite`]: NormalError::MeanNotFinite
@@ -245,22 +245,17 @@ impl Normal {
     /// Returns the standard deviation *σ* satisfying *p* = Pr[*X* ≤ *x*] given *μ*.
     ///
     /// CDFLIB's `cdfnor` with `which = 4`. The caller passes both *p* and
-    /// *q* = 1 − *p*; see [`search_mean`].
+    /// *q* = 1 − *p*; they must sum to 1 within 3ε.
     ///
-    /// The result is (*x* − *μ*) / Φ⁻¹(*p*), as in CDFLIB. Where CDFLIB
-    /// returns a value that is not strictly positive, Rust returns
-    /// [`SdNotPositive`] with that value: when *x* < *μ* and *p* > 1/2, or
-    /// *x* > *μ* and *p* < 1/2, no *σ* > 0 exists; when *x* = *μ* the
-    /// numerator is 0. For *p* = 0 or *p* = 1 the error carries 0, the
-    /// limit of the formula. At *p* = 1/2, `dinvnr` gives a tiny nonzero
-    /// value instead of 0, so *x* ≠ *μ* gives a huge *σ* of the sign of
-    /// *x* − *μ*, as in CDFLIB. A *σ* that is not finite is reported as
-    /// [`SdNotFinite`].
+    /// The result is (*x* − *μ*) / Φ⁻¹(*p*). Where it is not strictly
+    /// positive, as when *x* = *μ*, or *x* < *μ* and *p* > 1/2, or
+    /// *x* > *μ* and *p* < 1/2, Rust returns [`SdNotPositive`] with that
+    /// value (0 for *p* = 0 or *p* = 1). At *p* = 1/2 and *x* ≠ *μ* the
+    /// result is a huge *σ* of the sign of *x* − *μ*. A *σ* that is not
+    /// finite is reported as [`SdNotFinite`].
     ///
     /// [`SdNotPositive`]: NormalError::SdNotPositive
     /// [`SdNotFinite`]: NormalError::SdNotFinite
-    ///
-    /// [`search_mean`]: Self::search_mean
     #[inline]
     pub fn search_sd(p: f64, q: f64, x: f64, mean: f64) -> Result<f64, NormalError> {
         check_p(p)?;
@@ -330,8 +325,7 @@ impl ContinuousCdf for Normal {
         cum
     }
 
-    /// CDFLIB's `cdfnor` with `which = 1`, computed directly rather than
-    /// as 1 − cdf(*x*), which preserves precision in the right tail.
+    /// CDFLIB's `cdfnor` with `which = 1`.
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
         // Rust only: NaN for a NaN x.
@@ -350,10 +344,9 @@ impl ContinuousCdf for Normal {
 
     /// CDFLIB's `cdfnor` with `which = 2`, with *q* = 1 − *p*.
     ///
-    /// Maximum precision is achieved when *p* ≤ 1/2. For *p* > 1/2, the
-    /// internal *q* = 1 − *p* is exact, but it can be no finer than the
-    /// spacing of the doubles near 1; users with a known small right-tail
-    /// probability *q* should call [`inverse_ccdf`] directly.
+    /// For *p* > 1/2, *q* = 1 − *p* is no finer than the spacing of the
+    /// doubles near 1: for a small right-tail probability, call
+    /// [`inverse_ccdf`] with *q*.
     ///
     /// [`inverse_ccdf`]: Normal::inverse_ccdf
     #[inline]
@@ -382,7 +375,7 @@ impl Continuous for Normal {
 
     #[inline]
     fn ln_pdf(&self, x: f64) -> f64 {
-        let z = (x - self.mean) / self.sd;
+        let z = self.standardize(x);
         -0.5 * z * z - self.sd.ln() - 0.5 * (2.0 * PI).ln()
     }
 }
@@ -642,5 +635,8 @@ mod tests {
         assert!((d.ccdf(1e308) / 0.13295368060585558 - 1.0).abs() < 1e-12);
         assert_eq!(d.cdf(f64::INFINITY), 1.0);
         assert_eq!(d.ccdf(f64::NEG_INFINITY), 1.0);
+        assert!((d.ln_pdf(1e308) / -711.3205206360652 - 1.0).abs() < 1e-12);
+        let d = Normal::new(-1e308, 1.7e308);
+        assert!((d.pdf(1.7e308) / 6.64827702412647e-310 - 1.0).abs() < 1e-12);
     }
 }

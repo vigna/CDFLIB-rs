@@ -39,6 +39,8 @@
 //!
 //! [`Dinvr`]: self::Dinvr
 //! [`Dzror`]: self::Dzror
+//! [`dinvr`]: mod@self::dinvr
+//! [`dzror`]: mod@self::dzror
 
 mod dinvr;
 mod dzror;
@@ -90,6 +92,8 @@ impl Dstinv {
     /// Returns [`SearchError::StartOutOfRange`] where F90 `dinvr` stops
     /// with the fatal error "The values SMALL, X, BIG are not monotone"
     /// (cdflib.f90:8258-8263).
+    ///
+    /// [`SearchError::StartOutOfRange`]: SearchError::StartOutOfRange
     #[inline]
     pub(crate) fn dinvr(self, x: f64) -> Result<Dinvr, SearchError> {
         // Rust only: the test of cdflib.f90:8258, made here so that the F90

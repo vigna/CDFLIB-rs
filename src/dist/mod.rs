@@ -7,6 +7,7 @@
 //!
 //! [`ContinuousCdf`]: crate::traits::ContinuousCdf
 //! [`Continuous`]: crate::traits::Continuous
+//! [`crate::traits`]: crate::traits
 
 pub(crate) mod beta;
 pub(crate) mod binomial;
@@ -35,10 +36,8 @@ pub use students_t::{StudentsT, StudentsTError};
 /// Rust only: returns the smallest integer *s* ≤ `max` with `cdf(s)` ≥ *p*,
 /// or `max` if there is none, for 0 < *p* < 1 and a nondecreasing `cdf`.
 ///
-/// This serves the integer quantile required by
-/// [`DiscreteCdf::inverse_cdf`]; CDFLIB has no counterpart, as its
-/// `which = 2` solves for a real *s*. The bracket is found by doubling and
-/// then narrowed by bisection, so no tuning constant is involved.
+/// Used by [`DiscreteCdf::inverse_cdf`]. The bracket is found by doubling
+/// and narrowed by bisection.
 ///
 /// [`DiscreteCdf::inverse_cdf`]: crate::traits::DiscreteCdf::inverse_cdf
 pub(crate) fn integer_quantile(p: f64, max: u64, cdf: impl Fn(u64) -> f64) -> u64 {

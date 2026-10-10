@@ -24,12 +24,10 @@ const TOL: f64 = 1.0e-8;
 ///
 /// # Note on naming
 ///
-/// CDFLIB's `cdfgam` calls its second parameter SCALE, but defines the
-/// density as proportional to *t*^(SHAPE − 1) · exp(−SCALE · *t*) and
-/// computes `cumgam(x * scale, shape, …)`: the parameter is mathematically
-/// the **rate** *β* (mean = *α*/*β*), not the conventional scale *θ*
-/// (mean = *α*·*θ*, with CDF *P*(*α*, *x*/*θ*)). Users with shape-scale
-/// parameters should pass `rate = 1.0 / scale`.
+/// CDFLIB's `cdfgam` calls its second parameter SCALE, but uses it as the
+/// **rate** *β* (the density is proportional to
+/// *t*^(SHAPE − 1) · exp(−SCALE · *t*)), not as the conventional scale
+/// *θ* = 1/*β*. With shape-scale parameters, pass `rate = 1.0 / scale`.
 ///
 /// # Example
 ///
@@ -72,7 +70,7 @@ pub enum GammaError {
     /// shape it computes is 0.
     ///
     /// [`search_shape`]: crate::Gamma::search_shape
-    #[error("shape must be positive, got {0}")]
+    #[error("shape must be positive, got {0:?}")]
     ShapeNotPositive(f64),
     /// The rate parameter *β* (CDFLIB's SCALE) was not strictly positive
     /// (`cdfgam` status −6). [`search_rate`] also returns it, checked only
@@ -80,37 +78,36 @@ pub enum GammaError {
     /// *p* = 0.
     ///
     /// [`search_rate`]: crate::Gamma::search_rate
-    #[error("rate must be positive, got {0}")]
+    #[error("rate must be positive, got {0:?}")]
     RateNotPositive(f64),
     /// The shape parameter *α* was not finite (checked only in Rust).
-    #[error("shape must be finite, got {0}")]
+    #[error("shape must be finite, got {0:?}")]
     ShapeNotFinite(f64),
     /// The rate parameter *β* was not finite (checked only in Rust).
     /// [`search_rate`] also returns it when the rate it computes is not
     /// finite, as for *q* = 0.
     ///
     /// [`search_rate`]: crate::Gamma::search_rate
-    #[error("rate must be finite, got {0}")]
+    #[error("rate must be finite, got {0:?}")]
     RateNotFinite(f64),
     /// The argument *x* was not strictly positive (`cdfgam` status −4 for
-    /// *x* < 0; Rust also rejects *x* = 0, where Pr[*X* ≤ *x*] = 0 whatever
-    /// the parameters).
-    #[error("argument x must be positive, got {0}")]
+    /// *x* < 0; Rust also rejects *x* = 0).
+    #[error("argument x must be positive, got {0:?}")]
     XNotPositive(f64),
     /// The argument *x* was not finite (checked only in Rust).
-    #[error("argument x must be finite, got {0}")]
+    #[error("argument x must be finite, got {0:?}")]
     XNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdfgam` status −2); NaN is
     /// also rejected.
-    #[error("probability p {0} outside [0..1]")]
+    #[error("probability p {0:?} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdfgam` status −3); NaN is
     /// also rejected.
-    #[error("probability q {0} outside [0..1]")]
+    #[error("probability q {0:?} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdfgam` status 3).
-    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
+    #[error("p ({p:?}) and q ({q:?}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
     /// The search for the answer failed (`cdfgam` status 1 or 2); see
     /// [`SearchError`].
@@ -118,17 +115,17 @@ pub enum GammaError {
     /// [`SearchError`]: crate::error::SearchError
     #[error(transparent)]
     Search(#[from] SearchError),
-    /// The inverse incomplete Γ function failed (`cdfgam` status 10 after
-    /// `gamma_inc_inv` returns a negative `ierr`); see [`GammaIncInvError`].
-    /// [`AtInfinity`] does not occur: *q* = 0 is handled as an endpoint
-    /// in the quantile methods and reported as [`RateNotFinite`] by
-    /// [`search_rate`].
+    /// The inverse incomplete Γ function failed (`cdfgam` status 10, a
+    /// negative `ierr` of `gamma_inc_inv`); see [`GammaIncInvError`].
+    /// [`AtInfinity`] does not occur: *q* = 0 is an endpoint of the
+    /// quantile methods and gives [`RateNotFinite`] in [`search_rate`].
+    /// [`NoSolution`] also occurs when *p* is so small that the solution
+    /// underflows.
     ///
     /// [`RateNotFinite`]: GammaError::RateNotFinite
     /// [`search_rate`]: crate::Gamma::search_rate
-    ///
     /// [`AtInfinity`]: crate::special::GammaIncInvError::AtInfinity
-    ///
+    /// [`NoSolution`]: crate::special::GammaIncInvError::NoSolution
     /// [`GammaIncInvError`]: crate::special::GammaIncInvError
     #[error(transparent)]
     GammaIncInv(#[from] GammaIncInvError),
@@ -247,6 +244,7 @@ impl Gamma {
     /// [`ShapeNotPositive`]: GammaError::ShapeNotPositive
     /// [`RateNotPositive`]: GammaError::RateNotPositive
     /// [`new`]: Self::new
+    /// [`GammaError`]: crate::GammaError
     #[inline]
     pub fn try_new(shape: f64, rate: f64) -> Result<Self, GammaError> {
         check_shape(shape)?;
@@ -266,19 +264,16 @@ impl Gamma {
         self.rate
     }
 
-    /// Returns the shape parameter *α* satisfying Pr[*X* ≤ *x*] = *p*,
+    /// Returns the shape parameter *α* satisfying Pr\[*X* ≤ *x*\] = *p*,
     /// searched for in [0 . . 10³⁰⁰].
     ///
     /// CDFLIB's `cdfgam` with `which = 3`. The caller passes both *p* and
-    /// *q* = 1 − *p*; they must sum to 1 within 3ε.
-    ///
-    /// A computed shape of 0, at the lower end of the search interval, is
-    /// reported as [`ShapeNotPositive`]. At *p* = 0, where the answer is +∞,
-    /// the search stops, as the F90 does, where the computed probability
-    /// becomes 0, and returns that finite value:
-    /// `search_shape(0.0, 1.0, 1.0, 1.0)` returns about 395. Where *β*·*x*
-    /// overflows, the probability is 1 for every shape in the search
-    /// interval, and the result for *p* < 1 is [`AnswerAboveUpperBound`].
+    /// *q* = 1 − *p*; they must sum to 1 within 3ε. A computed shape of 0
+    /// is reported as [`ShapeNotPositive`]. At *p* = 0, where the answer is
+    /// +∞, the search returns the finite point where the computed
+    /// probability becomes 0 (about 395 for
+    /// `search_shape(0.0, 1.0, 1.0, 1.0)`). Where *β*·*x* overflows, the
+    /// result for *p* < 1 is [`AnswerAboveUpperBound`].
     ///
     /// [`ShapeNotPositive`]: GammaError::ShapeNotPositive
     /// [`AnswerAboveUpperBound`]: SearchError::AnswerAboveUpperBound
@@ -335,15 +330,18 @@ impl Gamma {
     }
 
     /// Returns the rate parameter *β* (CDFLIB's SCALE) satisfying
-    /// Pr[*X* ≤ *x*] = *p*.
+    /// Pr\[*X* ≤ *x*\] = *p*.
     ///
     /// CDFLIB's `cdfgam` with `which = 4`. The caller passes both *p* and
     /// *q* = 1 − *p*; they must sum to 1 within 3ε. A computed rate that is
     /// not positive or not finite, as at *p* = 0 or *p* = 1, is reported as
-    /// [`RateNotPositive`] or [`RateNotFinite`].
+    /// [`RateNotPositive`] or [`RateNotFinite`]. A *p* so small that the
+    /// solution underflows gives [`NoSolution`] (in [`GammaIncInv`]).
     ///
     /// [`RateNotPositive`]: GammaError::RateNotPositive
     /// [`RateNotFinite`]: GammaError::RateNotFinite
+    /// [`GammaIncInv`]: GammaError::GammaIncInv
+    /// [`NoSolution`]: crate::special::GammaIncInvError::NoSolution
     #[inline]
     pub fn search_rate(p: f64, q: f64, x: f64, shape: f64) -> Result<f64, GammaError> {
         check_p(p)?;
@@ -391,9 +389,13 @@ impl Gamma {
     /// Returns the quantile *x* such that [ccdf]\(*x*\) = *q*.
     ///
     /// CDFLIB's `cdfgam` with `which = 2`, with *p* = 1 − *q*, so that a
-    /// tiny *q* keeps its precision.
+    /// tiny *q* keeps its precision. A *p* so small that the quantile
+    /// underflows gives [`NoSolution`] (in [`GammaIncInv`]), as for shape
+    /// 10⁻³, rate 1 and *q* = 1 − 2⁻⁵³.
     ///
     /// [ccdf]: crate::traits::ContinuousCdf::ccdf
+    /// [`GammaIncInv`]: GammaError::GammaIncInv
+    /// [`NoSolution`]: crate::special::GammaIncInvError::NoSolution
     #[inline]
     pub fn inverse_ccdf(&self, q: f64) -> Result<f64, GammaError> {
         check_q(q)?;
@@ -413,6 +415,10 @@ impl ContinuousCdf for Gamma {
     type Error = GammaError;
 
     /// CDFLIB's `cdfgam` with `which = 1`.
+    ///
+    /// The result is 0 where *β*·*x*, or its product with the shape,
+    /// underflows to 0, even if the true value is far from 0: with shape
+    /// 10⁻³ and rate 10⁻²⁰⁰, cdf(10⁻²⁰⁰) is 0 instead of 0.398.
     ///
     /// # Panics
     ///
@@ -437,16 +443,21 @@ impl ContinuousCdf for Gamma {
         // Rust only: panic on the GammaIncError of cumgam.
         match cumgam(xscale, self.shape) {
             Ok((cum, _ccum)) => cum,
-            Err(e) => panic!("cumgam({xscale}, {}): {e}", self.shape),
+            Err(e) => panic!("cumgam({xscale:?}, {:?}): {e}", self.shape),
         }
     }
 
     /// CDFLIB's `cdfgam` with `which = 1`.
     ///
+    /// The result is 1 where *β*·*x*, or its product with the shape,
+    /// underflows to 0, as described for [`cdf`].
+    ///
     /// # Panics
     ///
     /// Panics where `gamma_inc` cannot compute its result, which needs
     /// shape > 6.6 · 10²⁸ and *β*·*x* within a few ulps of the shape.
+    ///
+    /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
         // Rust only: NaN for a NaN x.
@@ -466,11 +477,16 @@ impl ContinuousCdf for Gamma {
         // Rust only: panic on the GammaIncError of cumgam.
         match cumgam(xscale, self.shape) {
             Ok((_cum, ccum)) => ccum,
-            Err(e) => panic!("cumgam({xscale}, {}): {e}", self.shape),
+            Err(e) => panic!("cumgam({xscale:?}, {:?}): {e}", self.shape),
         }
     }
 
-    /// CDFLIB's `cdfgam` with `which = 2`, with *q* = 1 − *p*.
+    /// CDFLIB's `cdfgam` with `which = 2`, with *q* = 1 − *p*. A *p* so
+    /// small that the quantile underflows gives [`NoSolution`] (in
+    /// [`GammaIncInv`]), as for shape 0.159, rate 1 and *p* = 2.47 · 10⁻²¹⁷.
+    ///
+    /// [`GammaIncInv`]: GammaError::GammaIncInv
+    /// [`NoSolution`]: crate::special::GammaIncInvError::NoSolution
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, GammaError> {
         check_p(p)?;

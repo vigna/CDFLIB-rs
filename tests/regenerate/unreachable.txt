@@ -37,10 +37,8 @@
 6168-6177 cdfpoi: which = 3 failure; cumpoi is not small at xlam = 1e300 only for s beyond about 1e300, and the Rust s is a u64.
 #
 # Search failures that cannot occur with the inputs that the Rust passes
-# to the search: the answer is bracketed by the search interval.
-3932-3937 cdfchn: which = 2 status 1; cumchn is 0 at x = 0, so the answer is not below 0 unless int(pnonc/2) overflows (pnonc of about 4.3e9 and above), where the Rust cumchn panics.
-4303-4308 cdff: which = 2 status 1; cumf is 0 at f = 0, so the answer is not below 0 except at q = 0, which the Rust answers as an exact endpoint, and with a dfd of 5e-324, which the Rust rejects (DfdNotPositive).
-4716-4722 cdffnc: which = 2 status 1; cumfnc is 0 at f = 0, so the answer is never below 0.
+# to the search.
+4716-4722 cdffnc: which = 2 status 1; the objective cum - p is -p <= 0 at f = 0, so the step search brackets the answer unless the objective is NaN at the upper bound, and there the sum of cumfnc is NaN, where the Rust panics and the F90 never returns (dfd >= 1 keeps cumf, used for pnonc < 1e-10, finite at f = 1e300).
 #
 # Undefined behavior: dzror assigns qleft only when it fails at label 20
 # (cdflib.f90:8959), where the function has the same sign at both ends of

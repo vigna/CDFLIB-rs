@@ -61,36 +61,36 @@ pub enum BetaError {
     /// computes is 0.
     ///
     /// [`search_a`]: crate::Beta::search_a
-    #[error("shape parameter a must be positive, got {0}")]
+    #[error("shape parameter a must be positive, got {0:?}")]
     ANotPositive(f64),
     /// The shape parameter *a* was not finite (checked only in Rust).
-    #[error("shape parameter a must be finite, got {0}")]
+    #[error("shape parameter a must be finite, got {0:?}")]
     ANotFinite(f64),
     /// The shape parameter *b* was not strictly positive (`cdfbet` status −7).
     /// [`search_b`] also returns it, checked only in Rust, when the *b* it
     /// computes is 0.
     ///
     /// [`search_b`]: crate::Beta::search_b
-    #[error("shape parameter b must be positive, got {0}")]
+    #[error("shape parameter b must be positive, got {0:?}")]
     BNotPositive(f64),
     /// The shape parameter *b* was not finite (checked only in Rust).
-    #[error("shape parameter b must be finite, got {0}")]
+    #[error("shape parameter b must be finite, got {0:?}")]
     BNotFinite(f64),
     /// The argument *x* fell outside [0 . . 1] (`cdfbet` status −4); NaN is also
     /// rejected.
-    #[error("argument x must be in [0..1], got {0}")]
+    #[error("argument x must be in [0..1], got {0:?}")]
     XOutOfRange(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdfbet` status −2); NaN is
     /// also rejected.
-    #[error("probability p {0} outside [0..1]")]
+    #[error("probability p {0:?} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdfbet` status −3); NaN is
     /// also rejected.
-    #[error("probability q {0} outside [0..1]")]
+    #[error("probability q {0:?} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdfbet` status 3).
-    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
+    #[error("p ({p:?}) and q ({q:?}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
     /// The search for the answer failed (`cdfbet` status 1 or 2); see
     /// [`SearchError`].
@@ -203,6 +203,7 @@ impl Beta {
     /// [`BNotPositive`]: BetaError::BNotPositive
     /// [`BNotFinite`]: BetaError::BNotFinite
     /// [`new`]: Self::new
+    /// [`BetaError`]: crate::BetaError
     #[inline]
     pub fn try_new(a: f64, b: f64) -> Result<Self, BetaError> {
         check_a(a)?;
@@ -226,13 +227,11 @@ impl Beta {
     /// searched for in [0 . . 10³⁰⁰].
     ///
     /// CDFLIB's `cdfbet` with `which = 3`, with *y* = 1 − *x*. The caller
-    /// passes both *p* and *q* = 1 − *p*, so that a small value of either
-    /// keeps its precision; they must sum to 1 within 3ε.
+    /// passes both *p* and *q* = 1 − *p*; they must sum to 1 within 3ε.
     ///
-    /// A computed *a* of 0, at the lower end of the search interval, is
-    /// reported as [`ANotPositive`]. At *p* = 0, where the answer is +∞, the
-    /// search stops, as the F90 does, where the computed probability becomes 0,
-    /// and returns that finite value: `search_a(0.0, 1.0, 0.5, 2.0)` returns
+    /// A computed *a* of 0 is reported as [`ANotPositive`]. At *p* = 0,
+    /// where the answer is +∞, the search returns the finite point where the
+    /// computed probability becomes 0: `search_a(0.0, 1.0, 0.5, 2.0)` returns
     /// about 1957.5.
     ///
     /// [`ANotPositive`]: BetaError::ANotPositive
@@ -275,13 +274,11 @@ impl Beta {
     /// searched for in [0 . . 10³⁰⁰].
     ///
     /// CDFLIB's `cdfbet` with `which = 4`, with *y* = 1 − *x*. The caller
-    /// passes both *p* and *q* = 1 − *p*, so that a small value of either
-    /// keeps its precision; they must sum to 1 within 3ε.
+    /// passes both *p* and *q* = 1 − *p*; they must sum to 1 within 3ε.
     ///
-    /// A computed *b* of 0, at the lower end of the search interval, is
-    /// reported as [`BNotPositive`]. At *q* = 0, where the answer is +∞, the
-    /// search stops, as the F90 does, where the computed probability becomes 0,
-    /// and returns that finite value: `search_b(1.0, 0.0, 0.5, 2.0)` returns
+    /// A computed *b* of 0 is reported as [`BNotPositive`]. At *q* = 0,
+    /// where the answer is +∞, the search returns the finite point where the
+    /// computed probability becomes 0: `search_b(1.0, 0.0, 0.5, 2.0)` returns
     /// about 1957.5.
     ///
     /// [`BNotPositive`]: BetaError::BNotPositive
@@ -361,10 +358,9 @@ impl Beta {
 
     /// Returns the quantile *x* such that [ccdf]\(*x*\) = *q*.
     ///
-    /// CDFLIB's `cdfbet` with `which = 2`, with *p* = 1 − *q*. For *q* <
-    /// 1/2, CDFLIB searches for *y* = 1 − *x*, and *x* has only the
-    /// absolute accuracy of *y*, about 10⁻⁸, as for [`inverse_cdf`] with
-    /// *p* > 1/2.
+    /// CDFLIB's `cdfbet` with `which = 2`, with *p* = 1 − *q*. For *q* < 1/2
+    /// the search is for *y* = 1 − *x*, so *x* has an absolute accuracy of
+    /// only about 10⁻⁸ (see [`inverse_cdf`]).
     ///
     /// [ccdf]: crate::traits::ContinuousCdf::ccdf
     /// [`inverse_cdf`]: ContinuousCdf::inverse_cdf
@@ -389,9 +385,9 @@ impl ContinuousCdf for Beta {
     /// CDFLIB's `cdfbet` with `which = 1`, with *y* = 1 − *x*.
     ///
     /// The result can be NaN when *a* or *b* is above about 2 · 10³⁰⁷, and
-    /// is NaN when *a* + *b* overflows, where the F90 `beta_inc` never
-    /// returns; the inverses and the parameter searches then return
-    /// meaningless values (see [`SearchError`]).
+    /// is NaN when *a* + *b* overflows, where the F90 never returns; the
+    /// inverses and searches then return meaningless values (see
+    /// [`SearchError`]).
     ///
     /// [`SearchError`]: crate::SearchError
     #[inline]
@@ -425,11 +421,10 @@ impl ContinuousCdf for Beta {
         cumbet(x, 1.0 - x, self.a, self.b).1
     }
 
-    /// CDFLIB's `cdfbet` with `which = 2`, with *q* = 1 − *p*. For *p* >
-    /// 1/2, CDFLIB searches for *y* = 1 − *x*, and *x* has only the
-    /// absolute accuracy of *y*, about 10⁻⁸:
-    /// `Beta::new(1.0, 1e5).inverse_cdf(0.9)` returns 2.30206 · 10⁻⁵, while
-    /// the true quantile is 2.30256 · 10⁻⁵.
+    /// CDFLIB's `cdfbet` with `which = 2`, with *q* = 1 − *p*. For *p* > 1/2
+    /// the search is for *y* = 1 − *x*, so *x* has an absolute accuracy of
+    /// only about 10⁻⁸: `Beta::new(1.0, 1e5).inverse_cdf(0.9)` returns
+    /// 2.30206 · 10⁻⁵ instead of 2.30256 · 10⁻⁵.
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, BetaError> {
         check_p(p)?;
@@ -496,10 +491,18 @@ impl Variance for Beta {
     #[inline]
     fn variance(&self) -> f64 {
         // ab / ((a + b)² (a + b + 1)), written as the product of the two
-        // means a / (a + b) and b / (a + b) divided by a + b + 1, so that an
-        // intermediate overflows or underflows only where the variance is
-        // subnormal.
-        1.0 / (1.0 + self.b / self.a) / (1.0 + self.a / self.b) / (self.a + self.b + 1.0)
+        // means a / (a + b) and b / (a + b) divided by a + b + 1, so that no
+        // intermediate overflows and subnormal variances are kept. Where
+        // a + b overflows, a + b + 1 is a (1 + b / a), and the variance is
+        // computed as ma² mb / a, with ma = 1 / (1 + b / a) and
+        // mb = 1 / (1 + a / b).
+        let sum = self.a + self.b;
+        if sum.is_finite() {
+            self.a / sum * (self.b / sum) / (sum + 1.0)
+        } else {
+            let ma = 1.0 / (1.0 + self.b / self.a);
+            ma * ma / (1.0 + self.a / self.b) / self.a
+        }
     }
 }
 
@@ -626,6 +629,10 @@ mod tests {
         assert!((Beta::new(1e-10, 1e300).mean() / 1e-310 - 1.0).abs() < 1e-12);
         assert!((Beta::new(1e103, 1e103).variance() / 1.25e-104 - 1.0).abs() < 1e-12);
         assert!((Beta::new(1e-200, 1e-200).variance() - 0.25).abs() < 1e-12);
+        assert!((Beta::new(1e308, 1e308).variance() / 1.25e-309 - 1.0).abs() < 1e-12);
+        // Subnormal variances.
+        assert!((Beta::new(1e-310, 1.0).variance() / 5e-311 - 1.0).abs() < 1e-12);
+        assert!((Beta::new(5e-324, 1e-10).variance() / 4.94e-314 - 1.0).abs() < 1e-3);
     }
 
     #[test]

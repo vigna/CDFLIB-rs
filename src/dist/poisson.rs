@@ -69,23 +69,23 @@ pub struct Poisson {
 pub enum PoissonError {
     /// The rate parameter *λ* was negative (`cdfpoi` status −5). *λ* = 0,
     /// a degenerate distribution concentrated at 0, is accepted.
-    #[error("lambda must be nonnegative, got {0}")]
+    #[error("lambda must be nonnegative, got {0:?}")]
     LambdaNegative(f64),
-    /// The rate parameter *λ* was not finite, or so large that 2*λ*, the χ²
-    /// argument of `cumpoi`, is not finite (checked only in Rust).
-    #[error("lambda and twice lambda must be finite, got {0}")]
+    /// The rate parameter *λ* was not finite, or so large that 2*λ* is not
+    /// finite (checked only in Rust).
+    #[error("lambda and twice lambda must be finite, got {0:?}")]
     LambdaNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdfpoi` status −2); NaN is
     /// also rejected.
-    #[error("probability p {0} outside [0..1]")]
+    #[error("probability p {0:?} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdfpoi` status −3); NaN is
     /// also rejected.
-    #[error("probability q {0} outside [0..1]")]
+    #[error("probability q {0:?} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdfpoi` status 3).
-    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
+    #[error("p ({p:?}) and q ({q:?}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
     /// The search for the answer failed (`cdfpoi` status 1 or 2); see
     /// [`SearchError`].
@@ -118,7 +118,7 @@ pub(crate) fn cumpoi(s: f64, xlam: f64) -> Result<(f64, f64), GammaIncError> {
 fn cumpoi_or_panic(s: f64, xlam: f64) -> (f64, f64) {
     match cumpoi(s, xlam) {
         Ok(r) => r,
-        Err(e) => panic!("cumpoi({s}, {xlam}): {e}"),
+        Err(e) => panic!("cumpoi({s:?}, {xlam:?}): {e}"),
     }
 }
 
@@ -184,6 +184,7 @@ impl Poisson {
     /// [`LambdaNegative`]: PoissonError::LambdaNegative
     /// [`LambdaNotFinite`]: PoissonError::LambdaNotFinite
     /// [`new`]: Self::new
+    /// [`PoissonError`]: crate::PoissonError
     #[inline]
     pub fn try_new(lambda: f64) -> Result<Self, PoissonError> {
         check_xlam(lambda)?;
@@ -202,8 +203,8 @@ impl Poisson {
     /// CDFLIB's `cdfpoi` with `which = 3`. The caller passes both *p* and
     /// *q* = 1 − *p*; they must sum to 1 within 3ε.
     ///
-    /// At *p* = 0, where the answer is +∞, the search stops, as the F90 does,
-    /// where the computed probability becomes 0, and returns that finite value:
+    /// At *p* = 0, where the answer is +∞, the search returns the finite
+    /// point where the computed probability becomes 0:
     /// `search_lambda(0.0, 1.0, 3)` returns about 1957.5.
     #[inline]
     pub fn search_lambda(p: f64, q: f64, s: u64) -> Result<f64, PoissonError> {
@@ -242,13 +243,13 @@ impl Poisson {
     ///
     /// # Panics
     ///
-    /// Panics if the search evaluates `gamma_inc` where it cannot compute
-    /// its result, which needs *λ* beyond 6.6 · 10²⁸ and *s* + 1 within a
-    /// few ulps of it. Since the search evaluates its upper bound 10³⁰⁰,
-    /// this happens in particular when *λ* is within a few ulps of 10³⁰⁰.
+    /// Panics where `gamma_inc` fails inside the search, which needs *λ*
+    /// beyond 6.6 · 10²⁸ and *s* + 1 within a few ulps of it, as when *λ* is
+    /// within a few ulps of the search bound 10³⁰⁰.
     ///
     /// [cdf]: crate::traits::DiscreteCdf::cdf
     /// [`inverse_cdf`]: crate::traits::DiscreteCdf::inverse_cdf
+    /// [`u64::MAX`]: u64::MAX
     #[inline]
     pub fn inverse_ccdf(&self, q: f64) -> Result<f64, PoissonError> {
         check_q(q)?;
@@ -308,6 +309,7 @@ impl DiscreteCdf for Poisson {
     ///
     /// [`inverse_ccdf`]: Poisson::inverse_ccdf
     /// [`cdf`]: Self::cdf
+    /// [`u64::MAX`]: u64::MAX
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<u64, PoissonError> {
         check_p(p)?;

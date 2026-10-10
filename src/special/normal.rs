@@ -14,8 +14,8 @@ use super::gamma::alnrel;
 ///
 /// the integral running from −∞ to *x* = *arg*, the upper limit of
 /// integration, and returns (*cum*, *ccum*), the normal CDF and the
-/// complementary CDF. Both are returned because the smaller one is computed
-/// directly, which preserves precision in either tail.
+/// complementary CDF; the smaller one is computed directly, so both tails
+/// keep their precision.
 ///
 /// This transportable program uses rational functions that theoretically
 /// approximate the normal distribution function to at least 18 significant
@@ -25,9 +25,9 @@ use super::gamma::alnrel;
 ///
 /// This is CDFLIB's `cumnor` (cdflib.f90:7582).
 ///
-/// As in the F90, the result is (NaN, NaN) when 16·|*x*| overflows
-/// (|*x*| > `f64::MAX` / 16, including *x* = ±∞), and when *x* is NaN.
-/// The distributions return the exact limits there.
+/// As in the F90, the result is (NaN, NaN) for a NaN *x* and where
+/// 16·|*x*| overflows (|*x*| > `f64::MAX` / 16, including ±∞); the
+/// distributions return the exact limits there.
 ///
 /// References: William Cody, Rational Chebyshev approximations for the error
 /// function, Mathematics of Computation, 1969, pages 631-637. William Cody,
@@ -200,12 +200,11 @@ pub fn cumnor(arg: f64) -> (f64, f64) {
 ///
 /// This is CDFLIB's `dinvnr` (cdflib.f90:8041).
 ///
-/// As in the F90, the result is NaN when *p* or *q* is 0, where the
-/// answer is ∓∞, and when both are NaN; the distributions handle these
-/// endpoints separately. When only one of *p* and *q* is NaN, the other
-/// is taken as *q*: both `dinvnr(f64::NAN, 0.7)` and
-/// `dinvnr(0.7, f64::NAN)` return about −0.5244, the quantile for
-/// *q* = 0.7.
+/// As in the F90, the result is NaN when *p* or *q* is 0 (the answer is
+/// ∓∞; the distributions handle these endpoints separately) or both are
+/// NaN. When only one is NaN, the other is taken as *q*:
+/// `dinvnr(f64::NAN, 0.7)` and `dinvnr(0.7, f64::NAN)` are both about
+/// −0.5244.
 ///
 /// Reference: William Kennedy, James Gentle, Statistical Computing, Marcel
 /// Dekker, NY, 1980.
@@ -309,7 +308,7 @@ pub fn stvaln(p: f64) -> f64 {
 /// Evaluates the logarithm of the asymptotic normal CDF.
 ///
 /// Computes the logarithm of the cumulative normal distribution from |*x*|
-/// to infinity, that is, ln Pr[*X* > |*x*|] for a standard normal *X*, for
+/// to infinity, that is, ln Pr\[*X* > |*x*|\] for a standard normal *X*, for
 /// 5 ≤ |*x*|.
 ///
 /// The relative error at *x* = 5 is about 0.5·10⁻⁵.
@@ -321,8 +320,8 @@ pub fn stvaln(p: f64) -> f64 {
 ///
 /// # Panics
 ///
-/// Panics if |*x*| < 5. In this case the F90 routine prints a fatal-error
-/// message and then continues with the asymptotic formula anyway.
+/// Panics if |*x*| < 5, where the F90 prints a fatal-error message and
+/// continues anyway.
 ///
 /// # Example
 ///
@@ -360,7 +359,7 @@ pub fn dlanor(x: f64) -> f64 {
     if x.abs() < 5.0 {
         // Rust only: panic where the F90 prints a fatal-error message and
         // continues (cdflib.f90:8641-8645).
-        panic!("dlanor: argument |x| must be ≥ 5 (got {x})");
+        panic!("dlanor: argument |x| must be ≥ 5 (got {x:?})");
     }
 
     let approx = -DLSQPI - 0.5 * x * x - x.abs().ln();

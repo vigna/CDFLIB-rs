@@ -61,30 +61,29 @@ pub enum ChiSquaredError {
     /// when the *df* it computes is 0.
     ///
     /// [`search_df`]: crate::ChiSquared::search_df
-    #[error("degrees of freedom must be positive, got {0}")]
+    #[error("degrees of freedom must be positive, got {0:?}")]
     DfNotPositive(f64),
     /// The degrees of freedom *df* was not finite (checked only in Rust).
-    #[error("degrees of freedom must be finite, got {0}")]
+    #[error("degrees of freedom must be finite, got {0:?}")]
     DfNotFinite(f64),
     /// The argument *x* was not strictly positive (`cdfchi` status −4 for
-    /// *x* < 0; Rust also rejects *x* = 0, where Pr[*X* ≤ *x*] = 0 whatever
-    /// *df*).
-    #[error("argument x must be positive, got {0}")]
+    /// *x* < 0; Rust also rejects *x* = 0).
+    #[error("argument x must be positive, got {0:?}")]
     XNotPositive(f64),
     /// The argument *x* was not finite (checked only in Rust).
-    #[error("argument x must be finite, got {0}")]
+    #[error("argument x must be finite, got {0:?}")]
     XNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdfchi` status −2); NaN is
     /// also rejected.
-    #[error("probability p {0} outside [0..1]")]
+    #[error("probability p {0:?} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdfchi` status −3); NaN is
     /// also rejected.
-    #[error("probability q {0} outside [0..1]")]
+    #[error("probability q {0:?} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdfchi` status 3).
-    #[error("p ({p}) and q ({q}) are not complementary: |p + q - 1| > 3ε")]
+    #[error("p ({p:?}) and q ({q:?}) are not complementary: |p + q - 1| > 3ε")]
     PQSumNotOne { p: f64, q: f64 },
     /// The search for the answer failed (`cdfchi` status 1 or 2); see
     /// [`SearchError`].
@@ -188,6 +187,7 @@ impl ChiSquared {
     /// [`DfNotFinite`]: ChiSquaredError::DfNotFinite
     /// [`DfNotPositive`]: ChiSquaredError::DfNotPositive
     /// [`new`]: Self::new
+    /// [`ChiSquaredError`]: crate::ChiSquaredError
     #[inline]
     pub fn try_new(df: f64) -> Result<Self, ChiSquaredError> {
         check_df(df)?;
@@ -200,17 +200,14 @@ impl ChiSquared {
         self.df
     }
 
-    /// Returns the degrees of freedom *df* satisfying Pr[*X* ≤ *x*] = *p*,
+    /// Returns the degrees of freedom *df* satisfying Pr\[*X* ≤ *x*\] = *p*,
     /// searched for in [0 . . 10³⁰⁰].
     ///
     /// CDFLIB's `cdfchi` with `which = 3`. The caller passes both *p* and
-    /// *q* = 1 − *p*; they must sum to 1 within 3ε.
-    ///
-    /// A computed *df* of 0, at the lower end of the search interval, is
+    /// *q* = 1 − *p*; they must sum to 1 within 3ε. A computed *df* of 0 is
     /// reported as [`DfNotPositive`]. At *p* = 0, where the answer is +∞, the
-    /// search stops, as the F90 does, where the computed probability becomes 0,
-    /// and returns that finite value: `search_df(0.0, 1.0, 1.0)` returns about
-    /// 395.
+    /// search returns the finite point where the computed probability
+    /// becomes 0 (about 395 for `search_df(0.0, 1.0, 1.0)`).
     ///
     /// [`DfNotPositive`]: ChiSquaredError::DfNotPositive
     #[inline]
@@ -301,6 +298,10 @@ impl ContinuousCdf for ChiSquared {
 
     /// CDFLIB's `cdfchi` with `which = 1`.
     ///
+    /// The result is 0 where the product of *df*/2 and *x*/2 underflows to
+    /// 0, even if the true value is far from 0: with *df* = 10⁻⁵,
+    /// cdf(10⁻³²⁰) is 0 instead of 0.996.
+    ///
     /// # Panics
     ///
     /// Panics where `gamma_inc` cannot compute its result, which needs
@@ -322,16 +323,21 @@ impl ContinuousCdf for ChiSquared {
         // Rust only: panic on the GammaIncError of cumchi.
         match cumchi(x, self.df) {
             Ok((cum, _ccum)) => cum,
-            Err(e) => panic!("cumchi({x}, {}): {e}", self.df),
+            Err(e) => panic!("cumchi({x:?}, {:?}): {e}", self.df),
         }
     }
 
     /// CDFLIB's `cdfchi` with `which = 1`.
     ///
+    /// The result is 1 where the product of *df*/2 and *x*/2 underflows to
+    /// 0, as described for [`cdf`].
+    ///
     /// # Panics
     ///
     /// Panics where `gamma_inc` cannot compute its result, which needs
     /// *df* > 1.3 · 10²⁹ and *x* within a few ulps of *df*.
+    ///
+    /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
         // Rust only: NaN for a NaN x.
@@ -349,7 +355,7 @@ impl ContinuousCdf for ChiSquared {
         // Rust only: panic on the GammaIncError of cumchi.
         match cumchi(x, self.df) {
             Ok((_cum, ccum)) => ccum,
-            Err(e) => panic!("cumchi({x}, {}): {e}", self.df),
+            Err(e) => panic!("cumchi({x:?}, {:?}): {e}", self.df),
         }
     }
 
@@ -389,20 +395,23 @@ impl Continuous for ChiSquared {
             return f64::NEG_INFINITY;
         }
         let k = self.df / 2.0;
-        // For the smallest subnormal df, k is 0, and at x = 0 the expression
-        // below would be inf - inf; the density at 0 is +inf for every
-        // df < 2.
-        if k == 0.0 && x == 0.0 {
-            return f64::INFINITY;
-        }
-        // ln f(x) = -(k ln 2 + ln Γ(k)) + (k - 1) ln x - x/2; for k = 1 the
-        // term (k - 1) ln x is 0 at x = 0, where it would be 0 · (-inf).
+        // ln f(x) = -(k ln 2 + ln Γ(k)) + (k - 1) ln x - x/2. Where k is
+        // subnormal or 0, so that df/2 loses digits or underflows, ln Γ(k)
+        // is computed as -ln k = ln 2 - ln df, with an absolute error below
+        // 1e-307.
+        let ln_gamma_k = if k < f64::MIN_POSITIVE {
+            2.0_f64.ln() - self.df.ln()
+        } else {
+            gamma_log(k)
+        };
+        // For k = 1 the term (k - 1) ln x is 0 at x = 0, where it would be
+        // 0 · (-inf).
         let ln_x_term = if k == 1.0 && x == 0.0 {
             0.0
         } else {
             (k - 1.0) * x.ln()
         };
-        -(k * 2.0_f64.ln() + gamma_log(k)) + ln_x_term - x / 2.0
+        -(k * 2.0_f64.ln() + ln_gamma_k) + ln_x_term - x / 2.0
     }
 }
 
@@ -623,5 +632,20 @@ mod tests {
         let d = ChiSquared::new(f64::from_bits(1));
         assert_eq!(d.pdf(0.0), f64::INFINITY);
         assert_eq!(d.ln_pdf(0.0), f64::INFINITY);
+    }
+
+    // ln df and ln x, about -744, cancel in ln_pdf, so the result depends on
+    // the last bits of ln, which Miri's float shims do not guarantee; skip
+    // under miri.
+    #[cfg(not(miri))]
+    #[test]
+    fn density_for_a_subnormal_df() {
+        // df/2 underflows to 0 for the smallest subnormal df, and rounds to
+        // 4/3 of the true value for df = 1.5e-323.
+        let d = ChiSquared::new(f64::from_bits(1));
+        assert!((d.ln_pdf(0.01) / -740.5330489159531 - 1.0).abs() < 1e-13);
+        assert!((d.pdf(5e-324) - 0.5).abs() < 1e-13);
+        let d = ChiSquared::new(1.5e-323);
+        assert!((d.ln_pdf(1.0) / -744.5346068132731 - 1.0).abs() < 1e-13);
     }
 }
