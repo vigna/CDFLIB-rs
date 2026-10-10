@@ -11,9 +11,15 @@
 //! written. Three dispatchers (cdft which=3, cdffnc which=3, cdffnc
 //! which=4) write `bound = 0.0D+00` even though the lower end of their
 //! search interval is 1.0.
+//!
+//! The last three tests pin the Rust status where the F90 status is
+//! undefined: a `dzror` failure at label 240 leaves `qleft` unassigned,
+//! so no call log can record it (see tests/regenerate/unreachable.txt).
 
 use cdflib::{
-    FisherSnedecorNoncentral, FisherSnedecorNoncentralError, SearchError, StudentsT, StudentsTError,
+    Beta, BetaError, Binomial, BinomialError, FisherSnedecorNoncentral,
+    FisherSnedecorNoncentralError, NegativeBinomial, NegativeBinomialError, SearchError, StudentsT,
+    StudentsTError,
 };
 
 // ---------------------------------------------------------------------------
@@ -95,5 +101,48 @@ fn fisher_snedecor_noncentral_search_dfd_qleft_bound_is_f90_zero_not_small() {
                 if bound == 0.0
         ),
         "expected AnswerBelowLowerBound {{ bound: 0.0 }} per cdflib.f90:4796, got {err:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// dzror failures at label 240, where the F90 reads an uninitialized qleft.
+// ---------------------------------------------------------------------------
+
+// dzror assigns qleft and qhi only when it fails at label 20
+// (cdflib.f90:8959). When it fails at label 240 (cdflib.f90:9125) the
+// cdf* routine tests a qleft that nothing has assigned, so the F90 status
+// is undefined; the Rust reports both flags as false, which selects the
+// status 2 branch and its bound of 1.
+
+#[test]
+fn beta_inverse_ccdf_dzror_label_240_failure_is_status_2() {
+    // cdfbet which=2, cdflib.f90:2778-2794: the search for y with
+    // q = 1e-300 ends at label 240.
+    let err = Beta::new(0.5, 1e5).inverse_ccdf(1e-300).unwrap_err();
+    assert_eq!(
+        err,
+        BetaError::Search(SearchError::AnswerAboveUpperBound { bound: 1.0 })
+    );
+}
+
+#[test]
+fn binomial_search_pr_dzror_label_240_failure_is_status_2() {
+    // cdfbin which=4, cdflib.f90:3318-3334: cdf(0) = (1 - pr)^100 = 1e-300
+    // holds for pr near 0.999, but the search on [0..1] ends at label 240.
+    let err = Binomial::search_pr(1e-300, 1.0, 100, 0).unwrap_err();
+    assert_eq!(
+        err,
+        BinomialError::Search(SearchError::AnswerAboveUpperBound { bound: 1.0 })
+    );
+}
+
+#[test]
+fn negative_binomial_search_pr_dzror_label_240_failure_is_status_2() {
+    // cdfnbn which=4, cdflib.f90:5616-5634: the search for ompr with
+    // q = 1e-300 ends at label 240.
+    let err = NegativeBinomial::search_pr(1.0, 1e-300, 5, 100).unwrap_err();
+    assert_eq!(
+        err,
+        NegativeBinomialError::Search(SearchError::AnswerAboveUpperBound { bound: 1.0 })
     );
 }

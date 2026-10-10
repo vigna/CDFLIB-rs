@@ -69,12 +69,12 @@ pub struct FisherSnedecorNoncentral {
 pub enum FisherSnedecorNoncentralError {
     /// The numerator degrees of freedom *dfn* was not strictly positive
     /// (`cdffnc` status −5).
-    #[error("numerator df must be > 0, got {0}")]
+    #[error("numerator df must be positive, got {0}")]
     DfnNotPositive(f64),
     /// The numerator degrees of freedom *dfn* was less than 1, where
     /// `cumfnc` stops with a fatal error (cdflib.f90:7317-7322). It is
     /// checked after the `cdffnc` status checks.
-    #[error("numerator df must be >= 1, got {0}")]
+    #[error("numerator df must be at least 1, got {0}")]
     DfnTooSmall(f64),
     /// The numerator degrees of freedom *dfn* was not finite (checked only
     /// in Rust).
@@ -82,19 +82,19 @@ pub enum FisherSnedecorNoncentralError {
     DfnNotFinite(f64),
     /// The denominator degrees of freedom *dfd* was not strictly positive
     /// (`cdffnc` status −6).
-    #[error("denominator df must be > 0, got {0}")]
+    #[error("denominator df must be positive, got {0}")]
     DfdNotPositive(f64),
     /// The denominator degrees of freedom *dfd* was less than 1, where
     /// `cumfnc` stops with a fatal error (cdflib.f90:7324-7329). It is
     /// checked after the `cdffnc` status checks.
-    #[error("denominator df must be >= 1, got {0}")]
+    #[error("denominator df must be at least 1, got {0}")]
     DfdTooSmall(f64),
     /// The denominator degrees of freedom *dfd* was not finite (checked
     /// only in Rust).
     #[error("denominator df must be finite, got {0}")]
     DfdNotFinite(f64),
     /// The noncentrality parameter *λ* was negative (`cdffnc` status −7).
-    #[error("noncentrality parameter must be ≥ 0, got {0}")]
+    #[error("noncentrality parameter must be nonnegative, got {0}")]
     NcpNegative(f64),
     /// The noncentrality parameter *λ* was not finite (checked only in
     /// Rust).
@@ -110,12 +110,12 @@ pub enum FisherSnedecorNoncentralError {
     FNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdffnc` status −2); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability p {0} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1]; NaN is also rejected.
     /// No method of [`FisherSnedecorNoncentral`] returns it, since CDFLIB's
     /// `cdffnc` does not use *q*.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability q {0} outside [0..1]")]
     QNotInRange(f64),
     /// The search for the answer failed (`cdffnc` status 1 or 2); see
     /// [`SearchError`].
@@ -559,7 +559,10 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
     /// is close to 1, but the computed one is 0.9992 for *λ* = 10³, 0.988 for
     /// *λ* = 10⁵ and 0.51 for *λ* = 10⁸. For very large degrees of freedom
     /// (*dfd* beyond about 10¹⁴, for example) the terms lose their digits, so
-    /// that the result can fall outside [0 . . 1].
+    /// that the result can fall outside [0 . . 1]. For a small *λ* the sum can
+    /// also exceed 1 by a few ulps in the right tail, so that [`ccdf`] is
+    /// slightly negative: with *dfn* = 3.7, *dfd* = 30 and *λ* = 10⁻⁹, the
+    /// cdf at 100 is 1 + 4.4 · 10⁻¹⁶.
     ///
     /// # Panics
     ///
@@ -568,6 +571,8 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
     /// latter needs *λ*/2 within a few hundred thousand of 2³¹. Panics
     /// also when the degrees of freedom are so large that the sum of the
     /// series is NaN, where the F90 never returns.
+    ///
+    /// [`ccdf`]: ContinuousCdf::ccdf
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
         // Rust only: NaN for a NaN x.

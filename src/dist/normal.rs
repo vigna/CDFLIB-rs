@@ -76,11 +76,11 @@ pub enum NormalError {
     XNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdfnor` status −2); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability p {0} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdfnor` status −3); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability q {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdfnor` status 3).

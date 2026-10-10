@@ -102,11 +102,11 @@ pub enum GammaError {
     XNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdfgam` status −2); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability p {0} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdfgam` status −3); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability q {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdfgam` status 3).
@@ -403,14 +403,14 @@ impl ContinuousCdf for Gamma {
     /// shape > 6.6 · 10²⁸ and *β*·*x* within a few ulps of the shape.
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
-        // Rust only: no status -4 for x < 0 (cdflib.f90:5043-5054); cumgam
-        // returns (0, 1) there.
-        // cdflib.f90:5102-5110. F90 sets status 10 for the error value of
-        // gamma_inc by testing porq, which is not set when which = 1.
         // Rust only: NaN for a NaN x.
         if x.is_nan() {
             return f64::NAN;
         }
+        // Rust only: no status -4 for x < 0 (cdflib.f90:5043-5054); cumgam
+        // returns (0, 1) there.
+        // cdflib.f90:5102-5110. F90 sets status 10 for the error value of
+        // gamma_inc by testing porq, which is not set when which = 1.
         let xscale = x * self.rate;
         // Rust only: exact endpoint where xscale is +inf, for which cumgam
         // gives NaN; this includes x = +inf.
@@ -432,14 +432,14 @@ impl ContinuousCdf for Gamma {
     /// shape > 6.6 · 10²⁸ and *β*·*x* within a few ulps of the shape.
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
-        // Rust only: no status -4 for x < 0 (cdflib.f90:5043-5054); cumgam
-        // returns (0, 1) there.
-        // cdflib.f90:5102-5110. F90 sets status 10 for the error value of
-        // gamma_inc by testing porq, which is not set when which = 1.
         // Rust only: NaN for a NaN x.
         if x.is_nan() {
             return f64::NAN;
         }
+        // Rust only: no status -4 for x < 0 (cdflib.f90:5043-5054); cumgam
+        // returns (0, 1) there.
+        // cdflib.f90:5102-5110. F90 sets status 10 for the error value of
+        // gamma_inc by testing porq, which is not set when which = 1.
         let xscale = x * self.rate;
         // Rust only: exact endpoint where xscale is +inf, for which cumgam
         // gives NaN; this includes x = +inf.

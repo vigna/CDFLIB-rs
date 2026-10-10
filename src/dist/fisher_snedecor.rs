@@ -87,11 +87,11 @@ pub enum FisherSnedecorError {
     FNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdff` status −2); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability p {0} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdff` status −3); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability q {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdff` status 3).
@@ -372,6 +372,13 @@ impl ContinuousCdf for FisherSnedecor {
     type Error = FisherSnedecorError;
 
     /// CDFLIB's `cdff` with `which = 1`.
+    ///
+    /// The result can be NaN when *dfn* or *dfd* is above about
+    /// 2 · 10³⁰⁷, where the F90 `beta_inc` never returns; the inverses and
+    /// the parameter searches then return meaningless values (see
+    /// [`SearchError`]).
+    ///
+    /// [`SearchError`]: crate::SearchError
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
         // Rust only: NaN for a NaN x, which cumf passes to beta_inc; as in
@@ -387,6 +394,10 @@ impl ContinuousCdf for FisherSnedecor {
     }
 
     /// CDFLIB's `cdff` with `which = 1`.
+    ///
+    /// The result can be NaN for huge parameters, as for [`cdf`].
+    ///
+    /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
         // Rust only: NaN for a NaN x, as in cdf.
@@ -445,10 +456,30 @@ impl Continuous for FisherSnedecor {
         } else {
             (half_dfn - 1.0) * x.ln()
         };
-        // ln_1p keeps the precision of ln(1 + dfn·x/dfd) when dfd is large.
+        // ln(dfn/dfd) is a difference of logarithms where the ratio
+        // overflows, underflows or is subnormal.
         let ratio = dfn / dfd;
-        half_dfn * ratio.ln() + ln_x_term
-            - (half_dfn + half_dfd) * (ratio * x).ln_1p()
+        let ln_ratio = if ratio != 0.0 && ratio.is_finite() {
+            ratio.ln()
+        } else {
+            dfn.ln() - dfd.ln()
+        };
+        // y = dfn·x/dfd. For y ≥ 2^53, ln(1 + y) = ln y in double precision;
+        // substituting it, the density is computed in the form
+        // ln f(x) = -(dfd/2) ln(dfn/dfd) - (1 + dfd/2) ln x - ln Β(dfn/2, dfd/2),
+        // which cannot overflow and has no cancellation between large terms.
+        let ln_y = ln_ratio + x.ln();
+        if ln_y >= 53.0 * std::f64::consts::LN_2 {
+            return -half_dfd * ln_ratio - (1.0 + half_dfd) * x.ln() - beta_log(half_dfn, half_dfd);
+        }
+        let y = if ratio != 0.0 && ratio.is_finite() {
+            ratio * x
+        } else {
+            ln_y.exp()
+        };
+        // ln_1p keeps the precision of ln(1 + dfn·x/dfd) when dfd is large.
+        half_dfn * ln_ratio + ln_x_term
+            - (half_dfn + half_dfd) * y.ln_1p()
             - beta_log(half_dfn, half_dfd)
     }
 }
@@ -474,10 +505,10 @@ impl Variance for FisherSnedecor {
         if dfd > 4.0 {
             // 2 dfd² (dfn + dfd - 2) / (dfn (dfd - 2)² (dfd - 4)), written
             // with m = dfd / (dfd - 2), the mean, and (dfn + dfd - 2) /
-            // (dfd - 4) = 1 + (dfn + 2) / (dfd - 4), so that no intermediate
-            // overflows.
+            // (dfn (dfd - 4)) = 1/dfn + (1 + 2/dfn) / (dfd - 4), so that an
+            // intermediate overflows only where the variance does.
             let m = dfd / (dfd - 2.0);
-            2.0 * m * m * (1.0 + (dfn + 2.0) / (dfd - 4.0)) / dfn
+            2.0 * m * m * (1.0 / dfn + (1.0 + 2.0 / dfn) / (dfd - 4.0))
         } else {
             f64::NAN
         }

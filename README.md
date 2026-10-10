@@ -87,7 +87,11 @@ and at large parameter values, where continued-fraction implementations lose
 digits to subtractive cancellation or stall on convergence. The noncentral
 distributions are the exception: CDFLIB sums their Poisson mixtures with a
 fixed budget of terms and a loose relative cutoff, so their accuracy degrades
-for large noncentrality (see their documentation).
+for large noncentrality (see their documentation). The inverses and the
+parameter searches that CDFLIB computes with its root finder are less precise:
+the search stops once it has located the answer within the larger of an
+absolute tolerance of 10⁻¹⁰ (10⁻⁵⁰ for the noncentral χ²) and a relative
+tolerance of 10⁻⁸ (see [`SearchError`]).
 
 The Rust statistical ecosystem already has [`statrs`], which covers most of
 CDFLIB's distributions. However, at the time of this writing [`statrs`] does
@@ -273,12 +277,16 @@ digit. The intentional structural divergences are:
 - Each distribution module declares the constants of its `cdf*` routine
   (`atol`, `tol`, `inf`, …) and drives the searches with the same `dstinv`
   or `dstzr` arguments and the same reverse-communication loop as the Fortran.
-- Where the Fortran never returns, the Rust returns NaN or an error; where it
-  would overflow a default integer, the Rust panics, as documented. The
-  distribution methods also handle explicitly the ends of the support, infinite
-  and NaN arguments (a NaN argument gives NaN), and parameters that a search
-  computes but the constructor would reject. Every such place is marked “Rust
-  only” in the source.
+- Where the Fortran never returns, the Rust returns NaN or an error, except
+  that the noncentral _F_ distribution panics when its series sums to NaN;
+  where the Fortran would overflow a default integer, the Rust panics, as
+  documented. The distribution methods also handle explicitly the ends of the
+  support, infinite and NaN arguments (a NaN argument gives NaN), and
+  parameters that a search computes but the constructor would reject. Every
+  such place is marked “Rust only” or “Rust also” in the source.
+- As in the Fortran, a parameter search or an inverse can end at a meaningless
+  point without an error when the function it searches evaluates to NaN (see
+  [`SearchError`]).
 
 The lower-level CDFLIB-style helpers ([`algdiv`], [`bcorr`], [`gam1`], [`rlog`],
 etc.) live in [`cdflib::special::internal`] so the user-facing
@@ -287,8 +295,10 @@ likely to call. Each CDFLIB algorithmic routine can be found under its original
 name, modulo the renames and splits enumerated above. The machine-constant
 routines `ipmpar` and `exparg` are crate-private ports; fatal errors that the
 Fortran reports by printing a message and stopping are returned as errors
-through the `Result` types described above, except that the helpers `dlanor`
-and `dstrem` panic on arguments outside their domain.
+through the `Result` types described above, except that the helper `dstrem`
+panics on arguments outside its domain. The helper `dlanor` panics too on
+arguments outside its domain, where the Fortran prints a fatal-error message
+and continues.
 
 ## Testing
 
@@ -349,6 +359,7 @@ F77 code] does.
 [`ccdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.ccdf
 [`inverse_cdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.inverse_cdf
 [`inverse_ccdf`]: https://docs.rs/cdflib/latest/cdflib/struct.Normal.html#method.inverse_ccdf
+[`SearchError`]: https://docs.rs/cdflib/latest/cdflib/error/enum.SearchError.html
 [Fortran 90]: https://people.sc.fsu.edu/~jburkardt/f_src/cdflib/cdflib.html
 [Fortran 77]: https://people.sc.fsu.edu/~jburkardt/f77_src/cdflib/cdflib.html
 [C]: https://people.sc.fsu.edu/~jburkardt/c_src/cdflib/cdflib.html

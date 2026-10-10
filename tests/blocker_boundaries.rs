@@ -89,10 +89,14 @@ fn binomial_endpoints() {
     assert_eq!(b.inverse_cdf(0.0).unwrap(), 0);
     assert_eq!(b.inverse_cdf(1.0).unwrap(), 10);
     // inverse_ccdf returns the real-valued F90 cdfbin which=2 quantile.
-    // At q=0 (p=1) the search converges at s=n; at q=1 (p=0) it walks
-    // to the lower bound and fails per F90's status=1. Both calls are
-    // rows of tests/data/cdfbin_calls.csv, where F90 returns s = 10.
+    // At q=0 (p=1) it returns n, the value the F90 search converges to
+    // (a row of tests/data/cdfbin_calls.csv); at q=1 (p=0) the search
+    // walks to the lower bound and fails per F90's status=1.
     assert_eq!(b.inverse_ccdf(0.0).unwrap(), 10.0);
+    // Rust only: n also where the F90 search stops at its start (pr = 0)
+    // or cannot start (n < 5).
+    assert_eq!(Binomial::new(10, 0.0).inverse_ccdf(0.0).unwrap(), 10.0);
+    assert_eq!(Binomial::new(3, 0.5).inverse_ccdf(0.0).unwrap(), 3.0);
     assert!(matches!(
         b.inverse_ccdf(1.0),
         Err(cdflib::BinomialError::Search(_))
@@ -105,11 +109,11 @@ fn poisson_endpoints() {
     assert_eq!(p.inverse_cdf(0.0).unwrap(), 0);
     assert_eq!(p.inverse_cdf(1.0).unwrap(), u64::MAX);
     // inverse_ccdf returns the real-valued F90 cdfpoi which=2 quantile.
-    // At q=0 the search walks to a large s where ccdf < abs_tol (F90 dstinv
-    // converges by absolute tolerance, not by sign change); at q=1 it
-    // hits the lower search bound and reports F90 status=1.
-    let s_zero = p.inverse_ccdf(0.0).unwrap();
-    assert!(s_zero > 10.0 && s_zero.is_finite(), "got {s_zero}");
+    // At q=0 it returns +inf (Rust only: the F90 search stops at a finite
+    // s where ccdf is below its absolute tolerance), also for lambda = 0;
+    // at q=1 it hits the lower search bound and reports F90 status=1.
+    assert_eq!(p.inverse_ccdf(0.0).unwrap(), f64::INFINITY);
+    assert_eq!(Poisson::new(0.0).inverse_ccdf(0.0).unwrap(), f64::INFINITY);
     assert!(matches!(
         p.inverse_ccdf(1.0),
         Err(cdflib::PoissonError::Search(_))
@@ -121,10 +125,13 @@ fn negative_binomial_endpoints() {
     let nb = NegativeBinomial::new(5, 0.5);
     assert_eq!(nb.inverse_cdf(0.0).unwrap(), 0);
     assert_eq!(nb.inverse_cdf(1.0).unwrap(), u64::MAX);
-    // Same F90 cdfnbn which=2 behavior: q=0 converges by abs_tol at large s;
-    // q=1 hits the lower search bound.
-    let s_zero = nb.inverse_ccdf(0.0).unwrap();
-    assert!(s_zero > 10.0 && s_zero.is_finite(), "got {s_zero}");
+    // As for the Poisson distribution: +inf at q=0, also for pr = 1; q=1
+    // hits the lower search bound.
+    assert_eq!(nb.inverse_ccdf(0.0).unwrap(), f64::INFINITY);
+    assert_eq!(
+        NegativeBinomial::new(5, 1.0).inverse_ccdf(0.0).unwrap(),
+        f64::INFINITY
+    );
     assert!(matches!(
         nb.inverse_ccdf(1.0),
         Err(cdflib::NegativeBinomialError::Search(_))

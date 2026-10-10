@@ -53,14 +53,20 @@ pub trait ContinuousCdf {
     /// Returns the smallest *x* such that [cdf]\(*x*\) ≥ *p*, for *p* ∈ [0 . . 1].
     ///
     /// At *p* = 0 returns the infimum of support, at *p* = 1 the supremum
-    /// (either may be infinite).
+    /// (either may be infinite). Where CDFLIB computes the inverse with its
+    /// root finder, the result is precise only within the tolerances of the
+    /// search (see [`SearchError`]).
     ///
     /// [cdf]: ContinuousCdf::cdf
+    /// [`SearchError`]: crate::SearchError
     fn inverse_cdf(&self, p: f64) -> Result<f64, Self::Error>;
 }
 
 /// Cumulative distribution function (CDF), complementary CDF, and inverse CDF for
 /// a discrete distribution over the non-negative integers.
+///
+/// The integer arguments and parameters are converted to `f64`, as the
+/// arguments of CDFLIB are real numbers, so beyond 2⁵³ they are rounded.
 ///
 /// # Example
 ///
@@ -122,7 +128,9 @@ pub trait Continuous {
 /// cancel when the parameters are very large: at the mode, the logarithm
 /// of the binomial mass has an absolute error of about 2 · 10⁻⁶ for
 /// *n* = 10⁹ and about 4 for *n* = 10¹⁵, and that of the Poisson mass an
-/// error of about 0.04 for *λ* = 10¹⁴.
+/// error of about 0.04 for *λ* = 10¹⁴. Beyond about 2⁵³ the masses of the
+/// binomial, negative binomial and Poisson distributions are meaningless:
+/// they can exceed 1, overflow, or underflow to 0.
 pub trait Discrete {
     /// Returns the mass Pr\[*X* = *x*\] at the support point *x*.
     fn pmf(&self, x: u64) -> f64;

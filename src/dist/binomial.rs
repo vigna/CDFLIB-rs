@@ -81,11 +81,11 @@ pub enum BinomialError {
     SuccessesExceedTrials { s: u64, n: u64 },
     /// The probability *p* fell outside [0 . . 1] (`cdfbin` status −2); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability p {0} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdfbin` status −3); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability q {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdfbin` status 3).
@@ -256,11 +256,17 @@ impl Binomial {
     }
 
     /// Returns the success probability *pr* satisfying Pr[*S* ≤ *s*] = *p*
-    /// given *n*.
+    /// given *n*, searched for in [0 . . 1].
     ///
     /// CDFLIB's `cdfbin` with `which = 4`. The caller passes both *p* and
     /// *q* = 1 − *p*; they must sum to 1 within 3ε. When *p* > *q* the
     /// search runs on *ompr* = 1 − *pr* and returns *pr* = 1 − *ompr*.
+    ///
+    /// Where the answer is an end of the search interval, as at *p* = 0
+    /// and *p* = 1, the search stops within its tolerance of that end (see
+    /// [`SearchError`]): `search_pr(0.0, 1.0, 10, 3)` returns 0.999999995.
+    ///
+    /// [`SearchError`]: crate::SearchError
     #[inline]
     pub fn search_pr(p: f64, q: f64, n: u64, s: u64) -> Result<f64, BinomialError> {
         check_p(p)?;
@@ -314,12 +320,21 @@ impl Binomial {
     ///
     /// CDFLIB's `cdfbin` with `which = 2`, with *p* = 1 − *q*. CDFLIB
     /// starts the search at *s* = 5, so it fails with
-    /// [`SearchError::StartOutOfRange`] when *n* < 5.
+    /// [`SearchError::StartOutOfRange`] when *n* < 5. At *q* = 0 returns
+    /// *n*, also for *pr* = 0 and for *n* < 5, as [`inverse_cdf`] does at
+    /// *p* = 1.
     ///
     /// [cdf]: crate::traits::DiscreteCdf::cdf
+    /// [`inverse_cdf`]: crate::traits::DiscreteCdf::inverse_cdf
     #[inline]
     pub fn inverse_ccdf(&self, q: f64) -> Result<f64, BinomialError> {
         check_q(q)?;
+        // Rust only: exact endpoint. The F90 search finds s = xn, except
+        // for pr = 0, where ccdf is constant and the search stops at its
+        // start, and for xn < 5, where the start is out of range.
+        if q == 0.0 {
+            return Ok(self.n as f64);
+        }
         let p = 1.0 - q;
         let xn = self.n as f64;
         let pr = self.pr;
@@ -400,7 +415,8 @@ impl Discrete for Binomial {
         let n = self.n as f64;
         let sf = s as f64;
         let pr = self.pr;
-        // ln C(n,s) + s ln pr + (n-s) ln(1-pr)
+        // ln C(n,s) + s ln pr + (n-s) ln(1-pr), with ln(1-pr) computed as
+        // ln_1p(-pr), which keeps its precision for small pr.
         let log_c = gamma_log(n + 1.0) - gamma_log(sf + 1.0) - gamma_log(n - sf + 1.0);
         let log_pr = if pr == 0.0 {
             if s == 0 {
@@ -418,7 +434,7 @@ impl Discrete for Binomial {
                 f64::NEG_INFINITY
             }
         } else {
-            (n - sf) * (1.0 - pr).ln()
+            (n - sf) * (-pr).ln_1p()
         };
         log_c + log_pr + log_q
     }

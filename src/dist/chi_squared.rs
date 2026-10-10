@@ -76,11 +76,11 @@ pub enum ChiSquaredError {
     XNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdfchi` status −2); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability p {0} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdfchi` status −3); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability q {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdfchi` status 3).
@@ -388,8 +388,9 @@ impl Continuous for ChiSquared {
             return f64::NEG_INFINITY;
         }
         let k = self.df / 2.0;
-        // For a subnormal df, k is 0, and at x = 0 the expression below
-        // would be inf - inf; the density at 0 is +inf for every df < 2.
+        // For the smallest subnormal df, k is 0, and at x = 0 the expression
+        // below would be inf - inf; the density at 0 is +inf for every
+        // df < 2.
         if k == 0.0 && x == 0.0 {
             return f64::INFINITY;
         }
@@ -423,8 +424,8 @@ impl Entropy for ChiSquared {
     #[inline]
     fn entropy(&self) -> f64 {
         let k = self.df / 2.0;
-        // For a subnormal df, k is 0, where ψ has a pole; the entropy tends
-        // to -inf as df tends to 0.
+        // For the smallest subnormal df, k is 0, where ψ has a pole; the
+        // entropy tends to -inf as df tends to 0.
         if k == 0.0 {
             return f64::NEG_INFINITY;
         }

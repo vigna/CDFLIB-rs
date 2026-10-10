@@ -75,7 +75,7 @@ pub enum NegativeBinomialError {
     #[error("success probability {0} outside (0..1]")]
     PrOutOfRange(f64),
     /// The target number of successes *r* was zero (checked only in Rust;
-    /// `cdfnbn` status −5 rejects only *s* < 0), in [`try_new`] and
+    /// `cdfnbn` status −5 rejects only *r* < 0), in [`try_new`] and
     /// [`search_pr`]. [`search_r`] also returns it when the *r* it computes
     /// is 0.
     ///
@@ -86,11 +86,11 @@ pub enum NegativeBinomialError {
     RNotPositive,
     /// The probability *p* fell outside [0 . . 1] (`cdfnbn` status −2); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability p {0} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdfnbn` status −3); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability q {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdfnbn` status 3).
@@ -252,7 +252,7 @@ impl NegativeBinomial {
     }
 
     /// Returns the success probability *pr* satisfying Pr[*F* ≤ *s*] = *p*
-    /// given *r*.
+    /// given *r*, searched for in [0 . . 1].
     ///
     /// CDFLIB's `cdfnbn` with `which = 4`. The caller passes both *p* and
     /// *q* = 1 − *p*; they must sum to 1 within 3ε. When *p* > *q* the
@@ -260,8 +260,12 @@ impl NegativeBinomial {
     ///
     /// *r* = 0 is rejected as [`RNotPositive`], as in [`try_new`], and a
     /// computed *pr* of 0, at the lower end of the search interval, is
-    /// reported as [`PrOutOfRange`].
+    /// reported as [`PrOutOfRange`]. Where the answer is an end of the
+    /// search interval, as at *p* = 0 and *p* = 1, the search stops within
+    /// its tolerance of that end (see [`SearchError`]):
+    /// `search_pr(0.0, 1.0, 3, 3)` returns 5 · 10⁻¹¹.
     ///
+    /// [`SearchError`]: crate::SearchError
     /// [`RNotPositive`]: NegativeBinomialError::RNotPositive
     /// [`try_new`]: Self::try_new
     /// [`PrOutOfRange`]: NegativeBinomialError::PrOutOfRange
@@ -321,12 +325,21 @@ impl NegativeBinomial {
     /// Returns the real-valued *s* such that [cdf]\(*s*\) = 1 − *q* on the
     /// continuous extension of the CDF, searched for in [0 . . 10³⁰⁰].
     ///
-    /// CDFLIB's `cdfnbn` with `which = 2`, with *p* = 1 − *q*.
+    /// CDFLIB's `cdfnbn` with `which = 2`, with *p* = 1 − *q*. At *q* = 0
+    /// returns +∞, also for *pr* = 1, as [`inverse_cdf`] returns
+    /// [`u64::MAX`] at *p* = 1.
     ///
     /// [cdf]: crate::traits::DiscreteCdf::cdf
+    /// [`inverse_cdf`]: crate::traits::DiscreteCdf::inverse_cdf
     #[inline]
     pub fn inverse_ccdf(&self, q: f64) -> Result<f64, NegativeBinomialError> {
         check_q(q)?;
+        // Rust only: exact endpoint. The F90 search stops at a finite s
+        // where ccdf is below its absolute tolerance (or, for pr = 1, where
+        // ccdf is constant, at its start).
+        if q == 0.0 {
+            return Ok(f64::INFINITY);
+        }
         let p = 1.0 - q;
         // F90 S, the number of successes.
         let s = self.r as f64;
@@ -404,9 +417,10 @@ impl Discrete for NegativeBinomial {
         }
         let rf = self.r as f64;
         let sf = s as f64;
-        // ln C(s+r-1, s) + r ln pr + s ln(1-pr)
+        // ln C(s+r-1, s) + r ln pr + s ln(1-pr), with ln(1-pr) computed as
+        // ln_1p(-pr), which keeps its precision for small pr.
         let log_c = gamma_log(sf + rf) - gamma_log(sf + 1.0) - gamma_log(rf);
-        log_c + rf * self.pr.ln() + sf * (1.0 - self.pr).ln()
+        log_c + rf * self.pr.ln() + sf * (-self.pr).ln_1p()
     }
 }
 

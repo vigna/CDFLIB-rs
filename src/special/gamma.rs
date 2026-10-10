@@ -992,8 +992,9 @@ pub enum GammaIncError {
 /// 0, or when the answer is computationally indeterminate because *a* is
 /// extremely large and *x* is very close to *a*. A NaN argument gives NaN
 /// components, unless the other argument is negative. *x* = +∞ gives NaN
-/// components too: as in the F90 for *a* ≥ 1, while for *a* < 1 the F90
-/// never returns. The exception is *a* = 1/2, where the result is (1, 0);
+/// components too: as in the F90 for finite *a* ≥ 1, while for *a* < 1
+/// the F90 never returns, and for *a* = +∞ its result is undefined. The
+/// exception is *a* = 1/2, where the result is (1, 0);
 /// *a* = +∞ with finite *x* gives (0, 1). Use [`try_gamma_inc`] for the
 /// fallible form.
 ///
@@ -1860,6 +1861,9 @@ pub enum GammaIncInvError {
 ///
 /// Returns (*x*, `ierr`), where `ierr` is 0 if iteration was not used, and
 /// otherwise the number of iterations performed.
+///
+/// A NaN *a* gives NaN, as in the F90. For *a* = +∞, where the F90 never
+/// returns, the result is NaN or [`NotConverged`](GammaIncInvError::NotConverged).
 ///
 /// # Panics
 ///

@@ -4,7 +4,7 @@
 #![allow(clippy::approx_constant, clippy::excessive_precision)]
 
 use super::erf::error_fc_scaled;
-use super::gamma::{alnrel, gam1, gamma_ln1, gamma_log, gsumln, psi, rexp, rlog1};
+use super::gamma::{alnrel, gam1, gamma_ln1, gamma_log, gsumln, rexp, rlog1, try_psi};
 use super::pow2;
 
 /// Evaluates exp(*mu* + *x*) (cdflib.f90:9641).
@@ -270,6 +270,11 @@ pub fn beta(a: f64, b: f64) -> f64 {
 /// Sterling(*z*) = ln √(2π) + (*z* − 0.5) ln *z* − *z*. The Sterling remainder
 /// is ln Β(*a*, *b*) − *zz*.
 ///
+/// # Panics
+///
+/// Panics if *a* ≤ 0 or *b* ≤ 0, through [`dstrem`] (CDFLIB prints a
+/// fatal error and stops).
+///
 /// # Example
 ///
 /// ```
@@ -279,6 +284,8 @@ pub fn beta(a: f64, b: f64) -> f64 {
 /// let r = dbetrm(50.0, 60.0);
 /// assert!(r.abs() < 0.01);
 /// ```
+///
+/// [`dstrem`]: crate::special::internal::dstrem
 #[inline]
 pub fn dbetrm(a: f64, b: f64) -> f64 {
     use super::gamma::dstrem;
@@ -354,8 +361,10 @@ pub fn apser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
     let bx = b * x;
     let mut t = x - bx;
 
+    // The F90 psi returns 0 where it fails (at a pole, or for b <= -xmax1),
+    // which can happen only outside the domain above.
     let c = if b * eps <= 0.02 {
-        x.ln() + psi(b) + G + t
+        x.ln() + try_psi(b).unwrap_or(0.0) + G + t
     } else {
         bx.ln() + G + t
     };
@@ -824,9 +833,10 @@ pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
 /// (*p*, *q*), the values of *P*(*a*, *x*) and *Q*(*a*, *x*).
 ///
 /// Past the special cases *a*·*x* = 0 and *a* = 1/2, returns (NaN, NaN)
-/// when *a* or *x* is NaN or infinite, where the F90 series or continued
-/// fraction never terminates (or, for an infinite *a* with *x* < 1.1,
-/// gives NaN).
+/// when *a* or *x* is NaN or infinite or *eps* is NaN, where the F90
+/// series or continued fraction never terminates (or, for an infinite *a*
+/// with *x* < 1.1, gives NaN), and when the continued fraction overflows,
+/// for *x* above about 1.3 · 10¹⁵⁴, where the F90 never terminates either.
 #[inline]
 pub fn gamma_rat1(a: f64, x: f64, r: f64, eps: f64) -> (f64, f64) {
     use super::erf::{error_f, error_fc};
@@ -858,11 +868,11 @@ pub fn gamma_rat1(a: f64, x: f64, r: f64, eps: f64) -> (f64, f64) {
         return (p, q);
     }
 
-    // Rust only: with a or x NaN or infinite, the F90 Taylor series or
-    // continued fraction below never exits, except for an infinite a with
-    // x < 1.1, where the Taylor series exits at once and j = a * x * 0 is
-    // NaN.
-    if !a.is_finite() || !x.is_finite() {
+    // Rust only: with a or x NaN or infinite, or eps NaN, the F90 Taylor
+    // series or continued fraction below never exits, except for an
+    // infinite a with x < 1.1, where the Taylor series exits at once and
+    // j = a * x * 0 is NaN.
+    if !a.is_finite() || !x.is_finite() || eps.is_nan() {
         return (f64::NAN, f64::NAN);
     }
 
@@ -949,6 +959,13 @@ pub fn gamma_rat1(a: f64, x: f64, r: f64, eps: f64) -> (f64, f64) {
 
             if (an0 - am0).abs() < eps * an0 {
                 break;
+            }
+
+            // Rust only: for a <= 1 the denominators are positive while
+            // finite, so an0 is NaN only once they have overflowed, after
+            // which it stays NaN and the F90 loop never exits.
+            if an0.is_nan() {
+                return (f64::NAN, f64::NAN);
             }
         }
 
@@ -1197,7 +1214,7 @@ pub fn beta_asym(a: f64, b: f64, lambda: f64, eps: f64) -> f64 {
 /// (*a* + *b*) · *y* − *b*, and *eps* is a tolerance.
 ///
 /// Returns NaN where the F90 continued fraction never terminates, once an
-/// approximant is NaN.
+/// approximant or *eps* is NaN.
 #[inline]
 pub fn beta_frac(a: f64, b: f64, x: f64, y: f64, lambda: f64, eps: f64) -> f64 {
     let mut beta_frac = beta_rcomp(a, b, x, y);
@@ -1248,8 +1265,8 @@ pub fn beta_frac(a: f64, b: f64, x: f64, y: f64, lambda: f64, eps: f64) -> f64 {
             break;
         }
 
-        // Rust only: once r is NaN the F90 loop never exits.
-        if r.is_nan() {
+        // Rust only: once r or eps is NaN the F90 loop never exits.
+        if r.is_nan() || eps.is_nan() {
             return f64::NAN;
         }
 

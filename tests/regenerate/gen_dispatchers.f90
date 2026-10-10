@@ -22,6 +22,8 @@ program gen_dispatchers
   call gen_cdfpoi()
   call gen_cdft()
 
+  write(0, '(a)') 'wrote 31 tables under tests/data/'
+
 contains
 
   subroutine putval(unit, v, last)

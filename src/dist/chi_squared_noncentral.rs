@@ -73,7 +73,7 @@ pub enum ChiSquaredNoncentralError {
     #[error("degrees of freedom must be finite, got {0}")]
     DfNotFinite(f64),
     /// The noncentrality parameter *λ* was negative (`cdfchn` status −6).
-    #[error("noncentrality parameter must be ≥ 0, got {0}")]
+    #[error("noncentrality parameter must be nonnegative, got {0}")]
     NcpNegative(f64),
     /// The noncentrality parameter *λ* was not finite (checked only in
     /// Rust).
@@ -89,12 +89,12 @@ pub enum ChiSquaredNoncentralError {
     XNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdfchn` status −2); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability p {0} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1]; NaN is also rejected.
     /// No method of [`ChiSquaredNoncentral`] returns it, since CDFLIB's
     /// `cdfchn` does not use *q*.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability q {0} outside [0..1]")]
     QNotInRange(f64),
     /// The search for the answer failed (`cdfchn` status 1 or 2); see
     /// [`SearchError`].
@@ -157,6 +157,17 @@ pub(crate) fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
         icent = 1;
     }
 
+    // Rust only: for the smallest subnormal x, chid2 = x/2 is 0, and the
+    // first backward step below computes adj = 0 * dfd2 / 0 = NaN, as in
+    // the F90. Sum the series at the next floating-point number instead,
+    // whose half is the smallest subnormal: the terms are powers
+    // (x/2)^(df/2 + j), which change by a factor of at most 2^(df/2 + j)
+    // and are subnormal unless df is tiny.
+    let x = if x / 2.0 == 0.0 {
+        2.0 * f64::from_bits(1)
+    } else {
+        x
+    };
     let chid2 = x / 2.0;
     // Central weight term.
     let lfact = gamma_log((icent + 1) as f64);
@@ -428,7 +439,10 @@ impl ContinuousCdf for ChiSquaredNoncentral {
     /// *λ* = 10⁶ and 0.056 for *λ* = 10⁸. For very large *df* (beyond about
     /// 10¹⁵) the terms lose their digits, so that the result can fall
     /// outside [0 . . 1], or be NaN, as for *df* = 10²² and *λ* = 1 at
-    /// *x* = 9.999999999996 · 10²¹.
+    /// *x* = 9.999999999996 · 10²¹. For a small *λ* the sum can also exceed
+    /// 1 by a few ulps in the right tail, so that [`ccdf`] is slightly
+    /// negative: with *df* = 3 and *λ* = 10⁻⁹, the cdf at 100 is
+    /// 1 + 4.4 · 10⁻¹⁶.
     ///
     /// # Panics
     ///
@@ -436,6 +450,8 @@ impl ContinuousCdf for ChiSquaredNoncentral {
     /// beyond about 1.3 · 10²⁹ and *x* within a few ulps of it. It may also
     /// panic for *λ*/2 ≥ 2³¹ − 1001, where CDFLIB's default integers can
     /// overflow.
+    ///
+    /// [`ccdf`]: ContinuousCdf::ccdf
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
         // Rust only: NaN for a NaN x.

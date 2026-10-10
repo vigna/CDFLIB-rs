@@ -60,6 +60,8 @@ program gen_kernel_coverage
   call gen_gamma_inc_inv_edge()
   call gen_beta_inc_regimes()
 
+  write(0, '(a)') 'wrote 29 tables under tests/data/'
+
 contains
 
   subroutine putval(unit, v, last)
@@ -246,8 +248,8 @@ contains
 
   ! beta_grat requires 15 <= a and b <= 1: covers y <= 0.375 and its
   ! complement, convergence inside and after the loop, and the three
-  ! ierr = 1 exits (b*z == 0 at y == 0, u == 0 for huge a, and a
-  ! nonpositive sum).
+  ! ierr = 1 exits (b*z == 0 at y == 0, u == 0 where exp(a*lnx)
+  ! underflows, and a nonpositive sum, for a small b and a small x).
   subroutine gen_beta_grat()
     real(kind=rk), parameter :: av(6) = (/ 15.0_rk, 20.0_rk, 50.0_rk, 100.0_rk, &
       1000.0_rk, 1.0e5_rk /)
@@ -271,6 +273,7 @@ contains
     call grat_row(unit, 1.0e5_rk, 1.0_rk, 0.01_rk, 0.99_rk, 0.0_rk, eps)
     call grat_row(unit, 1.0e5_rk, 0.5_rk, 0.001_rk, 0.999_rk, 0.25_rk, eps)
     call grat_row(unit, 15.0_rk, 0.999_rk, 1.0e-300_rk, 1.0_rk, 0.0_rk, eps)
+    call grat_row(unit, 15.0_rk, 0.5_rk, 1.0e-8_rk, 1.0_rk - 1.0e-8_rk, 0.0_rk, eps)
     close(unit)
   end subroutine gen_beta_grat
 
@@ -778,9 +781,11 @@ contains
   ! beta_inc: every evaluation label (90 fpser, 100 apser, 110/120
   ! beta_pser, 130 beta_frac, 140/150/160 beta_up and beta_grat, 200
   ! beta_asym, 260 tiny a and b), the special values of x, y, a, b, and
-  ! every ierr. The CSV writes w = w1 = 0 when ierr /= 0.
+  ! every ierr. The last row reaches the nonpositive-sum exit of
+  ! beta_grat, whose ierr beta_inc ignores (cdflib.f90:1264, 1296). The CSV
+  ! writes w = w1 = 0 when ierr /= 0.
   subroutine gen_beta_inc_regimes()
-    real(kind=rk), parameter :: rows(4, 32) = reshape((/ &
+    real(kind=rk), parameter :: rows(4, 33) = reshape((/ &
       ! a, b, x, y
       1.0e-20_rk, 1.0e-20_rk, 0.3_rk, 0.7_rk, &
       0.5_rk, 1.0e-20_rk, 0.3_rk, 0.7_rk, &
@@ -813,7 +818,8 @@ contains
       2.0_rk, 3.0_rk, 0.5_rk, 0.4_rk, &
       0.0_rk, 3.0_rk, 0.0_rk, 1.0_rk, &
       2.0_rk, 0.0_rk, 1.0_rk, 0.0_rk, &
-      1.0e5_rk, 1.0e5_rk, 0.5_rk, 0.5_rk /), (/ 4, 32 /))
+      1.0e5_rk, 1.0e5_rk, 0.5_rk, 0.5_rk, &
+      1.0e-6_rk, 1.0e4_rk, 0.07_rk, 0.93_rk /), (/ 4, 33 /))
     real(kind=rk) :: w, w1
     integer :: unit, i, ierr
     call openf(unit, 'beta_inc_regimes.csv', '# a, b, x, y, w, w1, ierr')

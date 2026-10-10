@@ -284,6 +284,8 @@ program gen_solver_traces
 
   close(unit)
 
+  write(0, '(a)') 'wrote 1 table under tests/data/'
+
 contains
   subroutine setd(k, s, b, st, id)
     integer, intent(in) :: k, id

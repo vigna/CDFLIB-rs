@@ -1,10 +1,15 @@
 #!/bin/sh
 # Regenerate reference tables under tests/data/ from the Fortran source
 # refs/cdflib.f90. Run from the repository root:
-# `tests/regenerate/regenerate.sh`.
+# tests/regenerate/regenerate.sh.
 #
 # Re-run when the parameter grid or the cdflib.f90 reference changes;
 # the generated CSVs are committed.
+#
+# Each generator ends by writing "wrote N tables under tests/data/" on
+# standard error. A fatal error in cdflib.f90 ends the program with a
+# plain stop, which exits with status 0 and leaves a table cut short, so
+# the script fails unless that line is the last one the generator wrote.
 
 set -eu
 
@@ -53,7 +58,15 @@ for name in $GENERATORS; do
         -J "$BUILD_DIR" \
         -o "$BIN" "$SRC" "$REFS_DIR/cdflib.f90"
     echo "running $BIN"
-    "$BIN"
+    "$BIN" 2> "$BIN.err"
+    cat "$BIN.err" >&2
+    case $(tail -n 1 "$BIN.err") in
+        "wrote "*" under tests/data/") ;;
+        *)
+            echo "$BIN did not finish: no completion line" >&2
+            exit 1
+            ;;
+    esac
 done
 
 echo "done"

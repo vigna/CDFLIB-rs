@@ -1,6 +1,7 @@
 ! Beta, Student's t, F distribution CDF reference tables.
 
 program gen_beta_distributions
+  use, intrinsic :: ieee_arithmetic
   implicit none
   integer, parameter :: rk = kind(1.0d0)
   external :: cumbet, cumt, cumf
@@ -9,7 +10,7 @@ program gen_beta_distributions
   real(kind=rk), parameter :: dfs_t(6) = (/ 1.0_rk, 2.0_rk, 5.0_rk, 10.0_rk, 30.0_rk, 100.0_rk /)
   real(kind=rk), parameter :: dfs_f(5) = (/ 1.0_rk, 2.0_rk, 5.0_rk, 10.0_rk, 30.0_rk /)
   integer :: i, j, unit
-  real(kind=rk) :: a, b, x, y, cum, ccum, t, df, dfn, dfd, fx
+  real(kind=rk) :: a, b, x, y, cum, ccum, t, df, dfn, dfd, fx, tinf(4)
 
   ! Beta CDF
   open(newunit=unit, file='tests/data/beta_cdf.csv', status='replace', action='write')
@@ -46,6 +47,19 @@ program gen_beta_distributions
       call putval(unit, cum, .false.)
       call putval(unit, ccum, .true.)
       t = t + 0.25_rk
+    end do
+    ! Infinite t, and t whose square overflows: yy = t*t/(df + t*t) is
+    ! NaN, and cumbet returns at once because xx is 0.
+    tinf(1) = ieee_value(t, ieee_positive_inf)
+    tinf(2) = ieee_value(t, ieee_negative_inf)
+    tinf(3) = 1.0e300_rk
+    tinf(4) = -1.0e300_rk
+    do j = 1, size(tinf)
+      call cumt(tinf(j), df, cum, ccum)
+      call putval(unit, df, .false.)
+      call putval(unit, tinf(j), .false.)
+      call putval(unit, cum, .false.)
+      call putval(unit, ccum, .true.)
     end do
   end do
   close(unit)

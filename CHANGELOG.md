@@ -31,14 +31,28 @@
   `tests/regenerate/coverage.sh` checks that they execute every line of the
   Fortran source except those listed with a reason in
   `tests/regenerate/unreachable.txt`, and that they execute none of those.
+  The tables also pin the documented results of the error-function, normal,
+  `stvaln`, `dt1`, and Student's *t* routines at NaN, infinite, and huge
+  arguments. Where the Fortran status is undefined, because `dzror` fails at
+  its label 240 without assigning `qleft`, the Rust reports the answer as
+  above the upper bound of the search, and tests pin this choice.
+  `tests/regenerate/regenerate.sh` fails when a generator ends before writing
+  its completion line, as after a Fortran `stop`, and the solver-trace test
+  fails on a truncated trace.
 
 - The documentation states the behavior of the special functions at NaN,
   infinite, and endpoint arguments, the precision limits of the noncentral
   distributions (whose series stop after a fixed number of terms, so that
-  their values are badly wrong for a large noncentrality), the cancellation
-  in the densities and masses for very large parameters, and how to build
+  their values are badly wrong for a large noncentrality, and can exceed 1
+  by a few ulps for a small one), the tolerances of the searches, which do
+  not resolve answers below about 10⁻¹⁰, the searches that end without an
+  error on a NaN function value, as in the Fortran (for example, for Β and
+  *F* distributions with a parameter above about 2 · 10³⁰⁷, whose CDF is
+  NaN), the cancellation in the densities and masses for very large
+  parameters, the rounding of integer arguments beyond 2⁵³, and how to build
   with Rust 1.71 to 1.76, for which the latest releases of `thiserror` are
-  too recent. The examples check the values they compute.
+  too recent. The examples in the API documentation check the values they
+  compute.
 
 - The continuous integration checks the minimum supported Rust version,
   the formatting and the documentation, and runs the tests in debug and
@@ -63,9 +77,11 @@
   too.
 
 - Inputs on which the Fortran loops forever now return NaN or an error:
-  NaN or infinite arguments of `gamma_inc`, `beta_pser`, `beta_grat`,
-  `gamma_rat1`, `beta_frac`, `fpser`, and `apser`, and the rare finite
-  arguments on which `beta_inc` never returns, give NaN; `gamma_inc_inv`
+  NaN arguments, and infinite arguments other than the tolerance, of
+  `gamma_inc`, `beta_pser`, `beta_grat`, `gamma_rat1`, `beta_frac`, `fpser`,
+  and `apser`, arguments of `gamma_rat1` beyond about 1.3 · 10¹⁵⁴, where its
+  continued fraction overflows, and the rare finite arguments on which
+  `beta_inc` never returns, give NaN; `gamma_inc_inv`
   gives NaN, or `NotConverged` when the Schröder iteration cannot proceed.
   Several of these inputs never returned in 0.4.3 either: for example, the
   `cdf` at +∞ of a χ² distribution with *df* ≤ 0.5.
@@ -106,14 +122,18 @@
   `NegativeBinomial::search_pr`. `NegativeBinomial::search_pr` also
   rejects *r* = 0 as `RNotPositive`, as `NegativeBinomial::try_new` does.
 
+- The noncentral χ² distribution at the smallest subnormal *x*, whose half
+  is 0 and where the Fortran series gives NaN, sums the series at the next
+  floating-point number, in `cdf`, `ccdf`, and the searches.
+
+- `apser` uses the value 0 that the Fortran `psi` returns where it fails,
+  which can happen only outside the domain of `apser`, instead of
+  panicking.
+
 - `Beta::search_a` with *x* = 0, `Beta::search_b` with *x* = 1, the `cdf`
   of the *t* and χ² distributions with the smallest subnormal *df*, and the
   `inverse_cdf` of a binomial distribution with `u64::MAX` trials no longer
   panic.
-
-- `cdf` and `ccdf` of the continuous distributions return NaN for a NaN
-  argument; the Fortran can return a value computed from the parameters
-  alone (0.5 for a Β distribution with tiny parameters).
 
 - `cdf` and `ccdf` are exactly 0 or 1 at ±∞ for the normal distribution,
   and at +∞ for the Γ, χ², noncentral χ² and noncentral *F*
@@ -121,6 +141,14 @@
   noncentral *F*, a sum truncated short of 1); for the normal and Γ
   distributions also where the standardized argument, or *x* times the
   rate, overflows.
+
+- `inverse_ccdf` at *q* = 0 returns +∞ for the Poisson and negative
+  binomial distributions, where the Fortran search stops at a finite value
+  at which the upper tail is below its tolerance, and *n* for the binomial
+  distribution, as the Fortran does, also where the Fortran search stops at
+  its start value (*pr* = 0) or cannot start (*n* < 5); for the Poisson
+  distribution with *λ* = 0 and the negative binomial distribution with
+  *pr* = 1 the Fortran search stops at its start value too.
 
 - The noncentral χ² and *F* distributions panic where the Fortran default
   integers would overflow (*λ* beyond about 4.3 · 10⁹), instead of
@@ -137,7 +165,12 @@
 - The densities of the *t*, *F* and Β distributions use `ln_1p`, which
   keeps their precision for large *df*, *dfd*, or *b* (the *F*(1, 10¹⁷)
   density at 1 was 0.399 instead of 0.242), and the *t* density no longer
-  overflows for |*t*| beyond about 1.3 · 10¹⁵⁴.
+  overflows for |*t*| beyond about 1.3 · 10¹⁵⁴, nor the *F* density where
+  *dfn*/*dfd* or *dfn*·*x*/*dfd* overflows or underflows (the log-density
+  of *F*(5, 2) at 10³⁰⁸ was −∞ instead of −1418.4). The masses of the
+  binomial and negative binomial distributions compute ln(1 − *pr*) with
+  `ln_1p` (the mass at 0 of a binomial distribution with *n* = 10¹² and
+  *pr* = 10⁻¹³ had a relative error of 3 · 10⁻⁵).
 
 - The means and variances of the Β, Γ, *F*, and noncentral *F*
   distributions no longer overflow or underflow for extreme parameters.
@@ -149,8 +182,11 @@
   extreme *σ*.
 
 - The error messages of `Poisson`, `FisherSnedecor`, and
-  `NegativeBinomial` describe the condition they report, and those of
-  `Beta` and `NegativeBinomial` contain no backticks.
+  `NegativeBinomial` describe the condition they report, those of `Beta`
+  and `NegativeBinomial` contain no backticks, those for a probability out
+  of range say whether it is *p* or *q*, and those of the noncentral
+  distributions and `Poisson` say “positive”, “nonnegative”, or “at least 1”
+  instead of using comparison symbols.
 
 ## [0.4.3] - 2026-06-11
 

@@ -9,10 +9,11 @@
 //! [`error_fc_scaled`], [`cumnor`], [`dinvnr`], [`dlanor`], and [`dt1`].
 //!
 //! The functions that can fail have a fallible `try_*` form
-//! ([`try_beta_inc`], [`try_gamma`], [`try_gamma_inc`], [`try_gamma_inc_inv`],
-//! [`try_psi`]), except [`dlanor`], which panics when its argument is outside
-//! the range of its asymptotic expansion; [`gamma_inc_with_acc`] exposes the
-//! accuracy selector of CDFLIB's `gamma_inc`.
+//! ([`try_beta_inc`], [`try_gamma`], [`try_gamma_inc`],
+//! [`try_gamma_inc_with_acc`], [`try_gamma_inc_inv`], [`try_psi`]), except
+//! [`dlanor`], which panics when its argument is outside the range of its
+//! asymptotic expansion; [`gamma_inc_with_acc`] exposes the accuracy selector
+//! of CDFLIB's `gamma_inc`.
 //!
 //! The companion [`internal`] submodule exposes the CDFLIB-style helper
 //! routines used inside the routines above ([`algdiv`], [`bcorr`], [`gam1`],
@@ -50,6 +51,7 @@
 //! [`try_beta_inc`]: crate::special::try_beta_inc
 //! [`try_gamma`]: crate::special::try_gamma
 //! [`try_gamma_inc`]: crate::special::try_gamma_inc
+//! [`try_gamma_inc_with_acc`]: crate::special::try_gamma_inc_with_acc
 //! [`try_gamma_inc_inv`]: crate::special::try_gamma_inc_inv
 //! [`try_psi`]: crate::special::try_psi
 //! [`gamma_inc_with_acc`]: crate::special::gamma_inc_with_acc

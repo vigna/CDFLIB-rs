@@ -406,7 +406,7 @@ fn cdfbin_calls() {
         }
         n += 1;
     }
-    assert_eq!(n, 37);
+    assert_eq!(n, 38);
 }
 
 #[test]
@@ -477,7 +477,7 @@ fn cdfchn_calls() {
         }
         n += 1;
     }
-    assert_eq!(n, 27);
+    assert_eq!(n, 28);
 }
 
 #[test]

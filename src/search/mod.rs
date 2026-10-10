@@ -431,7 +431,11 @@ mod tests {
                 _ => panic!("unexpected line {head}"),
             }
             cases += 1;
+            // Whether the case has ended with conv, fail or cap, so that a
+            // truncated trace file fails.
+            let mut ended = false;
             while let Some(line) = lines.next_if(|l| !l.starts_with('d')) {
+                assert!(!ended, "{head}: {line} after the end of the case");
                 let t: Vec<&str> = line.split_whitespace().collect();
                 match t[0] {
                     "need" => {
@@ -449,6 +453,7 @@ mod tests {
                     "conv" => {
                         assert_eq!(status, 0, "{head}: {line}");
                         assert_eq!(x.to_bits(), hex(t[1]).to_bits(), "{head}: {line}");
+                        ended = true;
                     }
                     "fail" => {
                         assert_eq!(status, -1, "{head}: {line}");
@@ -459,13 +464,18 @@ mod tests {
                         assert_eq!(qleft, flag(t[1]), "{head}: {line}");
                         assert_eq!(qhi, flag(t[2]), "{head}: {line}");
                         assert_eq!(x.to_bits(), hex(t[3]).to_bits(), "{head}: {line}");
+                        ended = true;
                     }
                     // The case was cut while the solver still asked for an
                     // evaluation.
-                    "cap" => assert_eq!(status, 1, "{head}: {line}"),
+                    "cap" => {
+                        assert_eq!(status, 1, "{head}: {line}");
+                        ended = true;
+                    }
                     _ => panic!("unexpected line {line}"),
                 }
             }
+            assert!(ended, "{head}: the case has no conv, fail or cap line");
         }
         assert_eq!(cases, 158);
     }

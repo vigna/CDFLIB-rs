@@ -82,11 +82,11 @@ pub enum BetaError {
     XOutOfRange(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdfbet` status −2); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability p {0} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdfbet` status −3); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability q {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdfbet` status 3).
@@ -383,8 +383,12 @@ impl ContinuousCdf for Beta {
 
     /// CDFLIB's `cdfbet` with `which = 1`, with *y* = 1 − *x*.
     ///
-    /// The result is NaN when *a* + *b* overflows, where the F90 `beta_inc`
-    /// never returns.
+    /// The result can be NaN when *a* or *b* is above about 2 · 10³⁰⁷, and
+    /// is NaN when *a* + *b* overflows, where the F90 `beta_inc` never
+    /// returns; the inverses and the parameter searches then return
+    /// meaningless values (see [`SearchError`]).
+    ///
+    /// [`SearchError`]: crate::SearchError
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
         // Rust only: NaN for a NaN x, which cumbet passes to beta_inc; as in
@@ -401,7 +405,7 @@ impl ContinuousCdf for Beta {
 
     /// CDFLIB's `cdfbet` with `which = 1`, with *y* = 1 − *x*.
     ///
-    /// The result is NaN when *a* + *b* overflows, as for [`cdf`].
+    /// The result can be NaN for huge parameters, as for [`cdf`].
     ///
     /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
@@ -476,8 +480,9 @@ impl Variance for Beta {
     #[inline]
     fn variance(&self) -> f64 {
         // ab / ((a + b)² (a + b + 1)), written as the product of the two
-        // means a / (a + b) and b / (a + b) divided by a + b + 1, so that no
-        // intermediate overflows or underflows.
+        // means a / (a + b) and b / (a + b) divided by a + b + 1, so that an
+        // intermediate overflows or underflows only where the variance is
+        // subnormal.
         1.0 / (1.0 + self.b / self.a) / (1.0 + self.a / self.b) / (self.a + self.b + 1.0)
     }
 }

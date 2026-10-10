@@ -64,11 +64,11 @@ pub enum StudentsTError {
     TNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdft` status −2); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability p {0} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdft` status −3); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability q {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdft` status 3).
@@ -355,8 +355,8 @@ impl Entropy for StudentsT {
     #[inline]
     fn entropy(&self) -> f64 {
         let df = self.df;
-        // For a subnormal df, df/2 is 0, where ψ has a pole; the entropy
-        // tends to +inf as df tends to 0.
+        // For the smallest subnormal df, df/2 is 0, where ψ has a pole; the
+        // entropy tends to +inf as df tends to 0.
         if df / 2.0 == 0.0 {
             return f64::INFINITY;
         }

@@ -2,7 +2,7 @@
 # Checks that the reference-table generators execute every line of
 # tests/regenerate/refs/cdflib.f90, except the lines listed with a reason
 # in tests/regenerate/unreachable.txt. Run from the repository root:
-# `tests/regenerate/coverage.sh`. Requires gfortran and gcov.
+# tests/regenerate/coverage.sh. Requires gfortran and gcov.
 #
 # The generators run in a temporary directory, so the committed CSVs are
 # not touched. The script prints every executable line that no generator

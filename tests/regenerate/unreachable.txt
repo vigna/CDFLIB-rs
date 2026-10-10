@@ -38,14 +38,20 @@
 #
 # Search failures that cannot occur: the answer is always bracketed by
 # the search interval.
-2779-2788 cdfbet: which = 2 failure; cumbet spans [0..1] for x in [0..1].
-3225-3226 cdfbin: which = 2 status 2; cumbin is 1 at s = xn.
-3320-3321 cdfbin: which = 4 status 1; dzror reports qleft only if f(xhi) < f(xlo), but for s < xn cumbin spans [0..1] and for xn <= s it is constant.
 3932-3937 cdfchn: which = 2 status 1; cumchn is 0 at x = 0, so the answer is never below 0.
-3977-3978 cdfchn: which = 3 status 2; cumchn tends to 0 as df grows.
 4303-4308 cdff: which = 2 status 1; cumf is 0 at f = 0, so the answer is never below 0.
 4716-4722 cdffnc: which = 2 status 1; cumfnc is 0 at f = 0, so the answer is never below 0.
-5618-5627 cdfnbn: which = 4 failure; cumnbn spans [0..1] for pr in [0..1].
+#
+# Undefined behavior: dzror assigns qleft only when it fails at label 20
+# (cdflib.f90:8959), where the function has the same sign at both ends of
+# the interval. When it fails at label 240 (cdflib.f90:9125) instead, the
+# test on qleft reads an uninitialized local, and with gfortran the branch
+# taken depends on the earlier calls and on the optimization level, so no
+# reference table can pin it. The Rust takes qleft = false, that is,
+# status 2 (tested in tests/search_failure_bounds.rs).
+2779-2788 cdfbet: which = 2 failure; cumbet spans [0..1] for x in [0..1], so dzror fails only at label 240 (for example p = 1, q = 1e-300, a = 0.5, b = 1e5).
+3320-3321 cdfbin: which = 4 status 1; at label 20 qleft is true only if f(xhi) < f(xlo), but for s < xn cumbin spans [0..1] and for xn <= s it is constant, so status 1 needs a failure at label 240 (for example p = 1e-300, q = 1, s = 0, xn = 100).
+5618-5627 cdfnbn: which = 4 failure; cumnbn spans [0..1] for pr in [0..1], so dzror fails only at label 240 (for example p = 1, q = 1e-300, f = 100, s = 5).
 #
 # Status 10 from the error value of gamma_inc.
 3576-3577 cdfchi: which = 1 tests porq, which is not set when which = 1 (an F90 defect); Rust reports the gamma_inc error as ChiSquaredError::GammaInc, or panics in cdf.
@@ -75,7 +81,6 @@
 11883-11884 gamma_inc_inv: as above, at label 250.
 #
 # Not reached by any tested input.
-911-912 beta_grat: the partial sum becoming nonpositive.
 10966-10968 gamma_inc: qans < 0 at label 200; qans is 1 - P computed with an error far smaller than its own magnitude.
 11759-11761 gamma_inc_inv: rcomp underflows while gamma_inc returns P and Q both nonzero (Schroder iteration using P).
 11855-11857 gamma_inc_inv: as above (Schroder iteration using Q).

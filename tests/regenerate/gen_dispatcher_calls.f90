@@ -33,6 +33,8 @@ program gen_dispatcher_calls
   call log_cdfpoi()
   call log_cdft()
 
+  write(0, '(a)') 'wrote 11 tables under tests/data/'
+
 contains
 
   subroutine putval(unit, v, last)
@@ -136,7 +138,7 @@ contains
 
   subroutine log_cdfbin()
     ! which, p, q, s, xn, pr, ompr
-    real(kind=rk), parameter :: r(7, 39) = reshape((/ &
+    real(kind=rk), parameter :: r(7, 40) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 3.0_rk, 10.0_rk, 0.3_rk, auto, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, 10.0_rk, 0.3_rk, auto, &
       1.0_rk, 0.0_rk, 0.0_rk, 10.0_rk, 10.0_rk, 0.3_rk, auto, &
@@ -175,7 +177,8 @@ contains
       3.0_rk, 0.5_rk, auto, 3.0_rk, 0.0_rk, 0.0_rk, auto, &
       3.0_rk, 0.01_rk, auto, 3.0_rk, 0.0_rk, 1.0e-300_rk, auto, &
       2.0_rk, 1.0_rk, auto, 0.0_rk, 10.0_rk, 0.3_rk, auto, &
-      2.0_rk, 0.0_rk, auto, 0.0_rk, 10.0_rk, 0.3_rk, auto /), (/ 7, 39 /))
+      2.0_rk, 0.0_rk, auto, 0.0_rk, 10.0_rk, 0.3_rk, auto, &
+      2.0_rk, 0.7_rk, auto, 0.0_rk, 10.0_rk, 0.0_rk, auto /), (/ 7, 40 /))
     real(kind=rk) :: v(6), a(6), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdfbin_calls.csv', status='replace', action='write')
@@ -245,7 +248,7 @@ contains
 
   subroutine log_cdfchn()
     ! which, p, q, x, df, pnonc
-    real(kind=rk), parameter :: r(6, 27) = reshape((/ &
+    real(kind=rk), parameter :: r(6, 28) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 15.0_rk, 5.0_rk, 10.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 3.0_rk, 4.0_rk, 0.0_rk, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, 4.0_rk, 2.0_rk, &
@@ -272,7 +275,8 @@ contains
       4.0_rk, 1.0e-30_rk, 0.0_rk, 15.0_rk, 5.0_rk, 0.0_rk, &
       3.0_rk, 1.0e-30_rk, 0.0_rk, 15.0_rk, 0.0_rk, 10.0_rk , &
       4.0_rk, 1.0e-10_rk, 0.0_rk, 9000.0_rk, 5.0_rk, 0.0_rk, &
-      2.0_rk, 0.9999999_rk, 0.0_rk, 0.0_rk, 5.0_rk, 2.0_rk /), (/ 6, 27 /))
+      2.0_rk, 0.9999999_rk, 0.0_rk, 0.0_rk, 5.0_rk, 2.0_rk, &
+      3.0_rk, 0.1_rk, 0.0_rk, 0.5_rk, 0.0_rk, 100.0_rk /), (/ 6, 28 /))
     real(kind=rk) :: v(5), a(5), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdfchn_calls.csv', status='replace', action='write')

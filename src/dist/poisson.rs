@@ -69,7 +69,7 @@ pub struct Poisson {
 pub enum PoissonError {
     /// The rate parameter *λ* was negative (`cdfpoi` status −5). *λ* = 0,
     /// a degenerate distribution concentrated at 0, is accepted.
-    #[error("lambda must be ≥ 0, got {0}")]
+    #[error("lambda must be nonnegative, got {0}")]
     LambdaNegative(f64),
     /// The rate parameter *λ* was not finite, or so large that 2*λ*, the χ²
     /// argument of `cumpoi`, is not finite (checked only in Rust).
@@ -77,11 +77,11 @@ pub enum PoissonError {
     LambdaNotFinite(f64),
     /// The probability *p* fell outside [0 . . 1] (`cdfpoi` status −2); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability p {0} outside [0..1]")]
     PNotInRange(f64),
     /// The probability *q* fell outside [0 . . 1] (`cdfpoi` status −3); NaN is
     /// also rejected.
-    #[error("probability {0} outside [0..1]")]
+    #[error("probability q {0} outside [0..1]")]
     QNotInRange(f64),
     /// The pair (*p*, *q*) is not complementary: 3ε < |*p* + *q* − 1|
     /// (`cdfpoi` status 3).
@@ -235,7 +235,9 @@ impl Poisson {
     /// Returns the real-valued *s* such that [cdf]\(*s*\) = 1 − *q* on the
     /// continuous extension of the CDF, searched for in [0 . . 10³⁰⁰].
     ///
-    /// CDFLIB's `cdfpoi` with `which = 2`, with *p* = 1 − *q*.
+    /// CDFLIB's `cdfpoi` with `which = 2`, with *p* = 1 − *q*. At *q* = 0
+    /// returns +∞, also for *λ* = 0, as [`inverse_cdf`] returns
+    /// [`u64::MAX`] at *p* = 1.
     ///
     /// # Panics
     ///
@@ -244,9 +246,16 @@ impl Poisson {
     /// few ulps of it.
     ///
     /// [cdf]: crate::traits::DiscreteCdf::cdf
+    /// [`inverse_cdf`]: crate::traits::DiscreteCdf::inverse_cdf
     #[inline]
     pub fn inverse_ccdf(&self, q: f64) -> Result<f64, PoissonError> {
         check_q(q)?;
+        // Rust only: exact endpoint. The F90 search stops at a finite s
+        // where ccdf is below its absolute tolerance (or, for lambda = 0,
+        // where ccdf is constant, at its start).
+        if q == 0.0 {
+            return Ok(f64::INFINITY);
+        }
         let p = 1.0 - q;
         let xlam = self.lambda;
 
