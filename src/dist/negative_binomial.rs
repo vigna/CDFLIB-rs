@@ -168,7 +168,7 @@ impl NegativeBinomial {
         Self::try_new(r, pr).unwrap()
     }
 
-    /// Fallible counterpart of [`new`](Self::new) returning a
+    /// Fallible counterpart of [`new`] returning a
     /// [`NegativeBinomialError`] instead of panicking.
     ///
     /// Returns [`RNotPositive`] if *r* is zero, and [`PrOutOfRange`] if *pr*
@@ -176,6 +176,7 @@ impl NegativeBinomial {
     ///
     /// [`RNotPositive`]: NegativeBinomialError::RNotPositive
     /// [`PrOutOfRange`]: NegativeBinomialError::PrOutOfRange
+    /// [`new`]: Self::new
     #[inline]
     pub fn try_new(r: u64, pr: f64) -> Result<Self, NegativeBinomialError> {
         // Rust only: CDFLIB accepts s = 0 successes.
@@ -387,11 +388,12 @@ impl DiscreteCdf for NegativeBinomial {
         cumnbn(s as f64, self.r as f64, self.pr, 1.0 - self.pr).1
     }
 
-    /// Rust only: the smallest integer *s* with [`cdf`](Self::cdf)(*s*) ≥
+    /// Rust only: the smallest integer *s* with [`cdf`]\(*s*\) ≥
     /// *p* ([`u64::MAX`] if none). CDFLIB has no counterpart; its
     /// `which = 2` solves for a real *s* (see [`inverse_ccdf`]).
     ///
     /// [`inverse_ccdf`]: NegativeBinomial::inverse_ccdf
+    /// [`cdf`]: Self::cdf
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<u64, NegativeBinomialError> {
         check_p(p)?;

@@ -63,7 +63,7 @@ pub trait ContinuousCdf {
 }
 
 /// Cumulative distribution function (CDF), complementary CDF, and inverse CDF for
-/// a discrete distribution over the non-negative integers.
+/// a discrete distribution over the nonnegative integers.
 ///
 /// The integer arguments and parameters are converted to `f64`, as the
 /// arguments of CDFLIB are real numbers, so beyond 2⁵³ they are rounded.
@@ -113,7 +113,8 @@ pub trait DiscreteCdf {
 /// Implemented only when the density admits a closed-form expression. The
 /// terms of such an expression can cancel when the parameters are very
 /// large: the χ² density, for example, has a relative error of about
-/// 10⁻⁵ at *df* = 10¹⁰.
+/// 10⁻⁵ at *df* = 10¹⁰. Where a term overflows, for parameters beyond
+/// about 10³⁰⁵, the result can be NaN.
 pub trait Continuous {
     /// Returns the density *f*(*x*) of the distribution at *x*.
     fn pdf(&self, x: f64) -> f64;
@@ -169,7 +170,8 @@ pub trait Variance {
 ///
 /// Implemented only when the entropy admits a closed-form expression. The
 /// terms of such an expression cancel when the parameters are very large,
-/// and the result loses its accuracy beyond about 10⁹.
+/// and the result loses its accuracy beyond about 10⁹; where a term
+/// overflows, for parameters beyond about 10³⁰⁵, the result can be NaN.
 pub trait Entropy {
     /// Returns the entropy of the distribution in nats.
     fn entropy(&self) -> f64;

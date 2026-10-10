@@ -2,7 +2,7 @@
 //!
 //! Every function here is part of the public API and is documented with its
 //! CDFLIB role; they live in a separate module so the user-facing
-//! [`cdflib::special`](crate::special) namespace stays focused on the
+//! [`cdflib::special`] namespace stays focused on the
 //! routines a statistical user is likely to call directly ([`beta_inc`],
 //! [`gamma_inc`], [`error_f`], [`cumnor`], etc.).
 //!
@@ -23,6 +23,7 @@
 //! [`rlog`]: crate::special::internal::rlog
 //! [`stvaln`]: crate::special::internal::stvaln
 //! [`BetaGratError`]: crate::special::internal::BetaGratError
+//! [`cdflib::special`]: crate::special
 
 pub use super::beta::{
     algdiv, apser, bcorr, beta_asym, beta_frac, beta_grat, beta_pser, beta_rcomp, beta_rcomp1,

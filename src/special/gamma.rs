@@ -843,12 +843,12 @@ pub fn gsumln(a: f64, b: f64) -> f64 {
     }
 }
 
-/// Computes the Sterling remainder ln(Γ(*z*)) − Sterling(*z*)
+/// Computes the Stirling remainder ln(Γ(*z*)) − Stirling(*z*)
 /// (cdflib.f90:8657).
 ///
-/// Sterling(*z*) is Sterling's approximation to ln(Γ(*z*)):
+/// Stirling(*z*) is Stirling's approximation to ln(Γ(*z*)):
 ///
-/// Sterling(*z*) = ln(√(2π)) + (*z* − 0.5) ln(*z*) − *z*.
+/// Stirling(*z*) = ln(√(2π)) + (*z* − 0.5) ln(*z*) − *z*.
 ///
 /// If 6 < *z*, the routine uses 9 terms of a series in Bernoulli numbers,
 /// with values calculated using Maple. Otherwise, the difference is
@@ -965,10 +965,10 @@ pub enum GammaIncAcc {
 #[derive(Debug, Clone, Copy, PartialEq, thiserror::Error)]
 pub enum GammaIncError {
     /// *a* is negative.
-    #[error("parameter a must be non-negative, got {0}")]
+    #[error("parameter a must be nonnegative, got {0}")]
     ANegative(f64),
     /// *x* is negative.
-    #[error("argument x must be non-negative, got {0}")]
+    #[error("argument x must be nonnegative, got {0}")]
     XNegative(f64),
     /// *a* and *x* are both 0.
     #[error("both a and x are zero")]
@@ -1825,7 +1825,7 @@ pub enum GammaIncInvError {
     },
     /// Iteration failed, and no value is given for *x*. This may occur
     /// when *x* is approximately 0 (`ierr` = −7).
-    #[error("iteration failed: intermediate x went non-positive")]
+    #[error("iteration failed: intermediate x went nonpositive")]
     IterationFailed,
     /// A value for *x* has been obtained, but the routine is not certain
     /// of its accuracy. Iteration cannot be performed in this case. If
@@ -1863,13 +1863,13 @@ pub enum GammaIncInvError {
 /// otherwise the number of iterations performed.
 ///
 /// A NaN *a* gives NaN, as in the F90. For *a* = +∞, where the F90 never
-/// returns, the result is NaN or [`NotConverged`](GammaIncInvError::NotConverged).
+/// returns, the result is NaN or [`NotConverged`].
 ///
 /// # Panics
 ///
 /// Panics on a [`GammaIncInvError`], exactly where [`try_gamma_inc_inv`]
 /// returns one; a NaN or negative *p* or *q* is reported as
-/// [`InconsistentPq`](GammaIncInvError::InconsistentPq). Use
+/// [`InconsistentPq`]. Use
 /// [`try_gamma_inc_inv`] for the fallible form.
 ///
 /// # Example
@@ -1883,6 +1883,8 @@ pub enum GammaIncInvError {
 /// ```
 ///
 /// [`try_gamma_inc_inv`]: crate::special::try_gamma_inc_inv
+/// [`NotConverged`]: GammaIncInvError::NotConverged
+/// [`InconsistentPq`]: GammaIncInvError::InconsistentPq
 #[inline]
 pub fn gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> (f64, u32) {
     try_gamma_inc_inv(a, x0, p, q)
@@ -2296,7 +2298,9 @@ fn schroder_p(
 
         ierr = ierr + 1;
         // Rust only: the F90 gamma_inc signals failure with ans = 2 and
-        // leaves qn unset; map the failure to ierr = -8 with x = xn.
+        // leaves qn unset; map the failure to ierr = -8 with x = xn. It
+        // cannot happen: gamma_inc fails only for a above amax with
+        // |1 - xn/a| <= e2, which returns above.
         let Ok((pn, qn)) = try_gamma_inc(a, xn) else {
             return Err(GammaIncInvError::UncertainAccuracy { value: xn });
         };
@@ -2408,7 +2412,9 @@ fn schroder_q(
 
         ierr = ierr + 1;
         // Rust only: the F90 gamma_inc signals failure with ans = 2 and
-        // leaves qn unset; map the failure to ierr = -8 with x = xn.
+        // leaves qn unset; map the failure to ierr = -8 with x = xn. It
+        // cannot happen: gamma_inc fails only for a above amax with
+        // |1 - xn/a| <= e2, which returns above.
         let Ok((pn, qn)) = try_gamma_inc(a, xn) else {
             return Err(GammaIncInvError::UncertainAccuracy { value: xn });
         };
@@ -2548,9 +2554,9 @@ mod tests {
 
     #[test]
     fn dstrem_small_z_matches_explicit_difference() {
-        // For z ≤ 6, dstrem uses gamma_log(z) − Sterling(z) directly.
+        // For z ≤ 6, dstrem uses gamma_log(z) − Stirling(z) directly.
         // At z = 5: lnΓ(5) = ln 24 = 3.178053830347946...,
-        // Sterling(5) ≈ ½ ln(2π) + 4.5·ln 5 − 5 = 3.161409...,
+        // Stirling(5) ≈ ½ ln(2π) + 4.5·ln 5 − 5 = 3.161409...,
         // so dstrem(5) ≈ 0.016645...
         let r = dstrem(5.0);
         let sterl = 0.91893853320467274178 + 4.5 * 5.0_f64.ln() - 5.0;
@@ -2727,7 +2733,7 @@ mod tests {
                 let result = try_gamma_inc_inv(a, -1.0, p, q);
                 // The F90 documents three "give-up" outcomes that are
                 // part of its contract, not port regressions: no
-                // solution (NoSolution), iterate went non-positive
+                // solution (NoSolution), iterate went nonpositive
                 // (IterationFailed), and accuracy cannot be certified
                 // (UncertainAccuracy).
                 let (x, _iters) = match result {
@@ -2898,7 +2904,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "parameter a must be non-negative")]
+    #[should_panic(expected = "parameter a must be nonnegative")]
     fn gamma_inc_negative_a_with_nan_x_panics() {
         let _ = gamma_inc(-1.0, f64::NAN);
     }
@@ -3055,7 +3061,7 @@ mod tests {
 
     #[test]
     fn try_gamma_at_negative_integer_is_pole() {
-        // Γ has a pole at every non-positive integer.
+        // Γ has a pole at every nonpositive integer.
         assert_eq!(try_gamma(-3.0), Err(GammaDomainError::Pole(-3.0)));
         assert_eq!(try_gamma(-10.0), Err(GammaDomainError::Pole(-10.0)));
     }

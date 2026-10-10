@@ -175,7 +175,7 @@ impl Poisson {
         Self::try_new(lambda).unwrap()
     }
 
-    /// Fallible counterpart of [`new`](Self::new) returning a
+    /// Fallible counterpart of [`new`] returning a
     /// [`PoissonError`] instead of panicking.
     ///
     /// Returns [`LambdaNegative`] if *λ* < 0, and [`LambdaNotFinite`] if *λ*
@@ -183,6 +183,7 @@ impl Poisson {
     ///
     /// [`LambdaNegative`]: PoissonError::LambdaNegative
     /// [`LambdaNotFinite`]: PoissonError::LambdaNotFinite
+    /// [`new`]: Self::new
     #[inline]
     pub fn try_new(lambda: f64) -> Result<Self, PoissonError> {
         check_xlam(lambda)?;
@@ -243,7 +244,8 @@ impl Poisson {
     ///
     /// Panics if the search evaluates `gamma_inc` where it cannot compute
     /// its result, which needs *λ* beyond 6.6 · 10²⁸ and *s* + 1 within a
-    /// few ulps of it.
+    /// few ulps of it. Since the search evaluates its upper bound 10³⁰⁰,
+    /// this happens in particular when *λ* is within a few ulps of 10³⁰⁰.
     ///
     /// [cdf]: crate::traits::DiscreteCdf::cdf
     /// [`inverse_cdf`]: crate::traits::DiscreteCdf::inverse_cdf
@@ -300,11 +302,12 @@ impl DiscreteCdf for Poisson {
         cumpoi_or_panic(s as f64, self.lambda).1
     }
 
-    /// Rust only: the smallest integer *s* with [`cdf`](Self::cdf)(*s*) ≥
+    /// Rust only: the smallest integer *s* with [`cdf`]\(*s*\) ≥
     /// *p* ([`u64::MAX`] if none). CDFLIB has no counterpart; its
     /// `which = 2` solves for a real *s* (see [`inverse_ccdf`]).
     ///
     /// [`inverse_ccdf`]: Poisson::inverse_ccdf
+    /// [`cdf`]: Self::cdf
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<u64, PoissonError> {
         check_p(p)?;

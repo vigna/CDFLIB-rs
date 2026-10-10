@@ -48,7 +48,9 @@
   not resolve answers below about 10⁻¹⁰, the searches that end without an
   error on a NaN function value, as in the Fortran (for example, for Β and
   *F* distributions with a parameter above about 2 · 10³⁰⁷, whose CDF is
-  NaN), the cancellation in the densities and masses for very large
+  NaN), the searches for a probability below about 10⁻¹⁵⁸, which can end
+  away from the answer or report the wrong bound, as in the Fortran, the
+  cancellation in the densities, masses, and entropies for very large
   parameters, the rounding of integer arguments beyond 2⁵³, and how to build
   with Rust 1.71 to 1.76, for which the latest releases of `thiserror` are
   too recent. The examples in the API documentation check the values they
@@ -82,9 +84,11 @@
   and `apser`, arguments of `gamma_rat1` beyond about 1.3 · 10¹⁵⁴, where its
   continued fraction overflows, and the rare finite arguments on which
   `beta_inc` never returns, give NaN; `gamma_inc_inv`
-  gives NaN, or `NotConverged` when the Schröder iteration cannot proceed.
-  Several of these inputs never returned in 0.4.3 either: for example, the
-  `cdf` at +∞ of a χ² distribution with *df* ≤ 0.5.
+  gives NaN, or `NotConverged` when the Schröder iteration cannot proceed;
+  `Gamma::search_shape` reports `AnswerAboveUpperBound` for *p* < 1 where
+  *x* times the rate overflows. Several of these inputs never returned in
+  0.4.3 either: for example, the `cdf` at +∞ of a χ² distribution with
+  *df* ≤ 0.5, and these calls of `Gamma::search_shape`.
 
 - Branches taken on NaN in `dinvr`, `dzror`, `gamma_inc_inv`, and the
   kernels now follow the Fortran; `gamma_inc_inv` keeps the Fortran `w` at
@@ -140,7 +144,10 @@
   distributions, where the Fortran gives NaN or never returns (for the
   noncentral *F*, a sum truncated short of 1); for the normal and Γ
   distributions also where the standardized argument, or *x* times the
-  rate, overflows.
+  rate, overflows. Where only *x* − *μ* overflows, the normal `cdf` and
+  `ccdf` compute the standardized argument as *x*/*σ* − *μ*/*σ*, instead of
+  returning NaN (with *μ* = −10³⁰⁸ and *σ* = `f64::MAX`, the `cdf` at
+  10³⁰⁸ was NaN instead of 0.867).
 
 - `inverse_ccdf` at *q* = 0 returns +∞ for the Poisson and negative
   binomial distributions, where the Fortran search stops at a finite value
@@ -163,8 +170,9 @@
   instead of 0 or NaN.
 
 - The densities of the *t*, *F* and Β distributions use `ln_1p`, which
-  keeps their precision for large *df*, *dfd*, or *b* (the *F*(1, 10¹⁷)
-  density at 1 was 0.399 instead of 0.242), and the *t* density no longer
+  keeps their precision for large *df*, *dfn*, *dfd*, or *b* (the
+  *F*(1, 10¹⁷) density at 1 was 0.399, and the *F*(10¹⁶, 1) density at 1
+  was 4.0 · 10⁷, instead of 0.242), and the *t* density no longer
   overflows for |*t*| beyond about 1.3 · 10¹⁵⁴, nor the *F* density where
   *dfn*/*dfd* or *dfn*·*x*/*dfd* overflows or underflows (the log-density
   of *F*(5, 2) at 10³⁰⁸ was −∞ instead of −1418.4). The masses of the
@@ -186,7 +194,9 @@
   and `NegativeBinomial` contain no backticks, those for a probability out
   of range say whether it is *p* or *q*, and those of the noncentral
   distributions and `Poisson` say “positive”, “nonnegative”, or “at least 1”
-  instead of using comparison symbols.
+  instead of using comparison symbols. The error messages of the special
+  functions write “nonnegative” and “nonpositive” instead of “non-negative”
+  and “non-positive”.
 
 ## [0.4.3] - 2026-06-11
 

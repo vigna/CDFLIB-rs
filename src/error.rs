@@ -35,7 +35,21 @@ use thiserror::Error;
 /// This happens, for example, for Β and *F* distributions with a parameter
 /// above about 2 · 10³⁰⁷, whose CDF is then NaN.
 ///
+/// Finally, CDFLIB's `dzror` compares the signs of two values of the
+/// function it searches through their product (cdflib.f90:9100), which
+/// underflows to 0 when both are below about 10⁻¹⁶² in absolute value. A
+/// search whose target probability (the smaller of *p* and *q*) is below
+/// about 10⁻¹⁵⁸ can thus end without an error away from the answer, as
+/// [`ChiSquared`]`::new(10.0).inverse_ccdf(1e-200)`, which returns about
+/// 1176.25, where the upper tail is about 2 · 10⁻²⁴⁶; or it can fail with
+/// an error naming the wrong bound, as
+/// [`Binomial`]`::search_pr(1e-300, 1.0, 100, 0)`, which reports
+/// [`AnswerAboveUpperBound`] with bound 1, although the answer, about
+/// 0.999, is in the search interval.
+///
 /// [`ChiSquared`]: crate::ChiSquared
+/// [`Binomial`]: crate::Binomial
+/// [`AnswerAboveUpperBound`]: SearchError::AnswerAboveUpperBound
 #[derive(Debug, Clone, Copy, PartialEq, Error)]
 pub enum SearchError {
     /// The solution lay below the lower search bound (CDFLIB `status = 1`).

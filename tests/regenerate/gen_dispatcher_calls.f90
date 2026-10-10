@@ -138,7 +138,7 @@ contains
 
   subroutine log_cdfbin()
     ! which, p, q, s, xn, pr, ompr
-    real(kind=rk), parameter :: r(7, 40) = reshape((/ &
+    real(kind=rk), parameter :: r(7, 41) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 3.0_rk, 10.0_rk, 0.3_rk, auto, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, 10.0_rk, 0.3_rk, auto, &
       1.0_rk, 0.0_rk, 0.0_rk, 10.0_rk, 10.0_rk, 0.3_rk, auto, &
@@ -178,7 +178,8 @@ contains
       3.0_rk, 0.01_rk, auto, 3.0_rk, 0.0_rk, 1.0e-300_rk, auto, &
       2.0_rk, 1.0_rk, auto, 0.0_rk, 10.0_rk, 0.3_rk, auto, &
       2.0_rk, 0.0_rk, auto, 0.0_rk, 10.0_rk, 0.3_rk, auto, &
-      2.0_rk, 0.7_rk, auto, 0.0_rk, 10.0_rk, 0.0_rk, auto /), (/ 7, 40 /))
+      2.0_rk, 0.7_rk, auto, 0.0_rk, 10.0_rk, 0.0_rk, auto, &
+      3.0_rk, 1.0_rk, auto, 0.0_rk, 0.0_rk, 0.5_rk, auto /), (/ 7, 41 /))
     real(kind=rk) :: v(6), a(6), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdfbin_calls.csv', status='replace', action='write')
@@ -451,7 +452,7 @@ contains
 
   subroutine log_cdfnbn()
     ! which, p, q, f, s, pr, ompr
-    real(kind=rk), parameter :: r(7, 34) = reshape((/ &
+    real(kind=rk), parameter :: r(7, 35) = reshape((/ &
       1.0_rk, 0.0_rk, 0.0_rk, 3.0_rk, 5.0_rk, 0.5_rk, auto, &
       1.0_rk, 0.0_rk, 0.0_rk, 0.0_rk, 5.0_rk, 0.5_rk, auto, &
       1.0_rk, 0.0_rk, 0.0_rk, 3.0_rk, 5.0_rk, 1.0_rk, auto, &
@@ -485,7 +486,8 @@ contains
       2.0_rk, 0.5_rk, auto, 0.0_rk, -1.0_rk, 0.5_rk, auto, &
       2.0_rk, 0.5_rk, auto, 0.0_rk, 5.0_rk, 1.0e-300_rk, auto, &
       3.0_rk, 0.5_rk, auto, 3.0_rk, 0.0_rk, 1.0_rk, auto, &
-      3.0_rk, 0.7_rk, auto, 5.0_rk, 0.0_rk, 1.0_rk, auto /), (/ 7, 34 /))
+      3.0_rk, 0.7_rk, auto, 5.0_rk, 0.0_rk, 1.0_rk, auto, &
+      3.0_rk, 1.0_rk, auto, 3.0_rk, 0.0_rk, 0.5_rk, auto /), (/ 7, 35 /))
     real(kind=rk) :: v(6), a(6), bound
     integer :: unit, i, which, status
     open(newunit=unit, file='tests/data/cdfnbn_calls.csv', status='replace', action='write')

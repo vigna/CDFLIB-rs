@@ -236,7 +236,7 @@ impl Gamma {
         Self::try_new(shape, rate).unwrap()
     }
 
-    /// Fallible counterpart of [`new`](Self::new) returning a [`GammaError`]
+    /// Fallible counterpart of [`new`] returning a [`GammaError`]
     /// instead of panicking.
     ///
     /// Returns [`ShapeNotPositive`], [`ShapeNotFinite`], [`RateNotPositive`],
@@ -246,6 +246,7 @@ impl Gamma {
     /// [`RateNotFinite`]: GammaError::RateNotFinite
     /// [`ShapeNotPositive`]: GammaError::ShapeNotPositive
     /// [`RateNotPositive`]: GammaError::RateNotPositive
+    /// [`new`]: Self::new
     #[inline]
     pub fn try_new(shape: f64, rate: f64) -> Result<Self, GammaError> {
         check_shape(shape)?;
@@ -275,9 +276,12 @@ impl Gamma {
     /// reported as [`ShapeNotPositive`]. At *p* = 0, where the answer is +∞,
     /// the search stops, as the F90 does, where the computed probability
     /// becomes 0, and returns that finite value:
-    /// `search_shape(0.0, 1.0, 1.0, 1.0)` returns about 395.
+    /// `search_shape(0.0, 1.0, 1.0, 1.0)` returns about 395. Where *β*·*x*
+    /// overflows, the probability is 1 for every shape in the search
+    /// interval, and the result for *p* < 1 is [`AnswerAboveUpperBound`].
     ///
     /// [`ShapeNotPositive`]: GammaError::ShapeNotPositive
+    /// [`AnswerAboveUpperBound`]: SearchError::AnswerAboveUpperBound
     #[inline]
     pub fn search_shape(p: f64, q: f64, x: f64, rate: f64) -> Result<f64, GammaError> {
         check_p(p)?;
@@ -290,6 +294,14 @@ impl Gamma {
 
         // cdflib.f90:5128-5178
         let xscale = x * scale;
+        // Rust only: where xscale is +inf, the probability is 1 for every
+        // shape in the search interval, and gamma_inc gives NaN or does not
+        // return in the F90. For p < 1 the answer, about xscale, is above
+        // the interval; for p = 1 every shape is an answer, and the search
+        // below returns its starting point.
+        if xscale == f64::INFINITY && p < 1.0 {
+            return Err(SearchError::AnswerAboveUpperBound { bound: INF }.into());
+        }
         let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
             let shape = d.x();
@@ -297,8 +309,13 @@ impl Gamma {
             // gamma_inc (status 10, cdflib.f90:5150-5156), but gamma_inc
             // leaves qans unset on error, so the test on ccum cannot see
             // it. cumgam returns the error itself, whichever of p and q is
-            // smaller.
-            let (cum, ccum) = cumgam(xscale, shape)?;
+            // smaller. Rust only: where xscale is +inf (and p = 1), the
+            // exact endpoint (1, 0), as in cdf.
+            let (cum, ccum) = if xscale == f64::INFINITY {
+                (1.0, 0.0)
+            } else {
+                cumgam(xscale, shape)?
+            };
             let fx = if p <= q { cum - p } else { ccum - q };
             d.dinvr(fx);
         }
@@ -653,5 +670,21 @@ mod tests {
     #[test]
     fn variance_does_not_overflow() {
         assert!((Gamma::new(1e300, 1e200).variance() / 1e-100 - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn shape_search_with_overflowing_x_times_rate() {
+        // The probability is 1 for every shape; the answer for p < 1 is
+        // about x * rate, above the search interval.
+        for (p, q) in [(0.0, 1.0), (0.5, 0.5), (0.7, 0.3)] {
+            assert_eq!(
+                Gamma::search_shape(p, q, 1e300, 1e15),
+                Err(GammaError::Search(SearchError::AnswerAboveUpperBound {
+                    bound: 1e300
+                }))
+            );
+        }
+        // For p = 1 every shape is an answer: the start of the search.
+        assert_eq!(Gamma::search_shape(1.0, 0.0, 1e300, 1e15), Ok(5.0));
     }
 }

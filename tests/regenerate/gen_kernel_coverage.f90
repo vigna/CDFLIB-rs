@@ -318,6 +318,13 @@ contains
         call putval(unit, beta_pser(ab(1, i), ab(2, i), xv(k), eps), .true.)
       end do
     end do
+    ! Outside the domain (a < 0, 1 < x), x**a underflows to 0, the return
+    ! at cdflib.f90:1718.
+    call putval(unit, -2000.0_rk, .false.)
+    call putval(unit, 0.5_rk, .false.)
+    call putval(unit, 2.0_rk, .false.)
+    call putval(unit, eps, .false.)
+    call putval(unit, beta_pser(-2000.0_rk, 0.5_rk, 2.0_rk, eps), .true.)
     close(unit)
   end subroutine gen_beta_pser
 
@@ -336,6 +343,13 @@ contains
         call putval(unit, beta_rcomp(rab(1, i), rab(2, i), rx(k), 1.0_rk - rx(k)), .true.)
       end do
     end do
+    ! Outside the domain (a < 0, 1 < x), exp(z) underflows to 0, the return
+    ! at cdflib.f90:1906.
+    call putval(unit, -2.0_rk, .false.)
+    call putval(unit, 0.5_rk, .false.)
+    call putval(unit, 1.0e300_rk, .false.)
+    call putval(unit, 0.5_rk, .false.)
+    call putval(unit, beta_rcomp(-2.0_rk, 0.5_rk, 1.0e300_rk, 0.5_rk), .true.)
     close(unit)
   end subroutine gen_beta_rcomp
 
@@ -782,7 +796,7 @@ contains
   ! beta_pser, 130 beta_frac, 140/150/160 beta_up and beta_grat, 200
   ! beta_asym, 260 tiny a and b), the special values of x, y, a, b, and
   ! every ierr. The last row reaches the nonpositive-sum exit of
-  ! beta_grat, whose ierr beta_inc ignores (cdflib.f90:1264, 1296). The CSV
+  ! beta_grat, whose ierr beta_inc ignores (cdflib.f90:1264, :1296). The CSV
   ! writes w = w1 = 0 when ierr /= 0.
   subroutine gen_beta_inc_regimes()
     real(kind=rk), parameter :: rows(4, 33) = reshape((/ &

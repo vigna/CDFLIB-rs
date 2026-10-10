@@ -2,7 +2,7 @@
 //!
 //! This module is split into two surfaces.
 //!
-//! The top-level [`cdflib::special`](crate::special) namespace exposes the
+//! The top-level [`cdflib::special`] namespace exposes the
 //! user-facing special functions a statistical user is likely to call directly:
 //! [`beta`], [`beta_log`], [`beta_inc`], [`gamma`], [`gamma_log`],
 //! [`gamma_inc`], [`gamma_inc_inv`], [`psi`], [`error_f`], [`error_fc`],
@@ -64,6 +64,7 @@
 //! [`ContinuousCdf::ccdf`]: crate::traits::ContinuousCdf::ccdf
 //! [`DiscreteCdf::cdf`]: crate::traits::DiscreteCdf::cdf
 //! [`DiscreteCdf::ccdf`]: crate::traits::DiscreteCdf::ccdf
+//! [`cdflib::special`]: crate::special
 
 pub(crate) mod beta;
 pub(crate) mod erf;

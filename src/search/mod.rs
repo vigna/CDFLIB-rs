@@ -136,7 +136,9 @@ pub(crate) struct Dinvr {
 
 impl Dinvr {
     /// F90 `call dinvr ( status, x, fx, qleft, qhi )` with *fx* the value
-    /// of the function at [`x`](Self::x).
+    /// of the function at [`x`].
+    ///
+    /// [`x`]: Self::x
     #[inline]
     pub(crate) fn dinvr(&mut self, fx: f64) {
         match self.state.step(fx) {
@@ -158,8 +160,12 @@ impl Dinvr {
     }
 
     /// The F90 `status`: 1 if the function must be evaluated at
-    /// [`x`](Self::x), 0 if [`x`](Self::x) is the answer, −1 if the search
-    /// failed (see [`qleft`](Self::qleft) and [`qhi`](Self::qhi)).
+    /// [`x`], 0 if [`x`] is the answer, −1 if the search
+    /// failed (see [`qleft`] and [`qhi`]).
+    ///
+    /// [`x`]: Self::x
+    /// [`qleft`]: Self::qleft
+    /// [`qhi`]: Self::qhi
     #[inline]
     pub(crate) fn status(&self) -> i32 {
         self.status
@@ -246,7 +252,9 @@ pub(crate) struct Dzror {
 
 impl Dzror {
     /// F90 `call dzror ( status, x, fx, xlo, xhi, qleft, qhi )` with *fx*
-    /// the value of the function at [`x`](Self::x).
+    /// the value of the function at [`x`].
+    ///
+    /// [`x`]: Self::x
     #[inline]
     pub(crate) fn dzror(&mut self, fx: f64) {
         match self.state.step(fx) {
@@ -267,8 +275,12 @@ impl Dzror {
     }
 
     /// The F90 `status`: 1 if the function must be evaluated at
-    /// [`x`](Self::x), 0 if [`x`](Self::x) is the answer, −1 if the search
-    /// failed (see [`qleft`](Self::qleft) and [`qhi`](Self::qhi)).
+    /// [`x`], 0 if [`x`] is the answer, −1 if the search
+    /// failed (see [`qleft`] and [`qhi`]).
+    ///
+    /// [`x`]: Self::x
+    /// [`qleft`]: Self::qleft
+    /// [`qhi`]: Self::qhi
     #[inline]
     pub(crate) fn status(&self) -> i32 {
         self.status

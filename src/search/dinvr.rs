@@ -107,7 +107,9 @@ pub(crate) struct InvrState {
 impl InvrState {
     /// The F90 entry `dstinv` (cdflib.f90:8574-8582), with the starting
     /// point `x` the caller passes to its first `dinvr` call. That call,
-    /// with `status` = 0, is the first [`step`](Self::step).
+    /// with `status` = 0, is the first [`step`].
+    ///
+    /// [`step`]: Self::step
     #[inline]
     pub(crate) fn new(cfg: InvrConfig, x: f64) -> Self {
         Self {

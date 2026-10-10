@@ -216,9 +216,9 @@ let (phi, sphi) = cumnor(1.96);
 # let _ = (p, q, e, phi, sphi);
 ```
 
-Every special function with possible failure modes, except the helpers `dlanor`
-and `dstrem`, also has a `try_*` form that returns a typed error instead of
-panicking:
+Every special function with possible failure modes, except the helpers
+`dlanor`, `dstrem` and `dbetrm`, also has a `try_*` form that returns a typed
+error instead of panicking:
 
 ```rust
 use cdflib::special::{try_gamma_inc, GammaIncError};
@@ -295,10 +295,10 @@ likely to call. Each CDFLIB algorithmic routine can be found under its original
 name, modulo the renames and splits enumerated above. The machine-constant
 routines `ipmpar` and `exparg` are crate-private ports; fatal errors that the
 Fortran reports by printing a message and stopping are returned as errors
-through the `Result` types described above, except that the helper `dstrem`
-panics on arguments outside its domain. The helper `dlanor` panics too on
-arguments outside its domain, where the Fortran prints a fatal-error message
-and continues.
+through the `Result` types described above, except that the helper `dstrem`,
+and through it `dbetrm`, panics on arguments outside its domain. The helper
+`dlanor` panics too on arguments outside its domain, where the Fortran prints a
+fatal-error message and continues.
 
 ## Testing
 

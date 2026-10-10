@@ -93,7 +93,7 @@ pub enum ChiSquaredError {
     #[error(transparent)]
     Search(#[from] SearchError),
     /// The incomplete Γ function failed during the search (`cdfchi` status
-    /// 10, cdflib.f90:3602-3605 and cdflib.f90:3652-3655); see
+    /// 10, cdflib.f90:3602-3605, :3652-3655); see
     /// [`GammaIncError`].
     ///
     /// [`GammaIncError`]: crate::special::GammaIncError
@@ -180,13 +180,14 @@ impl ChiSquared {
         Self::try_new(df).unwrap()
     }
 
-    /// Fallible counterpart of [`new`](Self::new) returning a
+    /// Fallible counterpart of [`new`] returning a
     /// [`ChiSquaredError`] instead of panicking.
     ///
     /// Returns [`DfNotPositive`] or [`DfNotFinite`] otherwise.
     ///
     /// [`DfNotFinite`]: ChiSquaredError::DfNotFinite
     /// [`DfNotPositive`]: ChiSquaredError::DfNotPositive
+    /// [`new`]: Self::new
     #[inline]
     pub fn try_new(df: f64) -> Result<Self, ChiSquaredError> {
         check_df(df)?;

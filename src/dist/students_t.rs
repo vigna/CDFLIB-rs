@@ -157,13 +157,14 @@ impl StudentsT {
         Self::try_new(df).unwrap()
     }
 
-    /// Fallible counterpart of [`new`](Self::new) returning a
+    /// Fallible counterpart of [`new`] returning a
     /// [`StudentsTError`] instead of panicking.
     ///
     /// Returns [`DfNotPositive`] or [`DfNotFinite`] otherwise.
     ///
     /// [`DfNotPositive`]: StudentsTError::DfNotPositive
     /// [`DfNotFinite`]: StudentsTError::DfNotFinite
+    /// [`new`]: Self::new
     #[inline]
     pub fn try_new(df: f64) -> Result<Self, StudentsTError> {
         check_df(df)?;

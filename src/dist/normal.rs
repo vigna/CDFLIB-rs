@@ -160,7 +160,7 @@ impl Normal {
         Self::try_new(mean, sd).unwrap()
     }
 
-    /// Fallible counterpart of [`new`](Self::new) returning a [`NormalError`]
+    /// Fallible counterpart of [`new`] returning a [`NormalError`]
     /// instead of panicking.
     ///
     /// Returns [`MeanNotFinite`], [`SdNotPositive`], or [`SdNotFinite`] if
@@ -169,6 +169,7 @@ impl Normal {
     /// [`MeanNotFinite`]: NormalError::MeanNotFinite
     /// [`SdNotFinite`]: NormalError::SdNotFinite
     /// [`SdNotPositive`]: NormalError::SdNotPositive
+    /// [`new`]: Self::new
     #[inline]
     pub fn try_new(mean: f64, sd: f64) -> Result<Self, NormalError> {
         check_mean(mean)?;
@@ -192,6 +193,19 @@ impl Normal {
     #[inline]
     pub const fn sd(&self) -> f64 {
         self.sd
+    }
+
+    // cdflib.f90:5850-5853. Rust only: where x - mean overflows, for which
+    // the F90 z is ±inf and cumnor gives NaN, z is computed as
+    // x/sd - mean/sd.
+    #[inline]
+    fn standardize(&self, x: f64) -> f64 {
+        let diff = x - self.mean;
+        if diff.is_infinite() {
+            x / self.sd - self.mean / self.sd
+        } else {
+            diff / self.sd
+        }
     }
 
     /// Returns the mean *μ* satisfying *p* = Pr[*X* ≤ *x*] given *σ*.
@@ -306,8 +320,7 @@ impl ContinuousCdf for Normal {
         if x.is_nan() {
             return f64::NAN;
         }
-        // cdflib.f90:5850-5853
-        let z = (x - self.mean) / self.sd;
+        let z = self.standardize(x);
         // Rust only: exact endpoints where z * 16 overflows in cumnor
         // (cdflib.f90:7774), which then gives NaN; this includes x = ±inf.
         if (z * 16.0).is_infinite() {
@@ -325,8 +338,7 @@ impl ContinuousCdf for Normal {
         if x.is_nan() {
             return f64::NAN;
         }
-        // cdflib.f90:5850-5853
-        let z = (x - self.mean) / self.sd;
+        let z = self.standardize(x);
         // Rust only: exact endpoints where z * 16 overflows in cumnor
         // (cdflib.f90:7774), which then gives NaN; this includes x = ±inf.
         if (z * 16.0).is_infinite() {
@@ -620,5 +632,15 @@ mod tests {
         let d = Normal::new(0.0, 1.0);
         assert!(d.cdf(f64::NAN).is_nan());
         assert!(d.ccdf(f64::NAN).is_nan());
+    }
+
+    #[test]
+    fn overflowing_difference_from_the_mean() {
+        // x - mean overflows, but z is about 1.1125.
+        let d = Normal::new(-1e308, f64::MAX);
+        assert!((d.cdf(1e308) / 0.8670463193941444 - 1.0).abs() < 1e-12);
+        assert!((d.ccdf(1e308) / 0.13295368060585558 - 1.0).abs() < 1e-12);
+        assert_eq!(d.cdf(f64::INFINITY), 1.0);
+        assert_eq!(d.ccdf(f64::NEG_INFINITY), 1.0);
     }
 }

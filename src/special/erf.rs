@@ -1,5 +1,4 @@
-//! Error function and complementary error function (cdflib.f90:9294 and
-//! cdflib.f90:9450).
+//! Error function and complementary error function (cdflib.f90:9294, :9450).
 
 #![allow(clippy::excessive_precision)]
 

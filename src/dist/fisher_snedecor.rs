@@ -224,7 +224,7 @@ impl FisherSnedecor {
         Self::try_new(dfn, dfd).unwrap()
     }
 
-    /// Fallible counterpart of [`new`](Self::new) returning a
+    /// Fallible counterpart of [`new`] returning a
     /// [`FisherSnedecorError`] instead of panicking.
     ///
     /// Returns [`DfnNotPositive`], [`DfnNotFinite`], [`DfdNotPositive`], or
@@ -234,6 +234,7 @@ impl FisherSnedecor {
     /// [`DfnNotFinite`]: FisherSnedecorError::DfnNotFinite
     /// [`DfdNotPositive`]: FisherSnedecorError::DfdNotPositive
     /// [`DfdNotFinite`]: FisherSnedecorError::DfdNotFinite
+    /// [`new`]: Self::new
     #[inline]
     pub fn try_new(dfn: f64, dfd: f64) -> Result<Self, FisherSnedecorError> {
         check_dfn(dfn)?;
@@ -464,13 +465,19 @@ impl Continuous for FisherSnedecor {
         } else {
             dfn.ln() - dfd.ln()
         };
-        // y = dfn·x/dfd. For y ≥ 2^53, ln(1 + y) = ln y in double precision;
-        // substituting it, the density is computed in the form
-        // ln f(x) = -(dfd/2) ln(dfn/dfd) - (1 + dfd/2) ln x - ln Β(dfn/2, dfd/2),
-        // which cannot overflow and has no cancellation between large terms.
+        // y = dfn·x/dfd. For y ≥ 1, substituting ln(1 + y) = ln y + ln(1 + 1/y),
+        // the density is computed in the form
+        // ln f(x) = -(dfd/2) ln(dfn/dfd) - (1 + dfd/2) ln x
+        //           - (dfn+dfd)/2 · ln(1 + 1/y) - ln Β(dfn/2, dfd/2),
+        // which needs only ln y, so that y cannot overflow, and in which the
+        // terms (dfn/2) ln y and (dfn/2) ln(1 + y), which cancel when dfn is
+        // large, do not appear.
         let ln_y = ln_ratio + x.ln();
-        if ln_y >= 53.0 * std::f64::consts::LN_2 {
-            return -half_dfd * ln_ratio - (1.0 + half_dfd) * x.ln() - beta_log(half_dfn, half_dfd);
+        if ln_y >= 0.0 {
+            return -half_dfd * ln_ratio
+                - (1.0 + half_dfd) * x.ln()
+                - (half_dfn + half_dfd) * (-ln_y).exp().ln_1p()
+                - beta_log(half_dfn, half_dfd);
         }
         let y = if ratio != 0.0 && ratio.is_finite() {
             ratio * x
@@ -516,9 +523,12 @@ impl Variance for FisherSnedecor {
 }
 
 impl Entropy for FisherSnedecor {
-    /// The result is NaN when both *dfn* and *dfd* are below about
-    /// 1.1 · 10⁻³⁰⁸, where *ψ*(*dfn*/2) and *ψ*(*dfd*/2) overflow to −∞
-    /// and their terms cancel.
+    /// When *dfn* and *dfd* are both small, the terms in *ψ*(*dfn*/2) ≈
+    /// −2/*dfn* and *ψ*(*dfd*/2) ≈ −2/*dfd* cancel, and the result loses
+    /// accuracy (for *dfn* = *dfd* = 10⁻¹⁰ the relative error is about
+    /// 6 · 10⁻⁸, and for *dfn* = *dfd* = 10⁻²⁰ the result is −1 instead of
+    /// about 48.4); it is NaN when both are below about 1.1 · 10⁻³⁰⁸,
+    /// where *ψ*(*dfn*/2) and *ψ*(*dfd*/2) overflow to −∞.
     #[inline]
     fn entropy(&self) -> f64 {
         // Closed-form: H = ln(dfd/dfn · Β(dfn/2, dfd/2))
@@ -628,6 +638,22 @@ mod tests {
         assert!((pdf / 0.24197072451914335 - 1.0).abs() < 1e-12);
         let pdf = FisherSnedecor::new(2.0, 1e20).pdf(0.5);
         assert!((pdf / 0.6065306597126334 - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn density_keeps_precision_for_large_dfn() {
+        // The F(dfn, 1) density at 1 tends to the density of 1/χ²(1) at 1,
+        // which is the χ²(1) density at 1.
+        let pdf = FisherSnedecor::new(1e16, 1.0).pdf(1.0);
+        assert!((pdf / 0.24197072451914334 - 1.0).abs() < 1e-12);
+        let ln_pdf = FisherSnedecor::new(1e20, 1000.0).ln_pdf(0.5);
+        assert!((ln_pdf / -150.54506369010542 - 1.0).abs() < 1e-12);
+        // ln Β(dfn/2, dfd/2) is about -3.4e5 here, so the absolute error
+        // is about 1e-11.
+        let ln_pdf = FisherSnedecor::new(1e300, 1000.0).ln_pdf(1.0);
+        assert!((ln_pdf / 2.188198849361979 - 1.0).abs() < 1e-10);
+        let ln_pdf = FisherSnedecor::new(5.0, 2.0).ln_pdf(1e308);
+        assert!((ln_pdf / -1418.3924172843322 - 1.0).abs() < 1e-12);
     }
 
     #[test]

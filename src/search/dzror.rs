@@ -104,7 +104,7 @@ fn sign(a: f64, b: f64) -> f64 {
 
 impl ZrorState {
     /// The F90 entry `dstzr` (cdflib.f90:9183-9187). The first `dzror`
-    /// call, with `status` = 0, is the first [`step`](Self::step).
+    /// call, with `status` = 0, is the first [`step`].
     ///
     /// Given a function F, find `xlo` such that F(`xlo`) = 0. Input
     /// condition: F is a function of a single argument and `xlo` and `xhi`
@@ -113,6 +113,8 @@ impl ZrorState {
     /// `xhi` satisfy F(`xlo`) · F(`xhi`) ≤ 0, |F(`xlo`)| ≤ |F(`xhi`)| and
     /// |`xlo` − `xhi`| ≤ TOL(*X*), where TOL(*X*) = max(`abstol`,
     /// `reltol` · |*X*|).
+    ///
+    /// [`step`]: Self::step
     #[inline]
     pub(crate) fn new(cfg: ZrorConfig) -> Self {
         Self {

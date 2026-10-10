@@ -6,7 +6,7 @@
 mod common;
 
 use cdflib::{ContinuousCdf, DiscreteCdf, SearchError};
-use common::{assert_close, assert_close_eps, read_csv};
+use common::{assert_close, assert_close_eps, assert_exact, read_csv, REFERENCE_PLATFORM};
 use std::f64::consts::PI;
 
 // --- assert_close ---------------------------------------------------------
@@ -46,6 +46,18 @@ fn assert_close_accepts_both_nan() {
 #[should_panic(expected = "infinity mismatch")]
 fn assert_close_fails_on_infinity_mismatch() {
     assert_close_eps(f64::INFINITY, 1e308, 1e-14, 1e-300);
+}
+
+// --- assert_exact ---------------------------------------------------------
+
+#[test]
+fn assert_exact_is_bit_exact_on_the_reference_platform() {
+    let next = f64::from_bits(1.0_f64.to_bits() + 1);
+    let r = std::panic::catch_unwind(|| assert_exact(next, 1.0, &[]));
+    assert_eq!(r.is_err(), REFERENCE_PLATFORM);
+    assert_exact(f64::NAN, f64::NAN, &[]);
+    let r = std::panic::catch_unwind(|| assert_exact(-0.0, 0.0, &[]));
+    assert_eq!(r.is_err(), REFERENCE_PLATFORM);
 }
 
 // --- read_csv -------------------------------------------------------------

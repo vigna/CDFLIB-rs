@@ -309,7 +309,7 @@ impl ChiSquaredNoncentral {
         Self::try_new(df, ncp).unwrap()
     }
 
-    /// Fallible counterpart of [`new`](Self::new) returning a
+    /// Fallible counterpart of [`new`] returning a
     /// [`ChiSquaredNoncentralError`] instead of panicking.
     ///
     /// Returns [`DfNotPositive`], [`DfNotFinite`], [`NcpNegative`], or
@@ -319,6 +319,7 @@ impl ChiSquaredNoncentral {
     /// [`DfNotFinite`]: ChiSquaredNoncentralError::DfNotFinite
     /// [`NcpNegative`]: ChiSquaredNoncentralError::NcpNegative
     /// [`NcpNotFinite`]: ChiSquaredNoncentralError::NcpNotFinite
+    /// [`new`]: Self::new
     #[inline]
     pub fn try_new(df: f64, ncp: f64) -> Result<Self, ChiSquaredNoncentralError> {
         check_df(df)?;

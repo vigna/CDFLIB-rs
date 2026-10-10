@@ -262,12 +262,12 @@ pub fn beta(a: f64, b: f64) -> f64 {
     beta_log(a, b).exp()
 }
 
-/// Computes the Sterling remainder for the complete Β function
+/// Computes the Stirling remainder for the complete Β function
 /// (cdflib.f90:7919).
 ///
 /// ln Β(*a*, *b*) = ln Γ(*a*) + ln Γ(*b*) − ln Γ(*a* + *b*). Let *zz* be the
-/// approximation obtained if each ln Γ is approximated by Sterling's formula,
-/// Sterling(*z*) = ln √(2π) + (*z* − 0.5) ln *z* − *z*. The Sterling remainder
+/// approximation obtained if each ln Γ is approximated by Stirling's formula,
+/// Stirling(*z*) = ln √(2π) + (*z* − 0.5) ln *z* − *z*. The Stirling remainder
 /// is ln Β(*a*, *b*) − *zz*.
 ///
 /// # Panics
@@ -280,7 +280,7 @@ pub fn beta(a: f64, b: f64) -> f64 {
 /// ```
 /// use cdflib::special::internal::dbetrm;
 ///
-/// // Sterling remainder is small and decreasing in (a, b) for large args.
+/// // Stirling remainder is small and decreasing in (a, b) for large args.
 /// let r = dbetrm(50.0, 60.0);
 /// assert!(r.abs() < 0.01);
 /// ```
@@ -303,8 +303,10 @@ pub fn dbetrm(a: f64, b: f64) -> f64 {
 /// This routine is appropriate for use when *b* < min(*eps*, *eps*·*a*) and
 /// *x* ≤ 0.5.
 ///
-/// Returns NaN where the F90 series never terminates: when the tolerance is
-/// NaN or a term is NaN or infinite.
+/// Arguments outside this domain, such as *a* ≤ 0, *x* = 1 or *eps* ≤ 0,
+/// can make the series run forever, or practically so, as in the F90. The
+/// function returns NaN where the F90 series never terminates because the
+/// tolerance is NaN or a term is NaN or infinite.
 #[inline]
 #[allow(clippy::assign_op_pattern)]
 pub fn fpser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
@@ -352,8 +354,10 @@ pub fn fpser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
 /// `apser` is used only for cases where *a* ≤ min(*eps*, *eps*·*b*),
 /// *b*·*x* ≤ 1, and *x* ≤ 0.5.
 ///
-/// Returns NaN where the F90 series never terminates: when the tolerance is
-/// NaN or a term is NaN or infinite.
+/// Arguments outside this domain, such as *x* = 1 or *eps* ≤ 0, can make
+/// the series run forever, or practically so, as in the F90. The function
+/// returns NaN where the F90 series never terminates because the tolerance
+/// is NaN or a term is NaN or infinite.
 #[inline]
 pub fn apser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
     const G: f64 = 0.577215664901533;
@@ -397,8 +401,10 @@ pub fn apser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
 ///
 /// `beta_pser` is used when *b* ≤ 1 or *b*·*x* ≤ 0.7. *eps* is the tolerance.
 ///
-/// Returns NaN where the F90 series never terminates: when the tolerance is
-/// NaN or a term is NaN or infinite.
+/// Arguments outside this domain or with *x* = 1 or *eps* ≤ 0 can make the
+/// series run forever, or practically so, as in the F90. The function
+/// returns NaN where the F90 series never terminates because the tolerance
+/// is NaN or a term is NaN or infinite.
 #[inline]
 #[allow(clippy::assign_op_pattern)]
 pub fn beta_pser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
@@ -994,7 +1000,7 @@ pub enum BetaGratError {
     UnderflowedScale,
     /// The partial sum of the expansion became nonpositive (CDFLIB
     /// `ierr = 1`).
-    #[error("partial sum went non-positive")]
+    #[error("partial sum went nonpositive")]
     NonPositiveSum,
 }
 
@@ -1701,7 +1707,7 @@ mod tests {
     #[cfg(not(miri))]
     #[test]
     fn dbetrm_matches_beta_log_minus_sterling() {
-        // For each (a, b), dbetrm should equal ln Β(a, b) − Sterling decomposition.
+        // For each (a, b), dbetrm should equal ln Β(a, b) − Stirling decomposition.
         const HLN2PI: f64 = 0.91893853320467274178;
         fn sterling(z: f64) -> f64 {
             HLN2PI + (z - 0.5) * z.ln() - z
@@ -1720,7 +1726,7 @@ mod tests {
 
     #[test]
     fn dbetrm_decreases_for_large_args() {
-        // The Sterling remainder shrinks as a, b grow.
+        // The Stirling remainder shrinks as a, b grow.
         let r10 = dbetrm(10.0, 10.0);
         let r100 = dbetrm(100.0, 100.0);
         assert!(r100.abs() < r10.abs());
@@ -2033,7 +2039,7 @@ mod tests {
     fn beta_rcomp_a0_lt_1_unreached_via_beta_inc_but_safe() {
         // beta_inc calls beta_rcomp only through beta_frac, with a0 and b0
         // above 1, so the a0 < 1 paths of beta_rcomp are reached only by a
-        // direct call. Verify those branches return a finite, non-negative
+        // direct call. Verify those branches return a finite, nonnegative
         // value at sensible inputs.
         // Path b0 ≥ 8 (large b, tiny a):
         let r = beta_rcomp(0.5, 30.0, 0.05, 0.95);

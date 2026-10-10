@@ -148,9 +148,10 @@ fn rcomp_branches() {
 }
 
 #[test]
-fn gamma_inc_taylor_qans_negative_branch() {
+fn gamma_inc_taylor_series_through_label_200() {
     // The Taylor series for P(A,X)/X^A (label 160) for a < 1 and x < 1.1,
-    // through label 200, where a negative qans would be clamped to 0.
+    // through label 200, whose clamp of a negative qans to 0 no input
+    // reaches (it is listed in tests/regenerate/unreachable.txt).
     let (p, q) = gamma_inc(0.99, 1.0e-8);
     assert!(p.is_finite() && q.is_finite());
     assert!((p + q - 1.0).abs() < 1e-10);

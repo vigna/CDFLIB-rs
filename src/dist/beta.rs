@@ -192,7 +192,7 @@ impl Beta {
         Self::try_new(a, b).unwrap()
     }
 
-    /// Fallible counterpart of [`new`](Self::new) returning a [`BetaError`]
+    /// Fallible counterpart of [`new`] returning a [`BetaError`]
     /// instead of panicking.
     ///
     /// Returns [`ANotPositive`], [`ANotFinite`], [`BNotPositive`], or
@@ -202,6 +202,7 @@ impl Beta {
     /// [`ANotFinite`]: BetaError::ANotFinite
     /// [`BNotPositive`]: BetaError::BNotPositive
     /// [`BNotFinite`]: BetaError::BNotFinite
+    /// [`new`]: Self::new
     #[inline]
     pub fn try_new(a: f64, b: f64) -> Result<Self, BetaError> {
         check_a(a)?;
@@ -360,9 +361,13 @@ impl Beta {
 
     /// Returns the quantile *x* such that [ccdf]\(*x*\) = *q*.
     ///
-    /// CDFLIB's `cdfbet` with `which = 2`, with *p* = 1 − *q*.
+    /// CDFLIB's `cdfbet` with `which = 2`, with *p* = 1 − *q*. For *q* <
+    /// 1/2, CDFLIB searches for *y* = 1 − *x*, and *x* has only the
+    /// absolute accuracy of *y*, about 10⁻⁸, as for [`inverse_cdf`] with
+    /// *p* > 1/2.
     ///
     /// [ccdf]: crate::traits::ContinuousCdf::ccdf
+    /// [`inverse_cdf`]: ContinuousCdf::inverse_cdf
     #[inline]
     pub fn inverse_ccdf(&self, q: f64) -> Result<f64, BetaError> {
         check_q(q)?;
@@ -420,7 +425,11 @@ impl ContinuousCdf for Beta {
         cumbet(x, 1.0 - x, self.a, self.b).1
     }
 
-    /// CDFLIB's `cdfbet` with `which = 2`, with *q* = 1 − *p*.
+    /// CDFLIB's `cdfbet` with `which = 2`, with *q* = 1 − *p*. For *p* >
+    /// 1/2, CDFLIB searches for *y* = 1 − *x*, and *x* has only the
+    /// absolute accuracy of *y*, about 10⁻⁸:
+    /// `Beta::new(1.0, 1e5).inverse_cdf(0.9)` returns 2.30206 · 10⁻⁵, while
+    /// the true quantile is 2.30256 · 10⁻⁵.
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, BetaError> {
         check_p(p)?;
@@ -471,8 +480,15 @@ impl Continuous for Beta {
 impl Mean for Beta {
     #[inline]
     fn mean(&self) -> f64 {
-        // a / (a + b), written so that a + b cannot overflow.
-        1.0 / (1.0 + self.b / self.a)
+        // a / (a + b) keeps subnormal means, where b / a would overflow;
+        // where a + b overflows, both are large, and the mean is computed
+        // as 1 / (1 + b / a).
+        let sum = self.a + self.b;
+        if sum.is_finite() {
+            self.a / sum
+        } else {
+            1.0 / (1.0 + self.b / self.a)
+        }
     }
 }
 
@@ -603,8 +619,11 @@ mod tests {
     }
 
     #[test]
-    fn moments_do_not_overflow() {
+    fn moments_do_not_overflow_or_underflow() {
         assert_eq!(Beta::new(1e308, 1e308).mean(), 0.5);
+        // Subnormal means, with about 28 significant bits.
+        assert!((Beta::new(1e-300, 1e15).mean() / 1e-315 - 1.0).abs() < 1e-8);
+        assert!((Beta::new(1e-10, 1e300).mean() / 1e-310 - 1.0).abs() < 1e-12);
         assert!((Beta::new(1e103, 1e103).variance() / 1.25e-104 - 1.0).abs() < 1e-12);
         assert!((Beta::new(1e-200, 1e-200).variance() - 0.25).abs() < 1e-12);
     }

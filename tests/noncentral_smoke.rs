@@ -7,14 +7,17 @@
 mod common;
 
 use cdflib::{ChiSquaredNoncentral, ContinuousCdf, FisherSnedecorNoncentral, Mean, Variance};
-use common::{assert_close_eps, DEFAULT_REL_TOL, INVERSE_REL_TOL};
+use common::{assert_close_eps, INVERSE_REL_TOL};
 
 #[test]
 fn noncentral_chi_squared_reduces_to_central_at_ncp_zero() {
+    // cumchn calls cumchi for a noncentrality of at most 1e-10
+    // (cdflib.f90:7014-7015).
     let nc = ChiSquaredNoncentral::new(5.0, 0.0);
     let c = cdflib::ChiSquared::new(5.0);
     for &x in &[0.5_f64, 2.0, 5.0, 10.0, 20.0] {
-        assert_close_eps(nc.cdf(x), c.cdf(x), DEFAULT_REL_TOL, DEFAULT_REL_TOL);
+        assert_eq!(nc.cdf(x), c.cdf(x));
+        assert_eq!(nc.ccdf(x), c.ccdf(x));
     }
 }
 
@@ -43,10 +46,13 @@ fn noncentral_chi_squared_round_trip() {
 
 #[test]
 fn noncentral_f_reduces_to_central_at_ncp_zero() {
+    // cumfnc calls cumf for a noncentrality below 1e-10
+    // (cdflib.f90:7333-7334).
     let nc = FisherSnedecorNoncentral::new(5.0, 10.0, 0.0);
     let c = cdflib::FisherSnedecor::new(5.0, 10.0);
     for &x in &[0.5_f64, 1.0, 2.0, 5.0] {
-        assert_close_eps(nc.cdf(x), c.cdf(x), DEFAULT_REL_TOL, DEFAULT_REL_TOL);
+        assert_eq!(nc.cdf(x), c.cdf(x));
+        assert_eq!(nc.ccdf(x), c.ccdf(x));
     }
 }
 

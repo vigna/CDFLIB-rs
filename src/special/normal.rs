@@ -1,5 +1,5 @@
 //! Standard normal cumulative distribution function and its inverse
-//! (cdflib.f90:7582, cdflib.f90:8041, cdflib.f90:14233 and cdflib.f90:8584).
+//! (cdflib.f90:7582, :8041, :14233, :8584).
 
 #![allow(clippy::excessive_precision)]
 
@@ -171,7 +171,7 @@ pub fn cumnor(arg: f64) -> (f64, f64) {
         }
     }
 
-    // The threshold is tiny(cum) (cdflib.f90:7786 and cdflib.f90:7790).
+    // The threshold is tiny(cum) (cdflib.f90:7786, :7790).
     if cum < f64::MIN_POSITIVE {
         cum = 0.0;
     }
@@ -202,7 +202,10 @@ pub fn cumnor(arg: f64) -> (f64, f64) {
 ///
 /// As in the F90, the result is NaN when *p* or *q* is 0, where the
 /// answer is ∓∞, and when both are NaN; the distributions handle these
-/// endpoints separately.
+/// endpoints separately. When only one of *p* and *q* is NaN, the other
+/// is taken as *q*: both `dinvnr(f64::NAN, 0.7)` and
+/// `dinvnr(0.7, f64::NAN)` return about −0.5244, the quantile for
+/// *q* = 0.7.
 ///
 /// Reference: William Kennedy, James Gentle, Statistical Computing, Marcel
 /// Dekker, NY, 1980.

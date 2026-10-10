@@ -176,7 +176,7 @@ impl Binomial {
         Self::try_new(n, pr).unwrap()
     }
 
-    /// Fallible counterpart of [`new`](Self::new) returning a
+    /// Fallible counterpart of [`new`] returning a
     /// [`BinomialError`] instead of panicking.
     ///
     /// Returns [`TrialsZero`] if *n* is zero (`cdfbin` status −5), and
@@ -185,6 +185,7 @@ impl Binomial {
     ///
     /// [`TrialsZero`]: BinomialError::TrialsZero
     /// [`PrOutOfRange`]: BinomialError::PrOutOfRange
+    /// [`new`]: Self::new
     #[inline]
     pub fn try_new(n: u64, pr: f64) -> Result<Self, BinomialError> {
         check_xn(n)?;
@@ -329,9 +330,10 @@ impl Binomial {
     #[inline]
     pub fn inverse_ccdf(&self, q: f64) -> Result<f64, BinomialError> {
         check_q(q)?;
-        // Rust only: exact endpoint. The F90 search finds s = xn, except
-        // for pr = 0, where ccdf is constant and the search stops at its
-        // start, and for xn < 5, where the start is out of range.
+        // Rust only: exact endpoint. The F90 search stops at a finite s
+        // where ccdf is below its absolute tolerance, which can be well
+        // below xn (or, where ccdf is constant, as for pr = 0, at its
+        // start), and fails for xn < 5, where the start is out of range.
         if q == 0.0 {
             return Ok(self.n as f64);
         }
@@ -382,10 +384,11 @@ impl DiscreteCdf for Binomial {
     }
 
     /// Rust only: the smallest integer *s* ≤ *n* with
-    /// [`cdf`](Self::cdf)(*s*) ≥ *p*. CDFLIB has no counterpart; its
+    /// [`cdf`]\(*s*\) ≥ *p*. CDFLIB has no counterpart; its
     /// `which = 2` solves for a real *s* (see [`inverse_ccdf`]).
     ///
     /// [`inverse_ccdf`]: Binomial::inverse_ccdf
+    /// [`cdf`]: Self::cdf
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<u64, BinomialError> {
         check_p(p)?;

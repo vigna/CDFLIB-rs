@@ -365,7 +365,7 @@ impl FisherSnedecorNoncentral {
         Self::try_new(dfn, dfd, ncp).unwrap()
     }
 
-    /// Fallible counterpart of [`new`](Self::new) returning a
+    /// Fallible counterpart of [`new`] returning a
     /// [`FisherSnedecorNoncentralError`] instead of panicking.
     ///
     /// Returns [`DfnNotPositive`], [`DfnNotFinite`], [`DfdNotPositive`],
@@ -381,6 +381,7 @@ impl FisherSnedecorNoncentral {
     /// [`NcpNotFinite`]: FisherSnedecorNoncentralError::NcpNotFinite
     /// [`DfnTooSmall`]: FisherSnedecorNoncentralError::DfnTooSmall
     /// [`DfdTooSmall`]: FisherSnedecorNoncentralError::DfdTooSmall
+    /// [`new`]: Self::new
     #[inline]
     pub fn try_new(dfn: f64, dfd: f64, ncp: f64) -> Result<Self, FisherSnedecorNoncentralError> {
         check_dfn(dfn)?;
@@ -662,6 +663,7 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
 }
 
 impl Mean for FisherSnedecorNoncentral {
+    /// Defined for *dfd* > 2.
     #[inline]
     fn mean(&self) -> f64 {
         if self.dfd > 2.0 {
@@ -675,6 +677,7 @@ impl Mean for FisherSnedecorNoncentral {
 }
 
 impl Variance for FisherSnedecorNoncentral {
+    /// Defined for *dfd* > 4.
     #[inline]
     fn variance(&self) -> f64 {
         let dfn = self.dfn;

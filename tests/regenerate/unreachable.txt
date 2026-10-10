@@ -36,10 +36,10 @@
 5475-5479 cdfnbn: pr + ompr /= 1 (status 4); the Rust API derives ompr = 1 - pr.
 6168-6177 cdfpoi: which = 3 failure; cumpoi is not small at xlam = 1e300 only for s beyond about 1e300, and the Rust s is a u64.
 #
-# Search failures that cannot occur: the answer is always bracketed by
-# the search interval.
-3932-3937 cdfchn: which = 2 status 1; cumchn is 0 at x = 0, so the answer is never below 0.
-4303-4308 cdff: which = 2 status 1; cumf is 0 at f = 0, so the answer is never below 0.
+# Search failures that cannot occur with the inputs that the Rust passes
+# to the search: the answer is bracketed by the search interval.
+3932-3937 cdfchn: which = 2 status 1; cumchn is 0 at x = 0, so the answer is not below 0 unless int(pnonc/2) overflows (pnonc of about 4.3e9 and above), where the Rust cumchn panics.
+4303-4308 cdff: which = 2 status 1; cumf is 0 at f = 0, so the answer is not below 0 except at q = 0, which the Rust answers as an exact endpoint, and with a dfd of 5e-324, which the Rust rejects (DfdNotPositive).
 4716-4722 cdffnc: which = 2 status 1; cumfnc is 0 at f = 0, so the answer is never below 0.
 #
 # Undefined behavior: dzror assigns qleft only when it fails at label 20
@@ -72,8 +72,6 @@
 11478 gamma_inc_inv: iop = 2 only when epsilon exceeds 1e-10.
 #
 # Unreachable for any argument.
-1718 beta_pser: x**a with x > 0 and a <= 1 is at least x, so it is not zero.
-1906 beta_rcomp: with a, b <= 1, exp(a*ln(x) + b*ln(y)) is at least the smallest subnormal.
 7413 cumfnc: aup - 1 + b == 0 needs dfn/2 + icent + dfd/2 == 1, impossible with dfn, dfd >= 1 and icent >= 1.
 11500-11502 gamma_inc_inv: q * gamma(a + 1) with q > 0 and gamma(a + 1) >= 0.88 does not round to 0.
 11523-11525 gamma_inc_inv: b = qg / a with a < 1 is at least qg > 0.

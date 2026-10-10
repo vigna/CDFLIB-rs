@@ -243,7 +243,12 @@ fn continuous_ccdf_nan_returns_nan() {
     assert!(Normal::new(0.0, 1.0).ccdf(f64::NAN).is_nan());
     assert!(Gamma::new(2.0, 1.0).ccdf(f64::NAN).is_nan());
     assert!(ChiSquared::new(5.0).ccdf(f64::NAN).is_nan());
+    assert!(ChiSquaredNoncentral::new(5.0, 2.0).ccdf(f64::NAN).is_nan());
     assert!(Beta::new(2.0, 5.0).ccdf(f64::NAN).is_nan());
+    assert!(FisherSnedecor::new(5.0, 10.0).ccdf(f64::NAN).is_nan());
+    assert!(FisherSnedecorNoncentral::new(5.0, 10.0, 2.0)
+        .ccdf(f64::NAN)
+        .is_nan());
     assert!(StudentsT::new(10.0).ccdf(f64::NAN).is_nan());
 }
 
