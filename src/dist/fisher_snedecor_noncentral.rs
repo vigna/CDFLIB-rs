@@ -131,7 +131,7 @@ pub enum FisherSnedecorNoncentralError {
 /// summed backwards and forwards from the central term; each sum stops
 /// when a term is less than `EPS` times the sum or when the sum is less
 /// than the machine epsilon, so the backward sum does not start if the
-/// central term is below it.
+/// central term is below it; the backward sum also stops at the zero term.
 ///
 /// # Panics
 ///
@@ -152,15 +152,9 @@ pub(crate) fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
     if dfd < 1.0 {
         panic!("cumfnc: dfd < 1");
     }
-    // Handle the case in which the noncentrality parameter is essentially
-    // zero.
+    // Handle case in which the noncentrality parameter is essentially zero.
     if pnonc < 1.0e-10 {
         return cumf(f, dfn, dfd);
-    }
-    // Rust only: a NaN f, dfn or dfd passes the tests above, and the F90
-    // then never returns, inside beta_inc or in the forward sum below.
-    if f.is_nan() || dfn.is_nan() || dfd.is_nan() {
-        return (f64::NAN, f64::NAN);
     }
 
     let xnonc = pnonc / 2.0;
@@ -176,10 +170,10 @@ pub(crate) fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
     if icent == 0 {
         icent = 1;
     }
-    // Compute the central weight term.
+    // Compute central weight term.
     let centwt = (-xnonc + icent as f64 * xnonc.ln() - gamma_log((icent + 1) as f64)).exp();
-    // Compute the central incomplete Β term. Ensure that the minimum of
-    // the argument to Β and 1 minus the argument is computed accurately.
+    // Compute central incomplete beta term. Ensure that minimum of arg to
+    // beta and 1 - arg is computed accurately.
     let prod = dfn * f;
     let dsum = dfd + prod;
     let mut yy = dfd / dsum;
@@ -202,7 +196,7 @@ pub(crate) fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
     let b = dfd / 2.0;
     let mut betup = betdn;
     let mut sum1 = centwt * betdn;
-    // Now sum terms backward from icent until convergence or all done.
+    // Now sum terms backward from ICENT until convergence or all done.
     let mut xmult = centwt;
     let mut i = icent;
     let mut dnterm =
@@ -237,6 +231,9 @@ pub(crate) fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
     // Now sum forward until convergence.
     xmult = centwt;
 
+    // The first branch is never taken: aup - 1 + b == 0 needs
+    // dfn/2 + icent + dfd/2 == 1, impossible with dfn, dfd >= 1 and
+    // icent >= 1 (cdflib.f90:7413, listed in unreachable.txt).
     let expon = if (aup - 1.0 + b) == 0.0 {
         -gamma_log(aup) - gamma_log(b) + (aup - 1.0) * xx.ln() + b * yy.ln()
     } else {
@@ -244,8 +241,12 @@ pub(crate) fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
             + (aup - 1.0) * xx.ln()
             + b * yy.ln()
     };
-    // CDFLIB guards against exp producing values so small that combining
-    // them with ordinary quantities raises floating-point errors.
+    // The fact that DCDFLIB assumes that 1.0E+30 is a reasonable value to
+    // plug into any function, and that G95 computes corresponding function
+    // values of, say 1.0E-303, and then chokes with a floating point error
+    // when asked to combine such a value with a reasonable floating point
+    // quantity, has driven me to the following sort of check that was last
+    // fashionable in the 1960's!
     let mut upterm = if expon <= f64::EPSILON.ln() {
         0.0
     } else {
@@ -281,7 +282,11 @@ pub(crate) fn cumfnc(f: f64, dfn: f64, dfd: f64, pnonc: f64) -> (f64, f64) {
     (cum, ccum)
 }
 
-// cdflib.f90:4614-4633 (status -2). Rust also rejects NaN.
+// Check the arguments. The F90 test of which (cdflib.f90:4593-4613,
+// status -1) has no counterpart, since each which is a separate method.
+
+// Unless P is to be computed, make sure it is legal.
+// cdflib.f90:4615-4633 (status -2). Rust also rejects NaN.
 #[inline]
 fn check_p(p: f64) -> Result<(), FisherSnedecorNoncentralError> {
     if p < 0.0 || 1.0 < p || p.is_nan() {
@@ -290,7 +295,8 @@ fn check_p(p: f64) -> Result<(), FisherSnedecorNoncentralError> {
     Ok(())
 }
 
-// cdflib.f90:4634-4646 (status -4). Rust also rejects f = 0 and a
+// Unless F is to be computed, make sure it is legal.
+// cdflib.f90:4635-4646 (status -4). Rust also rejects f = 0 and a
 // non-finite f.
 #[inline]
 fn check_f(f: f64) -> Result<(), FisherSnedecorNoncentralError> {
@@ -303,7 +309,8 @@ fn check_f(f: f64) -> Result<(), FisherSnedecorNoncentralError> {
     Ok(())
 }
 
-// cdflib.f90:4647-4659 (status -5). Rust also rejects a non-finite dfn.
+// Unless DFN is to be computed, make sure it is legal.
+// cdflib.f90:4648-4659 (status -5). Rust also rejects a non-finite dfn.
 #[inline]
 fn check_dfn(dfn: f64) -> Result<(), FisherSnedecorNoncentralError> {
     if dfn <= 0.0 {
@@ -315,7 +322,8 @@ fn check_dfn(dfn: f64) -> Result<(), FisherSnedecorNoncentralError> {
     Ok(())
 }
 
-// cdflib.f90:4660-4672 (status -6). Rust also rejects a non-finite dfd.
+// Unless DFD is to be computed, make sure it is legal.
+// cdflib.f90:4661-4672 (status -6). Rust also rejects a non-finite dfd.
 #[inline]
 fn check_dfd(dfd: f64) -> Result<(), FisherSnedecorNoncentralError> {
     if dfd <= 0.0 {
@@ -327,7 +335,8 @@ fn check_dfd(dfd: f64) -> Result<(), FisherSnedecorNoncentralError> {
     Ok(())
 }
 
-// cdflib.f90:4673-4685 (status -7). Rust also rejects a non-finite pnonc.
+// Unless PNONC is to be computed, make sure it is legal.
+// cdflib.f90:4674-4685 (status -7). Rust also rejects a non-finite pnonc.
 #[inline]
 fn check_pnonc(pnonc: f64) -> Result<(), FisherSnedecorNoncentralError> {
     if pnonc < 0.0 {
@@ -445,6 +454,7 @@ impl FisherSnedecorNoncentral {
         check_cumfnc_dfd(dfd)?;
         let pnonc = ncp;
 
+        // Calculate DFN.
         // cdflib.f90:4738-4771
         let mut d = dstinv(1.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -490,6 +500,7 @@ impl FisherSnedecorNoncentral {
         check_cumfnc_dfn(dfn)?;
         let pnonc = ncp;
 
+        // Calculate DFD.
         // cdflib.f90:4777-4809
         let mut d = dstinv(1.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -538,6 +549,7 @@ impl FisherSnedecorNoncentral {
         check_cumfnc_dfn(dfn)?;
         check_cumfnc_dfd(dfd)?;
 
+        // Calculate PNONC.
         // cdflib.f90:4815-4848
         let mut d = dstinv(0.0, TENT4, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -571,11 +583,11 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
     /// 0.51 for *λ* = 10⁸. In the left tail, where the terms around the
     /// central one are below the machine epsilon, the low-index terms that
     /// carry the probability are never added: with *dfn* = 1, *dfd* = 10 and
-    /// *λ* = 10, cdf(0.001) is 5.3 · 10⁻²¹ instead of 1.66 · 10⁻⁴. For very
+    /// *λ* = 10, cdf(0.001) is 5.3·10⁻²¹ instead of 1.66·10⁻⁴. For very
     /// large degrees of freedom (e.g., *dfd* beyond about 10¹⁴) the result
     /// can fall outside [0 . . 1]. For a small *λ* it can exceed 1 by a few
     /// ulps in the right tail, making [`ccdf`] slightly negative
-    /// (1 + 4.4 · 10⁻¹⁶ at 100 for *dfn* = 3.7, *dfd* = 30 and *λ* = 10⁻⁹).
+    /// (1 + 4.4·10⁻¹⁶ at 100 for *dfn* = 3.7, *dfd* = 30 and *λ* = 10⁻⁹).
     ///
     /// # Panics
     ///
@@ -587,19 +599,21 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
     ///
     /// [`ccdf`]: ContinuousCdf::ccdf
     #[inline]
-    fn cdf(&self, x: f64) -> f64 {
-        // Rust only: NaN for a NaN x.
-        if x.is_nan() {
+    fn cdf(&self, f: f64) -> f64 {
+        // Rust only: NaN for a NaN f.
+        if f.is_nan() {
             return f64::NAN;
         }
-        // Rust only: exact endpoint at +inf, where cumfnc truncates its sum short of 1.
-        if x == f64::INFINITY {
+        // Rust only: exact endpoint at +inf, where cumfnc truncates its sum
+        // short of 1.
+        if f == f64::INFINITY {
             return 1.0;
         }
-        // Rust only: no status -4 for f < 0 (cdflib.f90:4634-4646); cumfnc
+        // Rust only: no status -4 for f < 0 (cdflib.f90:4635-4646); cumfnc
         // returns (0, 1) there.
+        // Calculate P and Q.
         // cdflib.f90:4691
-        cumfnc(x, self.dfn, self.dfd, self.ncp).0
+        cumfnc(f, self.dfn, self.dfd, self.ncp).0
     }
 
     /// CDFLIB's `cdffnc` with `which = 1`, computed as 1 − [`cdf`] (except
@@ -613,26 +627,28 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
     ///
     /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
-    fn ccdf(&self, x: f64) -> f64 {
-        // Rust only: NaN for a NaN x.
-        if x.is_nan() {
+    fn ccdf(&self, f: f64) -> f64 {
+        // Rust only: NaN for a NaN f.
+        if f.is_nan() {
             return f64::NAN;
         }
-        // Rust only: exact endpoint at +inf, where cumfnc truncates its sum short of 1.
-        if x == f64::INFINITY {
+        // Rust only: exact endpoint at +inf, where cumfnc truncates its sum
+        // short of 1.
+        if f == f64::INFINITY {
             return 0.0;
         }
-        // Rust only: no status -4 for f < 0 (cdflib.f90:4634-4646); cumfnc
+        // Rust only: no status -4 for f < 0 (cdflib.f90:4635-4646); cumfnc
         // returns (0, 1) there.
+        // Calculate P and Q.
         // cdflib.f90:4691
-        cumfnc(x, self.dfn, self.dfd, self.ncp).1
+        cumfnc(f, self.dfn, self.dfd, self.ncp).1
     }
 
     /// CDFLIB's `cdffnc` with `which = 2`, searched for in [0 . . 10³⁰].
     ///
     /// The precision limits of [`cdf`] apply: in the left tail the search
     /// returns a wrong answer without an error (about 0.0077 instead of
-    /// 3.6 · 10⁻⁴ for *dfn* = 1, *dfd* = 10, *λ* = 10 and *p* = 10⁻⁴).
+    /// 3.6·10⁻⁴ for *dfn* = 1, *dfd* = 10, *λ* = 10 and *p* = 10⁻⁴).
     ///
     /// # Panics
     ///
@@ -653,6 +669,7 @@ impl ContinuousCdf for FisherSnedecorNoncentral {
         let dfd = self.dfd;
         let pnonc = self.ncp;
 
+        // Calculate F.
         // cdflib.f90:4698-4732
         let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -807,7 +824,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "the sum is NaN")]
     fn nan_sum_panics_in_the_backward_sum() {
-        // Without the check in the backward sum, about 2 · 10⁹ terms would
+        // Without the check in the backward sum, about 2·10⁹ terms would
         // be added before the forward sum panics.
         FisherSnedecorNoncentral::new(f64::MAX, 1.0, 4e9).cdf(2.0);
     }

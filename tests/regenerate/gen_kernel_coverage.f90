@@ -657,7 +657,7 @@ contains
     ! The smallest subnormal, which a literal cannot give: gfortran flushes
     ! subnormal literals to zero.
     real(kind=rk), parameter :: sub = tiny(1.0_rk) * epsilon(1.0_rk)
-    real(kind=rk), parameter :: ax(2, 24) = reshape((/ &
+    real(kind=rk), parameter :: ax(2, 26) = reshape((/ &
       -1.0_rk, 1.0_rk,        1.0_rk, -1.0_rk,        0.0_rk, 0.0_rk, &
       1.0_rk, 0.0_rk,         0.0_rk, 1.0_rk,         0.3_rk, 1000.0_rk, &
       100.0_rk, sub,          10.0_rk, 1.0e-300_rk,   10.0_rk, 1.0e4_rk, &
@@ -665,8 +665,9 @@ contains
       1.0e-6_rk, 1.0_rk,      1.0e30_rk, 1.0e30_rk,   1.0e40_rk, 1.0e40_rk, &
       1.0e6_rk, 1.0e3_rk,     1.0e6_rk, 1.0e9_rk,     2.5_rk, 1.0e-300_rk, &
       0.5_rk, 0.1_rk,         0.5_rk, 2.0_rk,         25.5_rk, 26.0_rk, &
-      30.0_rk, 30.0_rk,       1.0e3_rk, 1.0e3_rk,     1.0e300_rk, 1.0e-300_rk /), &
-      (/ 2, 24 /))
+      30.0_rk, 30.0_rk,       1.0e3_rk, 1.0e3_rk,     1.0e300_rk, 1.0e-300_rk, &
+      1.0e3_rk, 1401.0_rk,    1.0e4_rk, 14010.0_rk /), &
+      (/ 2, 26 /))
     real(kind=rk), parameter :: tiny_a(6) = (/ 1.0e-300_rk, 1.0e-100_rk, 1.0e-20_rk, &
       1.0e-17_rk, 1.0e-16_rk, 1.0e-15_rk /)
     real(kind=rk), parameter :: tiny_x(7) = (/ 0.01_rk, 0.1_rk, 0.24_rk, 0.3_rk, &
@@ -688,6 +689,11 @@ contains
       call ginc_row(unit, a, x, ind)
       a = 1.0e36_rk
       x = a * (1.0_rk + 2.0_rk * epsilon(1.0_rk))
+      call ginc_row(unit, a, x, ind)
+      ! a just below x where the Temme expansion at label 270 has a e**2
+      ! <= 3.28e-3 and gives a result.
+      a = 1.0e26_rk
+      x = a * (1.0_rk + epsilon(1.0_rk))
       call ginc_row(unit, a, x, ind)
       ! Tiny a with x < 1.1, where the Taylor series for P(A,X)/X^A
       ! gives a qans close to 0 (never negative; see unreachable.txt).
@@ -811,7 +817,7 @@ contains
   ! beta_grat, whose ierr beta_inc ignores (cdflib.f90:1264, :1296). The CSV
   ! writes w = w1 = 0 when ierr /= 0.
   subroutine gen_beta_inc_regimes()
-    real(kind=rk), parameter :: rows(4, 33) = reshape((/ &
+    real(kind=rk), parameter :: rows(4, 37) = reshape((/ &
       ! a, b, x, y
       1.0e-20_rk, 1.0e-20_rk, 0.3_rk, 0.7_rk, &
       0.5_rk, 1.0e-20_rk, 0.3_rk, 0.7_rk, &
@@ -845,7 +851,11 @@ contains
       0.0_rk, 3.0_rk, 0.0_rk, 1.0_rk, &
       2.0_rk, 0.0_rk, 1.0_rk, 0.0_rk, &
       1.0e5_rk, 1.0e5_rk, 0.5_rk, 0.5_rk, &
-      1.0e-6_rk, 1.0e4_rk, 0.07_rk, 0.93_rk /), (/ 4, 33 /))
+      1.0e-6_rk, 1.0e4_rk, 0.07_rk, 0.93_rk, &
+      1.0_rk, -1.0_rk, 0.5_rk, 0.5_rk, &
+      2.0_rk, 3.0_rk, 1.5_rk, -0.5_rk, &
+      2.0_rk, 3.0_rk, 0.5_rk, -0.5_rk, &
+      1.0e-20_rk, 1.0e5_rk, 0.5_rk, 0.5_rk /), (/ 4, 37 /))
     real(kind=rk) :: w, w1
     integer :: unit, i, ierr
     call openf(unit, 'beta_inc_regimes.csv', '# a, b, x, y, w, w1, ierr')

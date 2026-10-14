@@ -7,9 +7,9 @@
 //! the saved variables are the fields of [`ZrorState`], with the F90
 //! names, and the resume label is a private enum.
 //!
-//! Reference: J. C. P. Bus and T. J. Dekker, Two Efficient Algorithms with
-//! Guaranteed Convergence for Finding a Zero of a Function, *ACM
-//! Transactions on Mathematical Software*, 1(4):330-345, 1975.
+//! Reference: JCP Bus, TJ Dekker, Two Efficient Algorithms with Guaranteed
+//! Convergence for Finding a Zero of a Function, ACM Transactions on
+//! Mathematical Software, Volume 1, Number 4, pages 330-345, 1975.
 //!
 //! [`ZrorState`]: ZrorState
 

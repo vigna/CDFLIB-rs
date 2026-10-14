@@ -114,6 +114,9 @@ pub(crate) fn cumf(f: f64, dfn: f64, dfd: f64) -> (f64, f64) {
         return (0.0, 1.0);
     }
     let prod = dfn * f;
+    // XX is such that the incomplete beta with parameters DFD/2 and DFN/2
+    // evaluated at XX is 1 - CUM or CCUM. YY is 1 - XX. Calculate the
+    // smaller of XX and YY accurately.
     let dsum = dfd + prod;
     let mut xx = dfd / dsum;
     let yy;
@@ -130,7 +133,11 @@ pub(crate) fn cumf(f: f64, dfn: f64, dfd: f64) -> (f64, f64) {
     (cum, ccum)
 }
 
-// cdflib.f90:4175-4194 (status -2). Rust also rejects NaN.
+// Check the arguments. The F90 test of which (cdflib.f90:4154-4174,
+// status -1) has no counterpart, since each which is a separate method.
+
+// Unless P is to be computed, make sure it is legal.
+// cdflib.f90:4176-4194 (status -2). Rust also rejects NaN.
 #[inline]
 fn check_p(p: f64) -> Result<(), FisherSnedecorError> {
     if p < 0.0 || 1.0 < p || p.is_nan() {
@@ -139,7 +146,8 @@ fn check_p(p: f64) -> Result<(), FisherSnedecorError> {
     Ok(())
 }
 
-// cdflib.f90:4195-4214 (status -3). Rust also rejects NaN.
+// Unless Q is to be computed, make sure it is legal.
+// cdflib.f90:4196-4214 (status -3). Rust also rejects NaN.
 #[inline]
 fn check_q(q: f64) -> Result<(), FisherSnedecorError> {
     if q < 0.0 || 1.0 < q || q.is_nan() {
@@ -148,7 +156,8 @@ fn check_q(q: f64) -> Result<(), FisherSnedecorError> {
     Ok(())
 }
 
-// cdflib.f90:4215-4227 (status -4). Rust also rejects f = 0 and a
+// Unless F is to be computed, make sure it is legal.
+// cdflib.f90:4216-4227 (status -4). Rust also rejects f = 0 and a
 // non-finite f.
 #[inline]
 fn check_f(f: f64) -> Result<(), FisherSnedecorError> {
@@ -161,7 +170,8 @@ fn check_f(f: f64) -> Result<(), FisherSnedecorError> {
     Ok(())
 }
 
-// cdflib.f90:4228-4240 (status -5). Rust also rejects a non-finite dfn.
+// Unless DFN is to be computed, make sure it is legal.
+// cdflib.f90:4229-4240 (status -5). Rust also rejects a non-finite dfn.
 #[inline]
 fn check_dfn(dfn: f64) -> Result<(), FisherSnedecorError> {
     if dfn <= 0.0 {
@@ -179,7 +189,8 @@ fn check_dfn(dfn: f64) -> Result<(), FisherSnedecorError> {
     Ok(())
 }
 
-// cdflib.f90:4241-4253 (status -6). Rust also rejects a non-finite dfd.
+// Unless DFD is to be computed, make sure it is legal.
+// cdflib.f90:4242-4253 (status -6). Rust also rejects a non-finite dfd.
 #[inline]
 fn check_dfd(dfd: f64) -> Result<(), FisherSnedecorError> {
     if dfd <= 0.0 {
@@ -198,7 +209,8 @@ fn check_dfd(dfd: f64) -> Result<(), FisherSnedecorError> {
     Ok(())
 }
 
-// cdflib.f90:4254-4265 (status 3).
+// Check that P + Q = 1.
+// cdflib.f90:4255-4265 (status 3).
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), FisherSnedecorError> {
     if 3.0 * f64::EPSILON < ((p + q) - 1.0).abs() {
@@ -266,6 +278,7 @@ impl FisherSnedecor {
         check_dfd(dfd)?;
         check_pq(p, q)?;
 
+        // Calculate DFN.
         // cdflib.f90:4329-4374. The lower bound is 1, since dfn = 0 makes
         // beta_inc fail inside cumf (cdflib.f90:4322-4325).
         let bound_lo = 1.0;
@@ -301,6 +314,7 @@ impl FisherSnedecor {
         check_dfn(dfn)?;
         check_pq(p, q)?;
 
+        // Calculate DFD.
         // cdflib.f90:4385-4426. The lower bound is 1, since dfd = 0 makes
         // beta_inc fail inside cumf (cdflib.f90:4378-4381).
         let bound_lo = 1.0;
@@ -328,6 +342,7 @@ impl FisherSnedecor {
     fn search_f(&self, p: f64, q: f64) -> Result<f64, FisherSnedecorError> {
         let dfn = self.dfn;
         let dfd = self.dfd;
+        // Calculate F.
         // cdflib.f90:4278-4318
         let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -374,50 +389,55 @@ impl ContinuousCdf for FisherSnedecor {
     /// CDFLIB's `cdff` with `which = 1`.
     ///
     /// The result can be NaN when *dfn* or *dfd* is above about
-    /// 2 · 10³⁰⁷, where the F90 never returns; the inverses and searches
+    /// 2·10³⁰⁷, where the F90 never returns; the inverses and searches
     /// then return meaningless values (see [`SearchError`]).
     ///
-    /// The result is exactly 1, and [`ccdf`] exactly 0, where *dfn*·*x*
-    /// overflows, even if the upper tail is not negligible: with
-    /// *dfn* = 10³⁰⁰ and *dfd* = 1, ccdf(10⁹) is 0 instead of 2.52 · 10⁻⁵.
-    /// Where *dfd*/(*dfn*·*x*) is subnormal, the result can be wrong, as for
-    /// `beta_inc` at a subnormal argument: with *dfn* = 0.5 and
-    /// *dfd* = 10⁻¹⁰, cdf([`f64::MAX`]) is 3.6 · 10⁻¹⁰, below
-    /// cdf(10³⁰⁰) = 3.6 · 10⁻⁸.
+    /// The result is exactly 1, and [`ccdf`] exactly 0, where
+    /// *dfd* + *dfn*·*f* overflows, even if the upper tail is not
+    /// negligible, and the inverses and searches are then meaningless too:
+    /// with *dfn* = 10³⁰⁰ and *dfd* = 1, ccdf(10⁹) is 0 instead of
+    /// 2.52·10⁻⁵.
+    /// Where *dfd*/(*dfn*·*f*) is subnormal, the result can be wrong, as for
+    /// [`beta_inc`] at a subnormal argument: with *dfn* = 0.5 and
+    /// *dfd* = 10⁻¹⁰, cdf([`f64::MAX`]) is 3.6·10⁻¹⁰, below
+    /// cdf(10³⁰⁰) = 3.6·10⁻⁸.
     ///
     /// [`SearchError`]: crate::SearchError
     /// [`ccdf`]: ContinuousCdf::ccdf
     /// [`f64::MAX`]: f64::MAX
+    /// [`beta_inc`]: crate::special::beta_inc
     #[inline]
-    fn cdf(&self, x: f64) -> f64 {
-        // Rust only: NaN for a NaN x, which cumf passes to beta_inc; as in
+    fn cdf(&self, f: f64) -> f64 {
+        // Rust only: NaN for a NaN f, which cumf passes to beta_inc; as in
         // the F90, beta_inc can then return a value computed from the other
         // arguments.
-        if x.is_nan() {
+        if f.is_nan() {
             return f64::NAN;
         }
-        // Rust only: no status -4 for f < 0 (cdflib.f90:4215-4227); cumf
+        // Rust only: no status -4 for f < 0 (cdflib.f90:4216-4227); cumf
         // returns (0, 1) there.
+        // Calculate P and Q.
         // cdflib.f90:4271
-        cumf(x, self.dfn, self.dfd).0
+        cumf(f, self.dfn, self.dfd).0
     }
 
     /// CDFLIB's `cdff` with `which = 1`.
     ///
     /// The result can be NaN for huge parameters, and it is 0 where
-    /// *dfn*·*x* overflows, as described for [`cdf`].
+    /// *dfd* + *dfn*·*f* overflows, as described for [`cdf`].
     ///
     /// [`cdf`]: ContinuousCdf::cdf
     #[inline]
-    fn ccdf(&self, x: f64) -> f64 {
-        // Rust only: NaN for a NaN x, as in cdf.
-        if x.is_nan() {
+    fn ccdf(&self, f: f64) -> f64 {
+        // Rust only: NaN for a NaN f, as in cdf.
+        if f.is_nan() {
             return f64::NAN;
         }
-        // Rust only: no status -4 for f < 0 (cdflib.f90:4215-4227); cumf
+        // Rust only: no status -4 for f < 0 (cdflib.f90:4216-4227); cumf
         // returns (0, 1) there.
+        // Calculate P and Q.
         // cdflib.f90:4271
-        cumf(x, self.dfn, self.dfd).1
+        cumf(f, self.dfn, self.dfd).1
     }
 
     /// CDFLIB's `cdff` with `which = 2`, with *q* = 1 − *p*.
@@ -534,7 +554,7 @@ impl Variance for FisherSnedecor {
 impl Entropy for FisherSnedecor {
     /// When *dfn* and *dfd* are both small, the result loses accuracy to
     /// cancellation (for *dfn* = *dfd* = 10⁻²⁰ it is −1 instead of about
-    /// 48.4), and it is NaN when both are below about 1.1 · 10⁻³⁰⁸.
+    /// 48.4), and it is NaN when both are below about 1.1·10⁻³⁰⁸.
     #[inline]
     fn entropy(&self) -> f64 {
         // Closed-form: H = ln(dfd/dfn · Β(dfn/2, dfd/2))

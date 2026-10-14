@@ -16,10 +16,14 @@
 
 ### Improved
 
-- Fortran 90 reference tables for every kernel, error exit, `cdf*` call and
-  status, and for the iteration traces of `dinvr` and `dzror`;
+- Fortran 90 reference tables for every kernel, regime, error exit, `cdf*`
+  call and status, and for the iteration traces of `dinvr` and `dzror`;
   `tests/regenerate/coverage.sh` checks that they execute every reachable
-  line of `cdflib.f90`.
+  line of `cdflib.f90`, and `tests/regenerate/rust_branch_coverage.sh` that
+  they take both sides of every branch of the port except those listed with
+  a reason.
+
+- The code comments reproduce the Fortran 90 comments verbatim.
 
 - The documentation states the behavior at NaN, infinite and endpoint
   arguments, the tolerances of the searches, and the precision limits of

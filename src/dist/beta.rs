@@ -13,7 +13,7 @@ const TOL: f64 = 1.0e-8;
 /// Β distribution with shape parameters *a* > 0 and *b* > 0.
 ///
 /// Defined over the interval [0 . . 1], with density
-/// *f*(*x*; *a*, *b*) = *xᵃ* ⁻ ¹ (1 − *x*)*ᵇ* ⁻ ¹ / Β(*a*, *b*).
+/// *f*(*x*; *a*, *b*) = *xᵃ* ⁻ ¹ (1 − *x*)*ᵇ* ⁻ ¹ / Β(*a*, *b*).
 ///
 /// The methods correspond to CDFLIB's `cdfbet` (cdflib.f90:2451): `which = 1`
 /// is [`cdf`] / [`ccdf`], `which = 2` is [`inverse_cdf`] /
@@ -118,6 +118,10 @@ pub(crate) fn cumbet(x: f64, y: f64, a: f64, b: f64) -> (f64, f64) {
     }
 }
 
+// The F90 test of which (cdflib.f90:2581-2599, status -1) has no
+// counterpart, since each which is a separate method.
+
+// Unless P is to be computed, make sure it is legal.
 // cdflib.f90:2601-2619 (status -2). Rust also rejects NaN.
 #[inline]
 fn check_p(p: f64) -> Result<(), BetaError> {
@@ -127,6 +131,7 @@ fn check_p(p: f64) -> Result<(), BetaError> {
     Ok(())
 }
 
+// Unless Q is to be computed, make sure it is legal.
 // cdflib.f90:2621-2639 (status -3). Rust also rejects NaN.
 #[inline]
 fn check_q(q: f64) -> Result<(), BetaError> {
@@ -136,6 +141,7 @@ fn check_q(q: f64) -> Result<(), BetaError> {
     Ok(())
 }
 
+// Unless X is to be computed, make sure it is legal.
 // cdflib.f90:2641-2659 (status -4). Rust also rejects NaN.
 #[inline]
 fn check_x(x: f64) -> Result<(), BetaError> {
@@ -145,6 +151,7 @@ fn check_x(x: f64) -> Result<(), BetaError> {
     Ok(())
 }
 
+// Unless A is to be computed, make sure it is legal.
 // cdflib.f90:2681-2692 (status -6). Rust also rejects a non-finite a.
 #[inline]
 fn check_a(a: f64) -> Result<(), BetaError> {
@@ -157,6 +164,7 @@ fn check_a(a: f64) -> Result<(), BetaError> {
     Ok(())
 }
 
+// Unless B is to be computed, make sure it is legal.
 // cdflib.f90:2694-2705 (status -7). Rust also rejects a non-finite b.
 #[inline]
 fn check_b(b: f64) -> Result<(), BetaError> {
@@ -169,6 +177,7 @@ fn check_b(b: f64) -> Result<(), BetaError> {
     Ok(())
 }
 
+// Check that P + Q = 1.
 // cdflib.f90:2707-2717 (status 3).
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), BetaError> {
@@ -240,13 +249,15 @@ impl Beta {
         check_p(p)?;
         check_q(q)?;
         check_x(x)?;
-        // Rust only: the API takes x alone, so y = 1 - x and the F90 checks
-        // on y (status -5, cdflib.f90:2661-2679) and on x + y (status 4,
+        // Unless Y is to be computed, make sure it is legal. Check that
+        // X + Y = 1. Rust only: the API takes x alone, so y = 1 - x and
+        // these F90 checks (status -5, cdflib.f90:2661-2679, and status 4,
         // cdflib.f90:2719-2729) cannot fail.
         let y = 1.0 - x;
         check_b(b)?;
         check_pq(p, q)?;
 
+        // Compute A.
         // cdflib.f90:2800-2840
         let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -287,13 +298,15 @@ impl Beta {
         check_p(p)?;
         check_q(q)?;
         check_x(x)?;
-        // Rust only: the API takes x alone, so y = 1 - x and the F90 checks
-        // on y (status -5, cdflib.f90:2661-2679) and on x + y (status 4,
+        // Unless Y is to be computed, make sure it is legal. Check that
+        // X + Y = 1. Rust only: the API takes x alone, so y = 1 - x and
+        // these F90 checks (status -5, cdflib.f90:2661-2679, and status 4,
         // cdflib.f90:2719-2729) cannot fail.
         let y = 1.0 - x;
         check_a(a)?;
         check_pq(p, q)?;
 
+        // Compute B.
         // cdflib.f90:2846-2884
         let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -322,6 +335,7 @@ impl Beta {
     fn search_x_y(&self, p: f64, q: f64) -> Result<(f64, f64), BetaError> {
         let a = self.a;
         let b = self.b;
+        // Compute X and Y.
         // cdflib.f90:2742-2794
         let search = dstzr(0.0, 1.0, ATOL, TOL);
         let (x, y, z) = if p <= q {
@@ -384,7 +398,7 @@ impl ContinuousCdf for Beta {
 
     /// CDFLIB's `cdfbet` with `which = 1`, with *y* = 1 − *x*.
     ///
-    /// The result can be NaN when *a* or *b* is above about 2 · 10³⁰⁷, and
+    /// The result can be NaN when *a* or *b* is above about 2·10³⁰⁷, and
     /// is NaN when *a* + *b* overflows, where the F90 never returns; the
     /// inverses and searches then return meaningless values (see
     /// [`SearchError`]).
@@ -400,6 +414,7 @@ impl ContinuousCdf for Beta {
         }
         // Rust only: no status -4 for x outside [0..1] (cdflib.f90:2641-2659);
         // cumbet returns (0, 1) for x <= 0 and (1, 0) for 1 < x.
+        // Compute P and Q.
         // cdflib.f90:2735
         cumbet(x, 1.0 - x, self.a, self.b).0
     }
@@ -417,6 +432,7 @@ impl ContinuousCdf for Beta {
         }
         // Rust only: no status -4 for x outside [0..1] (cdflib.f90:2641-2659);
         // cumbet returns (0, 1) for x <= 0 and (1, 0) for 1 < x.
+        // Compute P and Q.
         // cdflib.f90:2735
         cumbet(x, 1.0 - x, self.a, self.b).1
     }
@@ -424,7 +440,7 @@ impl ContinuousCdf for Beta {
     /// CDFLIB's `cdfbet` with `which = 2`, with *q* = 1 − *p*. For *p* > 1/2
     /// the search is for *y* = 1 − *x*, so *x* has an absolute accuracy of
     /// only about 10⁻⁸: `Beta::new(1.0, 1e5).inverse_cdf(0.9)` returns
-    /// 2.30206 · 10⁻⁵ instead of 2.30256 · 10⁻⁵.
+    /// 2.30206·10⁻⁵ instead of 2.30256·10⁻⁵.
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, BetaError> {
         check_p(p)?;

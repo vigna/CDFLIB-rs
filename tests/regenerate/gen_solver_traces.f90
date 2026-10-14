@@ -72,6 +72,12 @@ contains
       else; y = 1.0d0; end if
     case (33); if (x > 0.0d0) then; y = 1.0d0; else; y = -1.0d0; end if
     case (34); if (x >= 99.9d0) then; y = ieee_value(y, ieee_quiet_nan); else; y = 5.0d0 + x; end if
+    case (35)
+      if (x < 0.3d0) then; y = -1.0d0
+      else if (x < 0.4d0) then; y = 50.0d0
+      else; y = 0.5d0; end if
+    case (36); if (x < 0.7d0) then; y = -1.0d-170; else; y = 2.0d-170; end if
+    case (37); if (x < 0.7d0) then; y = 1.0d-170; else; y = -2.0d-170; end if
     case default; stop 2
     end select
   end function
@@ -91,7 +97,7 @@ program gen_solver_traces
   use objf
   implicit none
   integer :: unit
-  integer, parameter :: nd = 46, nz = 30
+  integer, parameter :: nd = 46, nz = 33
   real(rk) :: dsmall(nd), dbig(nd), dstart(nd)
   integer :: dfid(nd)
   real(rk) :: zlo(nz), zhi(nz)
@@ -180,6 +186,9 @@ program gen_solver_traces
   call setz(28, 0.0d0, 10.0d0, 7)
   call setz(29, 0.0d0, 10.0d0, 5)
   call setz(30, ieee_value(x, ieee_negative_inf), ieee_value(x, ieee_positive_inf), 33)
+  call setz(31, 0.0d0, 1.0d0, 35)
+  call setz(32, 0.0d0, 1.0d0, 36)
+  call setz(33, 0.0d0, 1.0d0, 37)
 
   do i = 1, nd
     do j = 1, 2

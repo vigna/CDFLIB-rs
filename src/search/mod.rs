@@ -90,7 +90,7 @@ impl Dstinv {
     /// starts a `dinvr` search at *x*.
     ///
     /// Returns [`SearchError::StartOutOfRange`] where F90 `dinvr` stops
-    /// with the fatal error "The values SMALL, X, BIG are not monotone"
+    /// with the fatal error “The values SMALL, X, BIG are not monotone”
     /// (cdflib.f90:8258-8263).
     ///
     /// [`SearchError::StartOutOfRange`]: SearchError::StartOutOfRange
@@ -416,9 +416,10 @@ mod tests {
     // Replays tests/data/solver_traces.txt, written by
     // tests/regenerate/gen_solver_traces.f90: each case feeds the recorded
     // function values to Dinvr or Dzror and checks every requested x and
-    // the outcome bit for bit against cdflib.f90.
-    #[test]
+    // the outcome bit for bit against cdflib.f90. It reads a file, which
+    // Miri isolation forbids.
     #[cfg(not(miri))]
+    #[test]
     fn solver_traces_match_f90() {
         let text = std::fs::read_to_string("tests/data/solver_traces.txt").unwrap();
         let hex = |t: &str| f64::from_bits(u64::from_str_radix(t, 16).unwrap());
@@ -493,6 +494,6 @@ mod tests {
             }
             assert!(ended, "{head}: the case has no conv, fail or cap line");
         }
-        assert_eq!(cases, 158);
+        assert_eq!(cases, 164);
     }
 }

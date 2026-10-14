@@ -124,8 +124,8 @@ pub trait Continuous {
 ///
 /// The mass is computed from a closed-form expression whose terms cancel
 /// for very large parameters. At the mode, the logarithm of the mass has
-/// an absolute error of up to about 2 · 10⁻⁷ for a binomial with
-/// *n* = 10⁹ and 0.05 with *n* = 10¹⁵, about 3 · 10⁻⁷ and 0.3 for a
+/// an absolute error of up to about 2·10⁻⁷ for a binomial with
+/// *n* = 10⁹ and 0.05 with *n* = 10¹⁵, about 3·10⁻⁷ and 0.3 for a
 /// negative binomial with *r* and the mode of these sizes, and about 0.04
 /// for a Poisson with *λ* = 10¹⁴. Beyond about 2⁵³ the masses are
 /// meaningless: they can exceed 1, overflow, or underflow to 0.

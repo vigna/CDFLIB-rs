@@ -39,7 +39,7 @@ contains
     end if
   end subroutine putval
 
-  ! cdfbet: Beta(a, b), x in (0, 1)
+  ! cdfbet: Beta(a, b), x in (0..1)
   subroutine gen_cdfbet()
     real(kind=rk), parameter :: rows(3, 11) = reshape((/ &
       0.10_rk,  0.5_rk,  0.5_rk, &
@@ -292,11 +292,11 @@ contains
     open(newunit=ff,  file='tests/data/cdffnc_f.csv',     status='replace', action='write')
     open(newunit=fdn, file='tests/data/cdffnc_dfn.csv',   status='replace', action='write')
     open(newunit=fdd, file='tests/data/cdffnc_dfd.csv',   status='replace', action='write')
-    open(newunit=fnc, file='tests/data/cdffnc_phonc.csv', status='replace', action='write')
-    write(ff,  '(a)') '# p, q, dfn, dfd, phonc, f'
-    write(fdn, '(a)') '# p, q, f, dfd, phonc, dfn'
-    write(fdd, '(a)') '# p, q, f, dfn, phonc, dfd'
-    write(fnc, '(a)') '# p, q, f, dfn, dfd, phonc'
+    open(newunit=fnc, file='tests/data/cdffnc_pnonc.csv', status='replace', action='write')
+    write(ff,  '(a)') '# p, q, dfn, dfd, pnonc, f'
+    write(fdn, '(a)') '# p, q, f, dfd, pnonc, dfn'
+    write(fdd, '(a)') '# p, q, f, dfn, pnonc, dfd'
+    write(fnc, '(a)') '# p, q, f, dfn, dfd, pnonc'
     do i = 1, 4
       f = rows(1, i); dfn = rows(2, i); dfd = rows(3, i); pnonc = rows(4, i)
       which = 1

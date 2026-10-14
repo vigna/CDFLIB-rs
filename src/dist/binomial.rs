@@ -114,7 +114,11 @@ pub(crate) fn cumbin(s: f64, xn: f64, pr: f64, ompr: f64) -> (f64, f64) {
     }
 }
 
-// cdflib.f90:3044-3063 (status -2). Rust also rejects NaN.
+// Check the arguments. The F90 test of which (cdflib.f90:3023-3043,
+// status -1) has no counterpart, since each which is a separate method.
+
+// Unless P is to be computed, make sure it is legal.
+// cdflib.f90:3045-3063 (status -2). Rust also rejects NaN.
 #[inline]
 fn check_p(p: f64) -> Result<(), BinomialError> {
     if p < 0.0 || 1.0 < p || p.is_nan() {
@@ -123,7 +127,8 @@ fn check_p(p: f64) -> Result<(), BinomialError> {
     Ok(())
 }
 
-// cdflib.f90:3064-3083 (status -3). Rust also rejects NaN.
+// Unless Q is to be computed, make sure it is legal.
+// cdflib.f90:3065-3083 (status -3). Rust also rejects NaN.
 #[inline]
 fn check_q(q: f64) -> Result<(), BinomialError> {
     if q < 0.0 || 1.0 < q || q.is_nan() {
@@ -132,7 +137,8 @@ fn check_q(q: f64) -> Result<(), BinomialError> {
     Ok(())
 }
 
-// cdflib.f90:3084-3096 (status -5).
+// Unless XN is to be computed, make sure it is legal.
+// cdflib.f90:3085-3096 (status -5).
 #[inline]
 fn check_xn(n: u64) -> Result<(), BinomialError> {
     if n == 0 {
@@ -141,9 +147,13 @@ fn check_xn(n: u64) -> Result<(), BinomialError> {
     Ok(())
 }
 
-// cdflib.f90:3117-3136 (status -6). Rust also rejects NaN. OMPR = 1 - PR is
-// derived from pr, so the F90 checks on ompr (status -7, cdflib.f90:3137-3156)
-// and on pr + ompr (status 4, cdflib.f90:3169-3181) cannot fail.
+// Unless PR is to be computed, make sure it is legal.
+// cdflib.f90:3118-3136 (status -6). Rust also rejects NaN.
+//
+// Unless OMPR is to be computed, make sure it is legal. Check that
+// PR + OMPR = 1. Rust only: OMPR = 1 - PR is derived from pr, so these F90
+// checks (status -7, cdflib.f90:3138-3156, and status 4,
+// cdflib.f90:3170-3181) cannot fail.
 #[inline]
 fn check_pr(pr: f64) -> Result<(), BinomialError> {
     if pr < 0.0 || 1.0 < pr || pr.is_nan() {
@@ -152,7 +162,8 @@ fn check_pr(pr: f64) -> Result<(), BinomialError> {
     Ok(())
 }
 
-// cdflib.f90:3157-3168 (status 3).
+// Check that P + Q = 1.
+// cdflib.f90:3158-3168 (status 3).
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), BinomialError> {
     if 3.0 * f64::EPSILON < ((p + q) - 1.0).abs() {
@@ -224,13 +235,15 @@ impl Binomial {
     pub fn search_trials(p: f64, q: f64, pr: f64, s: u64) -> Result<f64, BinomialError> {
         check_p(p)?;
         check_q(q)?;
-        // Rust only: the test s < 0 (cdflib.f90:3100-3107, status -4) is
-        // dropped, since s is a u64.
+        // Unless S is to be computed, make sure it is legal. Rust only: the
+        // test s < 0 (cdflib.f90:3100-3107, status -4) is dropped, since s
+        // is a u64.
         check_pr(pr)?;
         let ompr = 1.0 - pr;
         check_pq(p, q)?;
         let s = s as f64;
 
+        // Calculate XN.
         // cdflib.f90:3238-3278
         let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -272,7 +285,8 @@ impl Binomial {
         check_p(p)?;
         check_q(q)?;
         check_xn(n)?;
-        // cdflib.f90:3097-3116 (status -4). Rust only: the test s < 0 is
+        // Unless S is to be computed, make sure it is legal.
+        // cdflib.f90:3098-3116 (status -4). Rust only: the test s < 0 is
         // dropped, since s is a u64.
         if n < s {
             return Err(BinomialError::SuccessesExceedTrials { s, n });
@@ -281,6 +295,7 @@ impl Binomial {
         let xn = n as f64;
         let s = s as f64;
 
+        // Calculate PR and OMPR.
         // cdflib.f90:3284-3334
         let search = dstzr(0.0, 1.0, ATOL, TOL);
         let (pr, z) = if p <= q {
@@ -341,6 +356,7 @@ impl Binomial {
         let pr = self.pr;
         let ompr = 1.0 - pr;
 
+        // Calculate S.
         // cdflib.f90:3194-3232
         let mut d = dstinv(0.0, xn, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -369,6 +385,7 @@ impl DiscreteCdf for Binomial {
     fn cdf(&self, s: u64) -> f64 {
         // Rust only: no status -4 for n < s (cdflib.f90:3108-3114); cumbin
         // returns (1, 0) there. The test s < 0 is vacuous for a u64.
+        // Calculate P and Q.
         // cdflib.f90:3187
         cumbin(s as f64, self.n as f64, self.pr, 1.0 - self.pr).0
     }
@@ -378,6 +395,7 @@ impl DiscreteCdf for Binomial {
     fn ccdf(&self, s: u64) -> f64 {
         // Rust only: no status -4 for n < s (cdflib.f90:3108-3114); cumbin
         // returns (1, 0) there. The test s < 0 is vacuous for a u64.
+        // Calculate P and Q.
         // cdflib.f90:3187
         cumbin(s as f64, self.n as f64, self.pr, 1.0 - self.pr).1
     }
@@ -508,8 +526,8 @@ mod tests {
     #[cfg(not(miri))]
     #[test]
     fn ln_pmf_at_a_large_mode() {
-        // The three ln Γ terms of ln C(n,s) are up to about 2 · 10¹⁰ and
-        // cancel to about 3 · 10⁸.
+        // The three ln Γ terms of ln C(n,s) are up to about 2·10¹⁰ and
+        // cancel to about 3·10⁸.
         let b = Binomial::new(1_000_000_000, 0.1);
         assert!((b.ln_pmf(100_000_000) + 10.076598648194535).abs() < 1e-7);
         let b = Binomial::new(1_000_000_000_000, 0.3);

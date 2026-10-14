@@ -13,7 +13,7 @@ const TOL: f64 = 1.0e-8;
 
 /// Γ distribution with *α* > 0 (shape) and *β* > 0 (rate). Mean = *α*/*β*.
 ///
-/// Density *f*(*x*; *α*, *β*) = (*βᵅ* / Γ(*α*)) · *xᵅ* ⁻ ¹ · exp(−*β*·*x*) for
+/// Density *f*(*x*; *α*, *β*) = (*βᵅ* / Γ(*α*)) · *xᵅ* ⁻ ¹ · exp(−*β*·*x*) for
 /// *x* > 0. The CDF reduces to the regularized incomplete Γ function:
 /// *F*(*x*; *α*, *β*) = *P*(*α*, *β*·*x*).
 ///
@@ -140,11 +140,12 @@ pub enum GammaError {
 /// Returns the cumulative Γ distribution (*cum*, *ccum*) at *x* with shape
 /// parameter *a* and unit rate (`cumgam`, cdflib.f90:7455).
 ///
-/// CDFLIB passes on the error value of `gamma_inc` unchecked; here it is
+/// CDFLIB passes on the error value of [`gamma_inc`] unchecked; here it is
 /// returned as the [`GammaIncError`] of [`try_gamma_inc`].
 ///
 /// [`GammaIncError`]: crate::special::GammaIncError
 /// [`try_gamma_inc`]: crate::special::try_gamma_inc
+/// [`gamma_inc`]: crate::special::gamma_inc
 #[inline]
 pub(crate) fn cumgam(x: f64, a: f64) -> Result<(f64, f64), GammaIncError> {
     if x <= 0.0 {
@@ -154,6 +155,10 @@ pub(crate) fn cumgam(x: f64, a: f64) -> Result<(f64, f64), GammaIncError> {
     }
 }
 
+// Check the arguments. The F90 test of which (cdflib.f90:4981-5001,
+// status -1) has no counterpart, since each which is a separate method.
+
+// Unless P is to be computed, make sure it is legal.
 // cdflib.f90:5003-5021 (status -2). Rust also rejects NaN.
 #[inline]
 fn check_p(p: f64) -> Result<(), GammaError> {
@@ -163,6 +168,7 @@ fn check_p(p: f64) -> Result<(), GammaError> {
     Ok(())
 }
 
+// Unless Q is to be computed, make sure it is legal.
 // cdflib.f90:5023-5041 (status -3). Rust also rejects NaN.
 #[inline]
 fn check_q(q: f64) -> Result<(), GammaError> {
@@ -172,6 +178,7 @@ fn check_q(q: f64) -> Result<(), GammaError> {
     Ok(())
 }
 
+// Unless X is to be computed, make sure it is legal.
 // cdflib.f90:5043-5054 (status -4). Rust also rejects x = 0 and a
 // non-finite x.
 #[inline]
@@ -185,6 +192,7 @@ fn check_x(x: f64) -> Result<(), GammaError> {
     Ok(())
 }
 
+// Unless SHAPE is to be computed, make sure it is legal.
 // cdflib.f90:5056-5067 (status -5). Rust also rejects a non-finite shape.
 #[inline]
 fn check_shape(shape: f64) -> Result<(), GammaError> {
@@ -197,6 +205,7 @@ fn check_shape(shape: f64) -> Result<(), GammaError> {
     Ok(())
 }
 
+// Unless SCALE is to be computed, make sure it is legal.
 // cdflib.f90:5069-5080 (status -6). Rust also rejects a non-finite rate.
 #[inline]
 fn check_rate(rate: f64) -> Result<(), GammaError> {
@@ -209,6 +218,7 @@ fn check_rate(rate: f64) -> Result<(), GammaError> {
     Ok(())
 }
 
+// Check that P + Q = 1.
 // cdflib.f90:5082-5092 (status 3).
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), GammaError> {
@@ -284,9 +294,13 @@ impl Gamma {
         check_x(x)?;
         check_rate(rate)?;
         check_pq(p, q)?;
+        // Select the minimum of P or Q. The F90 porq = min(p, q)
+        // (cdflib.f90:5094-5098) is read only by the status 10 test of
+        // which = 1, which does not set it.
         // F90 SCALE.
         let scale = rate;
 
+        // Calculate SHAPE.
         // cdflib.f90:5128-5178
         let xscale = x * scale;
         // Rust only: where xscale is +inf, the probability is 1 for every
@@ -349,7 +363,11 @@ impl Gamma {
         check_x(x)?;
         check_shape(shape)?;
         check_pq(p, q)?;
+        // Select the minimum of P or Q. The F90 porq = min(p, q)
+        // (cdflib.f90:5094-5098) is read only by the status 10 test of
+        // which = 1, which does not set it.
 
+        // Calculate SCALE.
         // cdflib.f90:5182-5191. A negative ierr (status 10) is the
         // GammaIncInvError of try_gamma_inc_inv.
         let xx = match try_gamma_inc_inv(shape, -1.0, p, q) {
@@ -379,6 +397,11 @@ impl Gamma {
     fn search_x(&self, p: f64, q: f64) -> Result<f64, GammaError> {
         // F90 SCALE.
         let scale = self.rate;
+        // Select the minimum of P or Q. The F90 porq = min(p, q)
+        // (cdflib.f90:5094-5098) is read only by the status 10 test of
+        // which = 1, which does not set it.
+
+        // Calculate X.
         // cdflib.f90:5114-5124. A negative ierr (status 10) is the
         // GammaIncInvError of try_gamma_inc_inv.
         let (xx, _ierr) = try_gamma_inc_inv(self.shape, -1.0, p, q)?;
@@ -422,8 +445,10 @@ impl ContinuousCdf for Gamma {
     ///
     /// # Panics
     ///
-    /// Panics where `gamma_inc` cannot compute its result, which needs
-    /// shape > 6.6 · 10²⁸ and *β*·*x* within a few ulps of the shape.
+    /// Panics where [`gamma_inc`] cannot compute its result, which needs
+    /// shape > 6.6·10²⁸ and *β*·*x* within a few ulps of the shape.
+    ///
+    /// [`gamma_inc`]: crate::special::gamma_inc
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
         // Rust only: NaN for a NaN x.
@@ -432,6 +457,7 @@ impl ContinuousCdf for Gamma {
         }
         // Rust only: no status -4 for x < 0 (cdflib.f90:5043-5054); cumgam
         // returns (0, 1) there.
+        // Calculate P and Q.
         // cdflib.f90:5102-5110. F90 sets status 10 for the error value of
         // gamma_inc by testing porq, which is not set when which = 1.
         let xscale = x * self.rate;
@@ -454,10 +480,11 @@ impl ContinuousCdf for Gamma {
     ///
     /// # Panics
     ///
-    /// Panics where `gamma_inc` cannot compute its result, which needs
-    /// shape > 6.6 · 10²⁸ and *β*·*x* within a few ulps of the shape.
+    /// Panics where [`gamma_inc`] cannot compute its result, which needs
+    /// shape > 6.6·10²⁸ and *β*·*x* within a few ulps of the shape.
     ///
     /// [`cdf`]: ContinuousCdf::cdf
+    /// [`gamma_inc`]: crate::special::gamma_inc
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
         // Rust only: NaN for a NaN x.
@@ -466,6 +493,7 @@ impl ContinuousCdf for Gamma {
         }
         // Rust only: no status -4 for x < 0 (cdflib.f90:5043-5054); cumgam
         // returns (0, 1) there.
+        // Calculate P and Q.
         // cdflib.f90:5102-5110. F90 sets status 10 for the error value of
         // gamma_inc by testing porq, which is not set when which = 1.
         let xscale = x * self.rate;
@@ -483,7 +511,7 @@ impl ContinuousCdf for Gamma {
 
     /// CDFLIB's `cdfgam` with `which = 2`, with *q* = 1 − *p*. A *p* so
     /// small that the quantile underflows gives [`NoSolution`] (in
-    /// [`GammaIncInv`]), as for shape 0.159, rate 1 and *p* = 2.47 · 10⁻²¹⁷.
+    /// [`GammaIncInv`]), as for shape 0.159, rate 1 and *p* = 2.47·10⁻²¹⁷.
     ///
     /// [`GammaIncInv`]: GammaError::GammaIncInv
     /// [`NoSolution`]: crate::special::GammaIncInvError::NoSolution

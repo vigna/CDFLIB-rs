@@ -251,10 +251,11 @@ The port is semantically faithful: every algorithmic decision, polynomial
 coefficient, branch threshold, and truncation depth matches `cdflib.f90` to the
 digit. The intentional structural divergences are:
 
-- There is no silent error returned as a special value, or errors returned as an
-  integer index. Fallible functions return a `Result` with a documented error
-  type. The error types are designed to be as specific as possible about the
-  nature of the error.
+- Errors that CDFLIB reports through a status code, an error index, a printed
+  message, or a special return value are returned as a `Result` with a
+  documented error type, as specific as possible about the nature of the error.
+  Where CDFLIB ends at a meaningless or wrong value without flagging an error,
+  so does the port (see [`SearchError`]).
 - Constructors and fallible special functions come in pairs: a `try_` form
   returning the `Result`, and an infallible variant that panics on errors and is
   documented as such. The quantile and search methods (`inverse_cdf`,
@@ -272,16 +273,27 @@ digit. The intentional structural divergences are:
   distribution (for the discrete distributions, `which = 2` is the real-valued
   `inverse_ccdf`). The `cum*` routines are crate-private functions with their
   Fortran names.
+- The methods take *x* alone for the pair (*x*, *y*) of `cdfbet`, and *pr*
+  alone for the pair (*pr*, *ompr*) of `cdfbin` and `cdfnbn`, so the checks on
+  *y*, *ompr*, and their sums cannot fail; the searches take both *p* and *q*,
+  except those of `cdfchn` and `cdffnc`, which do not use *q*. Some parameters
+  have conventional names: the rate of [`Gamma`] is the `scale` of `cdfgam`,
+  the *r* and *s* of the negative binomial are the `s` and `f` of `cdfnbn`, the
+  noncentrality `ncp` is `pnonc`, the number of trials `n` is `xn`, and the
+  Poisson `lambda` is `xlam`.
 - `dinvr` and `dzror` (the reverse-communication root finders) live as internal
   state machines in `crate::search`. They are not part of the public surface.
 - Each distribution drives its searches with the same constants, `dstinv` or
   `dstzr` arguments, and reverse-communication loop as the Fortran.
 - Where the Fortran never returns, the Rust returns NaN or an error (the
   noncentral _F_ distribution panics when its series sums to NaN); where a
-  Fortran default integer would overflow, the Rust panics. The distribution
-  methods also handle the ends of the support, infinite and NaN arguments, and
-  parameters that a search computes but the constructor would reject. Each such
-  place is marked “Rust only” or “Rust also” in the source.
+  Fortran default integer would overflow, the Rust panics. The Γ, χ², and
+  noncentral χ² [`cdf`] and [`ccdf`] panic where `gamma_inc` fails, a case
+  that CDFLIB passes on as a probability of 2. The distribution methods also
+  handle the ends of the support, infinite and NaN arguments, and parameters
+  that a search computes but the constructor would reject; the constructors
+  also reject non-finite parameters. Each such place is marked “Rust only” or
+  “Rust also” in the source.
 
 The lower-level CDFLIB-style helpers ([`algdiv`], [`bcorr`], [`gam1`], [`rlog`],
 etc.) live in [`cdflib::special::internal`] so the user-facing
@@ -305,7 +317,10 @@ including the iteration traces of the root finders and the status of every
 library.
 `tests/regenerate/coverage.sh` checks that the generators execute every line of
 `cdflib.f90` except those listed, with a reason, in
-`tests/regenerate/unreachable.txt`.
+`tests/regenerate/unreachable.txt`, and `tests/regenerate/rust_branch_coverage.sh`
+(nightly Rust with the `llvm-tools` component) checks that the tests comparing
+with the CSV fixtures take both sides of every branch of the ported Rust code
+except those listed, with a reason, in `tests/regenerate/branch_allowlist.txt`.
 
 The code has been extensively tested against the original Fortran 90 and C
 sources. In the process, we found [serious bugs in `rmathlib`] and bugs in the
@@ -346,6 +361,7 @@ function instead of the library's own `gamma_user`.
 [`inverse_cdf`]: https://docs.rs/cdflib/latest/cdflib/traits/trait.ContinuousCdf.html#tymethod.inverse_cdf
 [`inverse_ccdf`]: https://docs.rs/cdflib/latest/cdflib/struct.Normal.html#method.inverse_ccdf
 [`SearchError`]: https://docs.rs/cdflib/latest/cdflib/error/enum.SearchError.html
+[`Gamma`]: https://docs.rs/cdflib/latest/cdflib/struct.Gamma.html
 [Fortran 90]: https://people.sc.fsu.edu/~jburkardt/f_src/cdflib/cdflib.html
 [Fortran 77]: https://people.sc.fsu.edu/~jburkardt/f77_src/cdflib/cdflib.html
 [C]: https://people.sc.fsu.edu/~jburkardt/c_src/cdflib/cdflib.html

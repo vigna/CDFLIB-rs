@@ -98,10 +98,11 @@ pub enum PoissonError {
 /// Returns the cumulative Poisson distribution (*cum*, *ccum*) of *s* or
 /// fewer events with mean *xlam* (`cumpoi`, cdflib.f90:7796).
 ///
-/// The error value of `gamma_inc`, which CDFLIB passes on unchecked, is
+/// The error value of [`gamma_inc`], which CDFLIB passes on unchecked, is
 /// returned as a [`GammaIncError`].
 ///
 /// [`GammaIncError`]: crate::special::GammaIncError
+/// [`gamma_inc`]: crate::special::gamma_inc
 #[inline]
 pub(crate) fn cumpoi(s: f64, xlam: f64) -> Result<(f64, f64), GammaIncError> {
     let df = 2.0 * (s + 1.0);
@@ -122,6 +123,10 @@ fn cumpoi_or_panic(s: f64, xlam: f64) -> (f64, f64) {
     }
 }
 
+// Check the arguments. The F90 test of which (cdflib.f90:5990-6010,
+// status -1) has no counterpart, since each which is a separate method.
+
+// Unless P is to be computed, make sure it is legal.
 // cdflib.f90:6012-6030 (status -2). Rust also rejects NaN.
 #[inline]
 fn check_p(p: f64) -> Result<(), PoissonError> {
@@ -131,6 +136,7 @@ fn check_p(p: f64) -> Result<(), PoissonError> {
     Ok(())
 }
 
+// Unless Q is to be computed, make sure it is legal.
 // cdflib.f90:6032-6050 (status -3). Rust also rejects NaN.
 #[inline]
 fn check_q(q: f64) -> Result<(), PoissonError> {
@@ -140,6 +146,7 @@ fn check_q(q: f64) -> Result<(), PoissonError> {
     Ok(())
 }
 
+// Unless XLAM is to be computed, make sure it is legal.
 // cdflib.f90:6065-6076 (status -5). Rust also rejects an xlam for which
 // chi = 2 * xlam in cumpoi is not finite, which gives NaN there.
 #[inline]
@@ -153,6 +160,7 @@ fn check_xlam(xlam: f64) -> Result<(), PoissonError> {
     Ok(())
 }
 
+// Check that P + Q = 1.
 // cdflib.f90:6078-6088 (status 3).
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), PoissonError> {
@@ -210,11 +218,13 @@ impl Poisson {
     pub fn search_lambda(p: f64, q: f64, s: u64) -> Result<f64, PoissonError> {
         check_p(p)?;
         check_q(q)?;
-        // Rust only: the test s < 0 (cdflib.f90:6054-6063, status -4) is
-        // dropped, since s is a u64.
+        // Unless S is to be computed, make sure it is legal. Rust only: the
+        // test s < 0 (cdflib.f90:6054-6063, status -4) is dropped, since s
+        // is a u64.
         check_pq(p, q)?;
         let s = s as f64;
 
+        // Calculate XLAM.
         // cdflib.f90:6145-6183
         let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -243,13 +253,14 @@ impl Poisson {
     ///
     /// # Panics
     ///
-    /// Panics where `gamma_inc` fails inside the search, which needs *λ*
-    /// beyond 6.6 · 10²⁸ and *s* + 1 within a few ulps of it, as when *λ* is
+    /// Panics where [`gamma_inc`] fails inside the search, which needs *λ*
+    /// beyond 6.6·10²⁸ and *s* + 1 within a few ulps of it, as when *λ* is
     /// within a few ulps of the search bound 10³⁰⁰.
     ///
     /// [cdf]: crate::traits::DiscreteCdf::cdf
     /// [`inverse_cdf`]: crate::traits::DiscreteCdf::inverse_cdf
     /// [`u64::MAX`]: u64::MAX
+    /// [`gamma_inc`]: crate::special::gamma_inc
     #[inline]
     pub fn inverse_ccdf(&self, q: f64) -> Result<f64, PoissonError> {
         check_q(q)?;
@@ -262,6 +273,7 @@ impl Poisson {
         let p = 1.0 - q;
         let xlam = self.lambda;
 
+        // Calculate S.
         // cdflib.f90:6101-6139
         let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -290,6 +302,7 @@ impl DiscreteCdf for Poisson {
     fn cdf(&self, s: u64) -> f64 {
         // Rust only: the test s < 0 (cdflib.f90:6054-6063) is vacuous for a
         // u64.
+        // Calculate P and Q.
         // cdflib.f90:6094
         cumpoi_or_panic(s as f64, self.lambda).0
     }
@@ -299,6 +312,7 @@ impl DiscreteCdf for Poisson {
     fn ccdf(&self, s: u64) -> f64 {
         // Rust only: the test s < 0 (cdflib.f90:6054-6063) is vacuous for a
         // u64.
+        // Calculate P and Q.
         // cdflib.f90:6094
         cumpoi_or_panic(s as f64, self.lambda).1
     }
@@ -363,7 +377,7 @@ mod tests {
             Err(PoissonError::LambdaNegative(_))
         ));
         // λ = 0 is the degenerate point mass at 0; CDFLIB accepts it
-        // (cdflib.f90:6065-6076 reject only xlam < 0), so the Rust port does too.
+        // (cdflib.f90:6065-6076 reject only xlam < 0), and so does the Rust.
         assert!(Poisson::try_new(0.0).is_ok());
         assert!(matches!(
             Poisson::try_new(f64::NAN),

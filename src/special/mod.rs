@@ -135,13 +135,13 @@ pub(crate) fn exparg(l: i32) -> f64 {
     }
 }
 
-#[cfg(test)]
+// The only test reads a file, which Miri isolation forbids.
+#[cfg(all(test, not(miri)))]
 mod tests {
     use super::*;
 
     // tests/data/exparg.csv is written by tests/regenerate/gen_kernel_coverage.f90.
     #[test]
-    #[cfg(not(miri))]
     fn exparg_matches_reference() {
         let text = std::fs::read_to_string("tests/data/exparg.csv").unwrap();
         let mut rows = 0;

@@ -104,7 +104,11 @@ pub(crate) fn cumt(t: f64, df: f64) -> (f64, f64) {
     }
 }
 
-// cdflib.f90:6328-6347 (status -2). Rust also rejects NaN.
+// Check the arguments. The F90 test of which (cdflib.f90:6307-6327,
+// status -1) has no counterpart, since each which is a separate method.
+
+// Unless P is to be computed, make sure it is legal.
+// cdflib.f90:6329-6347 (status -2). Rust also rejects NaN.
 #[inline]
 fn check_p(p: f64) -> Result<(), StudentsTError> {
     if p < 0.0 || 1.0 < p || p.is_nan() {
@@ -113,7 +117,8 @@ fn check_p(p: f64) -> Result<(), StudentsTError> {
     Ok(())
 }
 
-// cdflib.f90:6348-6367 (status -3). Rust also rejects NaN.
+// Unless Q is to be computed, make sure it is legal.
+// cdflib.f90:6349-6367 (status -3). Rust also rejects NaN.
 #[inline]
 fn check_q(q: f64) -> Result<(), StudentsTError> {
     if q < 0.0 || 1.0 < q || q.is_nan() {
@@ -122,7 +127,8 @@ fn check_q(q: f64) -> Result<(), StudentsTError> {
     Ok(())
 }
 
-// cdflib.f90:6368-6380 (status -5). Rust also rejects a non-finite df.
+// Unless DF is to be computed, make sure it is legal.
+// cdflib.f90:6369-6380 (status -5). Rust also rejects a non-finite df.
 #[inline]
 fn check_df(df: f64) -> Result<(), StudentsTError> {
     if df <= 0.0 {
@@ -134,7 +140,8 @@ fn check_df(df: f64) -> Result<(), StudentsTError> {
     Ok(())
 }
 
-// cdflib.f90:6381-6393 (status 3).
+// Check that P + Q = 1.
+// cdflib.f90:6382-6393 (status 3).
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), StudentsTError> {
     if 3.0 * f64::EPSILON < ((p + q) - 1.0).abs() {
@@ -194,6 +201,7 @@ impl StudentsT {
             return Err(StudentsTError::TNotFinite(t));
         }
 
+        // Calculate DF.
         // cdflib.f90:6450-6488
         let mut d = dstinv(1.0, MAXDF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -217,6 +225,7 @@ impl StudentsT {
     /// already checked.
     fn search_t(&self, p: f64, q: f64) -> Result<f64, StudentsTError> {
         let df = self.df;
+        // Calculate T.
         // cdflib.f90:6406-6444
         let mut d = dstinv(-INF, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(dt1(p, q, df))?;
         while d.status() == 1 {
@@ -270,6 +279,7 @@ impl ContinuousCdf for StudentsT {
         if t.is_nan() {
             return f64::NAN;
         }
+        // Calculate P and Q.
         // cdflib.f90:6399
         cumt(t, self.df).0
     }
@@ -281,6 +291,7 @@ impl ContinuousCdf for StudentsT {
         if t.is_nan() {
             return f64::NAN;
         }
+        // Calculate P and Q.
         // cdflib.f90:6399
         cumt(t, self.df).1
     }

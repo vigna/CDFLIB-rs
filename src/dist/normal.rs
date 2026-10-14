@@ -88,7 +88,11 @@ pub enum NormalError {
     PQSumNotOne { p: f64, q: f64 },
 }
 
-// cdflib.f90:5784-5803 (status -2). Rust also rejects NaN.
+// Check the arguments. The F90 test of which (cdflib.f90:5763-5783,
+// status -1) has no counterpart, since each which is a separate method.
+
+// Unless P is to be computed, make sure it is legal.
+// cdflib.f90:5785-5803 (status -2). Rust also rejects NaN.
 #[inline]
 fn check_p(p: f64) -> Result<(), NormalError> {
     if p < 0.0 || 1.0 < p || p.is_nan() {
@@ -97,7 +101,8 @@ fn check_p(p: f64) -> Result<(), NormalError> {
     Ok(())
 }
 
-// cdflib.f90:5804-5823 (status -3). Rust also rejects NaN.
+// Unless Q is to be computed, make sure it is legal.
+// cdflib.f90:5805-5823 (status -3). Rust also rejects NaN.
 #[inline]
 fn check_q(q: f64) -> Result<(), NormalError> {
     if q < 0.0 || 1.0 < q || q.is_nan() {
@@ -106,7 +111,8 @@ fn check_q(q: f64) -> Result<(), NormalError> {
     Ok(())
 }
 
-// cdflib.f90:5824-5835 (status 3).
+// Check that P + Q = 1.
+// cdflib.f90:5825-5835 (status 3).
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), NormalError> {
     if 3.0 * f64::EPSILON < ((p + q) - 1.0).abs() {
@@ -232,6 +238,7 @@ impl Normal {
         if q == 0.0 {
             return Err(NormalError::MeanNotFinite(f64::NEG_INFINITY));
         }
+        // Calculate MEAN.
         // cdflib.f90:5864-5867
         let z = dinvnr(p, q);
         let mean = x - sd * z;
@@ -268,6 +275,7 @@ impl Normal {
         if p == 0.0 || q == 0.0 {
             return Err(NormalError::SdNotPositive(0.0));
         }
+        // Calculate SD.
         // cdflib.f90:5871-5874
         let z = dinvnr(p, q);
         let sd = (x - mean) / z;
@@ -284,9 +292,11 @@ impl Normal {
     /// Returns the quantile *x* such that [ccdf]\(*x*\) = *q*.
     ///
     /// CDFLIB's `cdfnor` with `which = 2`, with *p* = 1 − *q*, so that a
-    /// small right-tail probability *q* keeps its precision.
+    /// small right-tail probability *q* keeps its precision. For a subnormal
+    /// *q*, the answer has a relative error of about 10⁻⁵ (see [`dinvnr`]).
     ///
     /// [ccdf]: crate::traits::ContinuousCdf::ccdf
+    /// [`dinvnr`]: crate::special::dinvnr
     #[inline]
     pub fn inverse_ccdf(&self, q: f64) -> Result<f64, NormalError> {
         check_q(q)?;
@@ -298,6 +308,7 @@ impl Normal {
             return Ok(f64::NEG_INFINITY);
         }
         let p = 1.0 - q;
+        // Calculate X.
         // cdflib.f90:5857-5860
         let z = dinvnr(p, q);
         let x = self.sd * z + self.mean;
@@ -315,6 +326,7 @@ impl ContinuousCdf for Normal {
         if x.is_nan() {
             return f64::NAN;
         }
+        // Calculate P and Q.
         let z = self.standardize(x);
         // Rust only: exact endpoints where z * 16 overflows in cumnor
         // (cdflib.f90:7774), which then gives NaN; this includes x = ±inf.
@@ -332,6 +344,7 @@ impl ContinuousCdf for Normal {
         if x.is_nan() {
             return f64::NAN;
         }
+        // Calculate P and Q.
         let z = self.standardize(x);
         // Rust only: exact endpoints where z * 16 overflows in cumnor
         // (cdflib.f90:7774), which then gives NaN; this includes x = ±inf.
@@ -346,9 +359,11 @@ impl ContinuousCdf for Normal {
     ///
     /// For *p* > 1/2, *q* = 1 − *p* is no finer than the spacing of the
     /// doubles near 1: for a small right-tail probability, call
-    /// [`inverse_ccdf`] with *q*.
+    /// [`inverse_ccdf`] with *q*. For a subnormal *p*, the answer has a
+    /// relative error of about 10⁻⁵ (see [`dinvnr`]).
     ///
     /// [`inverse_ccdf`]: Normal::inverse_ccdf
+    /// [`dinvnr`]: crate::special::dinvnr
     #[inline]
     fn inverse_cdf(&self, p: f64) -> Result<f64, NormalError> {
         check_p(p)?;
@@ -360,6 +375,7 @@ impl ContinuousCdf for Normal {
             return Ok(f64::INFINITY);
         }
         let q = 1.0 - p;
+        // Calculate X.
         // cdflib.f90:5857-5860
         let z = dinvnr(p, q);
         let x = self.sd * z + self.mean;

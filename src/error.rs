@@ -21,12 +21,12 @@ use thiserror::Error;
 /// larger of an absolute tolerance of 10⁻¹⁰ (10⁻⁵⁰ for the noncentral χ²)
 /// and a relative tolerance of 10⁻⁸, so answers below about 10⁻¹⁰ are not
 /// resolved: [`ChiSquared`]`::new(1.0).inverse_cdf(1e-6)` returns 0
-/// instead of 1.6 · 10⁻¹². The inverses of the normal and Γ distributions
+/// instead of 1.6·10⁻¹². The inverses of the normal and Γ distributions
 /// do not use these searches.
 ///
 /// Also as in CDFLIB, a search ends without an error at a meaningless
 /// point where the function it searches is NaN (cdflib.f90:8469-8474), as
-/// for Β and *F* distributions with a parameter above about 2 · 10³⁰⁷, and
+/// for Β and *F* distributions with a parameter above about 2·10³⁰⁷, and
 /// at a wrong answer where that function is wrong, as in the left tails of
 /// the noncentral χ² and *F* distributions:
 /// [`ChiSquaredNoncentral`]`::search_ncp(1e-10, 0.1, 0.5)` returns about
@@ -37,7 +37,7 @@ use thiserror::Error;
 /// fail naming the wrong bound, because `dzror` compares signs through a
 /// product that underflows (cdflib.f90:9100):
 /// [`ChiSquared`]`::new(10.0).inverse_ccdf(1e-200)` returns about 1176.25,
-/// where the upper tail is about 2 · 10⁻²⁴⁶.
+/// where the upper tail is about 2·10⁻²⁴⁶.
 ///
 /// [`ChiSquared`]: crate::ChiSquared
 /// [`ChiSquaredNoncentral`]: crate::ChiSquaredNoncentral

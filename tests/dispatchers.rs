@@ -211,10 +211,10 @@ fn cdff_dfd_matches_fisher_snedecor_search_dfd() {
 #[test]
 fn cdffnc_f_matches_fisher_snedecor_noncentral_inverse_cdf() {
     for row in read_csv("tests/data/cdffnc_f.csv") {
-        let [p, _q, dfn, dfd, phonc, f_ref] = row[..] else {
+        let [p, _q, dfn, dfd, pnonc, f_ref] = row[..] else {
             panic!("width")
         };
-        let got = FisherSnedecorNoncentral::new(dfn, dfd, phonc)
+        let got = FisherSnedecorNoncentral::new(dfn, dfd, pnonc)
             .inverse_cdf(p)
             .unwrap();
         assert_exact(got, f_ref, &row);
@@ -224,10 +224,10 @@ fn cdffnc_f_matches_fisher_snedecor_noncentral_inverse_cdf() {
 #[test]
 fn cdffnc_dfn_matches_fisher_snedecor_noncentral_search_dfn() {
     for row in read_csv("tests/data/cdffnc_dfn.csv") {
-        let [p, _q, f, dfd, phonc, dfn_ref] = row[..] else {
+        let [p, _q, f, dfd, pnonc, dfn_ref] = row[..] else {
             panic!("width")
         };
-        let got = FisherSnedecorNoncentral::search_dfn(p, f, dfd, phonc).unwrap();
+        let got = FisherSnedecorNoncentral::search_dfn(p, f, dfd, pnonc).unwrap();
         assert_exact(got, dfn_ref, &row);
     }
 }
@@ -235,17 +235,17 @@ fn cdffnc_dfn_matches_fisher_snedecor_noncentral_search_dfn() {
 #[test]
 fn cdffnc_dfd_matches_fisher_snedecor_noncentral_search_dfd() {
     for row in read_csv("tests/data/cdffnc_dfd.csv") {
-        let [p, _q, f, dfn, phonc, dfd_ref] = row[..] else {
+        let [p, _q, f, dfn, pnonc, dfd_ref] = row[..] else {
             panic!("width")
         };
-        let got = FisherSnedecorNoncentral::search_dfd(p, f, dfn, phonc).unwrap();
+        let got = FisherSnedecorNoncentral::search_dfd(p, f, dfn, pnonc).unwrap();
         assert_exact(got, dfd_ref, &row);
     }
 }
 
 #[test]
 fn cdffnc_pnonc_matches_fisher_snedecor_noncentral_search_ncp() {
-    for row in read_csv("tests/data/cdffnc_phonc.csv") {
+    for row in read_csv("tests/data/cdffnc_pnonc.csv") {
         let [p, _q, f, dfn, dfd, ncp_ref] = row[..] else {
             panic!("width")
         };

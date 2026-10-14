@@ -151,7 +151,7 @@ pub fn rlog(x: f64) -> f64 {
             u = (x - HALF) - HALF;
             w1 = 0.0;
         } else {
-            // cdflib.f90 tests x < 1.57 again here; it always holds.
+            // cdflib.f90:14027 tests x < 1.57 again here; it always holds.
             u = 0.75 * x - 1.0;
             w1 = B + u / 3.0;
         }
@@ -892,7 +892,7 @@ pub fn dstrem(z: f64) -> f64 {
     }
 }
 
-/// Evaluates exp(−*x*) · *x*ᵃ / Γ(*a*) (cdflib.f90:13806).
+/// Evaluates exp(−*x*) · *xᵃ* / Γ(*a*) (cdflib.f90:13806).
 #[inline]
 #[allow(clippy::assign_op_pattern)]
 pub fn rcomp(a: f64, x: f64) -> f64 {
@@ -1294,9 +1294,10 @@ pub fn try_gamma_inc_with_acc(
     }
 
     // Rust only: when x is NaN, F90 reaches label 100 and loops forever,
-    // unless big <= a, where it first computes z = rlog(NaN), which rlog
-    // leaves unassigned (cdflib.f90:10772), so that its result is
-    // undefined; the same happens when a = x = +inf. Return NaN instead.
+    // unless big <= a, where it first computes z = rlog(NaN)
+    // (cdflib.f90:10772), which rlog leaves unassigned
+    // (cdflib.f90:14009-14044), so that its result is undefined; the same
+    // happens when a = x = +inf. Return NaN instead.
     if x.is_nan() || (a == f64::INFINITY && x == f64::INFINITY) {
         return Ok((f64::NAN, f64::NAN));
     }
@@ -1789,12 +1790,12 @@ pub enum GammaIncInvError {
     ANotPositive(f64),
     /// No solution was obtained: the ratio *q*/*a* is too large, or *p* is
     /// so small that the solution underflows, as for *a* = 0.159 and
-    /// *p* = 2.47 · 10⁻²¹⁷ (`ierr` = −3).
-    #[error("no solution: q/a is too large")]
+    /// *p* = 2.47·10⁻²¹⁷ (`ierr` = −3).
+    #[error("no solution: q/a is too large or the solution underflows")]
     NoSolution,
     /// *p* + *q* ≠ 1 (`ierr` = −4). Rust also returns it when *p* or *q* is
     /// NaN or negative, which the F90 does not check.
-    #[error("inconsistent inputs: p + q must equal 1")]
+    #[error("inconsistent inputs: p and q must be nonnegative with p + q = 1")]
     InconsistentPq,
     /// 20 iterations were performed (`ierr` = −6). Despite the F90
     /// documentation, this can occur with `x0` ≤ 0, for example when the
@@ -1956,7 +1957,8 @@ pub fn try_gamma_inc_inv(a: f64, x0: f64, p: f64, q: f64) -> Result<(f64, u32), 
     }
 
     if q == 0.0 {
-        // x = huge(x) with ierr = 0.
+        // Rust only: the F90 returns x = huge(x) with ierr = 0; the
+        // solution is +inf.
         return Err(GammaIncInvError::AtInfinity);
     }
 
@@ -2284,8 +2286,9 @@ fn schroder_p(
         ierr = ierr + 1;
         // Rust only: the F90 gamma_inc signals failure with ans = 2 and
         // leaves qn unset; map the failure to ierr = -8 with x = xn. It
-        // cannot happen: gamma_inc fails only for a above amax with
-        // |1 - xn/a| <= e2, which returns above.
+        // cannot happen: xn is nonnegative here, and for a positive a
+        // gamma_inc fails only above amax with |1 - xn/a| <= e2, which
+        // returns above.
         let Ok((pn, qn)) = try_gamma_inc(a, xn) else {
             return Err(GammaIncInvError::UncertainAccuracy { value: xn });
         };
@@ -2398,8 +2401,9 @@ fn schroder_q(
         ierr = ierr + 1;
         // Rust only: the F90 gamma_inc signals failure with ans = 2 and
         // leaves qn unset; map the failure to ierr = -8 with x = xn. It
-        // cannot happen: gamma_inc fails only for a above amax with
-        // |1 - xn/a| <= e2, which returns above.
+        // cannot happen: xn is nonnegative here, and for a positive a
+        // gamma_inc fails only above amax with |1 - xn/a| <= e2, which
+        // returns above.
         let Ok((pn, qn)) = try_gamma_inc(a, xn) else {
             return Err(GammaIncInvError::UncertainAccuracy { value: xn });
         };

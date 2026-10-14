@@ -78,6 +78,20 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y gfortran
       - run: tests/regenerate/coverage.sh
 
+  branch-coverage:
+    # The tests that compare with the reference tables take both sides of
+    # every branch of the ported Rust code, except the sides listed in
+    # tests/regenerate/branch_allowlist.txt. Run on macOS on Apple silicon,
+    # where the tests reproduce the reference tables exactly.
+    name: Rust branch coverage of the reference-table tests
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: llvm-tools
+      - run: tests/regenerate/rust_branch_coverage.sh
+
   regenerate:
     # The committed reference tables are what the generators write on
     # macOS on Apple silicon.

@@ -103,10 +103,11 @@ pub enum ChiSquaredError {
 /// Returns the cumulative χ² distribution (*cum*, *ccum*) at *x* with *df*
 /// degrees of freedom (`cumchi`, cdflib.f90:6860).
 ///
-/// The error value of `gamma_inc`, which CDFLIB passes on unchecked, is
+/// The error value of [`gamma_inc`], which CDFLIB passes on unchecked, is
 /// returned as a [`GammaIncError`].
 ///
 /// [`GammaIncError`]: crate::special::GammaIncError
+/// [`gamma_inc`]: crate::special::gamma_inc
 #[inline]
 pub(crate) fn cumchi(x: f64, df: f64) -> Result<(f64, f64), GammaIncError> {
     let a = df * 0.5;
@@ -114,6 +115,10 @@ pub(crate) fn cumchi(x: f64, df: f64) -> Result<(f64, f64), GammaIncError> {
     cumgam(xx, a)
 }
 
+// Check the arguments. The F90 test of which (cdflib.f90:3462-3482,
+// status -1) has no counterpart, since each which is a separate method.
+
+// Unless P is to be computed, make sure it is legal.
 // cdflib.f90:3484-3502 (status -2). Rust also rejects NaN.
 #[inline]
 fn check_p(p: f64) -> Result<(), ChiSquaredError> {
@@ -123,6 +128,7 @@ fn check_p(p: f64) -> Result<(), ChiSquaredError> {
     Ok(())
 }
 
+// Unless Q is to be computed, make sure it is legal.
 // cdflib.f90:3504-3522 (status -3). Rust also rejects NaN.
 #[inline]
 fn check_q(q: f64) -> Result<(), ChiSquaredError> {
@@ -132,6 +138,7 @@ fn check_q(q: f64) -> Result<(), ChiSquaredError> {
     Ok(())
 }
 
+// Unless X is to be computed, make sure it is legal.
 // cdflib.f90:3524-3535 (status -4). Rust also rejects x = 0 and a
 // non-finite x.
 #[inline]
@@ -145,6 +152,7 @@ fn check_x(x: f64) -> Result<(), ChiSquaredError> {
     Ok(())
 }
 
+// Unless DF is to be computed, make sure it is legal.
 // cdflib.f90:3537-3548 (status -5). Rust also rejects a non-finite df.
 #[inline]
 fn check_df(df: f64) -> Result<(), ChiSquaredError> {
@@ -157,6 +165,7 @@ fn check_df(df: f64) -> Result<(), ChiSquaredError> {
     Ok(())
 }
 
+// Check that P + Q = 1.
 // cdflib.f90:3550-3560 (status 3).
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), ChiSquaredError> {
@@ -216,7 +225,10 @@ impl ChiSquared {
         check_q(q)?;
         check_x(x)?;
         check_pq(p, q)?;
+        // Select the minimum of P and Q. The F90 porq = min(p, q)
+        // (cdflib.f90:3562-3566) is read only by the status 10 tests.
 
+        // Calculate DF.
         // cdflib.f90:3634-3677
         let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -249,6 +261,10 @@ impl ChiSquared {
     /// already checked.
     fn search_x(&self, p: f64, q: f64) -> Result<f64, ChiSquaredError> {
         let df = self.df;
+        // Select the minimum of P and Q. The F90 porq = min(p, q)
+        // (cdflib.f90:3562-3566) is read only by the status 10 tests.
+
+        // Calculate X.
         // cdflib.f90:3584-3628
         let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -304,8 +320,10 @@ impl ContinuousCdf for ChiSquared {
     ///
     /// # Panics
     ///
-    /// Panics where `gamma_inc` cannot compute its result, which needs
-    /// *df* > 1.3 · 10²⁹ and *x* within a few ulps of *df*.
+    /// Panics where [`gamma_inc`] cannot compute its result, which needs
+    /// *df* > 1.3·10²⁹ and *x* within a few ulps of *df*.
+    ///
+    /// [`gamma_inc`]: crate::special::gamma_inc
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
         // Rust only: NaN for a NaN x.
@@ -318,6 +336,7 @@ impl ContinuousCdf for ChiSquared {
         }
         // Rust only: no status -4 for x < 0 (cdflib.f90:3524-3535); cumchi
         // returns (0, 1) there.
+        // Calculate P and Q.
         // cdflib.f90:3570-3578. F90 sets status 10 for the error value of
         // gamma_inc by testing porq, which is not set when which = 1.
         // Rust only: panic on the GammaIncError of cumchi.
@@ -334,10 +353,11 @@ impl ContinuousCdf for ChiSquared {
     ///
     /// # Panics
     ///
-    /// Panics where `gamma_inc` cannot compute its result, which needs
-    /// *df* > 1.3 · 10²⁹ and *x* within a few ulps of *df*.
+    /// Panics where [`gamma_inc`] cannot compute its result, which needs
+    /// *df* > 1.3·10²⁹ and *x* within a few ulps of *df*.
     ///
     /// [`cdf`]: ContinuousCdf::cdf
+    /// [`gamma_inc`]: crate::special::gamma_inc
     #[inline]
     fn ccdf(&self, x: f64) -> f64 {
         // Rust only: NaN for a NaN x.
@@ -350,6 +370,7 @@ impl ContinuousCdf for ChiSquared {
         }
         // Rust only: no status -4 for x < 0 (cdflib.f90:3524-3535); cumchi
         // returns (0, 1) there.
+        // Calculate P and Q.
         // cdflib.f90:3570-3578. F90 sets status 10 for the error value of
         // gamma_inc by testing porq, which is not set when which = 1.
         // Rust only: panic on the GammaIncError of cumchi.

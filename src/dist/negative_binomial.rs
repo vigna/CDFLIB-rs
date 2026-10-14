@@ -113,7 +113,11 @@ pub(crate) fn cumnbn(f: f64, s: f64, pr: f64, ompr: f64) -> (f64, f64) {
     cumbet(pr, ompr, s, f + 1.0)
 }
 
-// cdflib.f90:5352-5371 (status -2). Rust also rejects NaN.
+// Check the arguments. The F90 test of which (cdflib.f90:5331-5351,
+// status -1) has no counterpart, since each which is a separate method.
+
+// Unless P is to be computed, make sure it is legal.
+// cdflib.f90:5353-5371 (status -2). Rust also rejects NaN.
 #[inline]
 fn check_p(p: f64) -> Result<(), NegativeBinomialError> {
     if p < 0.0 || 1.0 < p || p.is_nan() {
@@ -122,7 +126,8 @@ fn check_p(p: f64) -> Result<(), NegativeBinomialError> {
     Ok(())
 }
 
-// cdflib.f90:5372-5391 (status -3). Rust also rejects NaN.
+// Unless Q is to be computed, make sure it is legal.
+// cdflib.f90:5373-5391 (status -3). Rust also rejects NaN.
 #[inline]
 fn check_q(q: f64) -> Result<(), NegativeBinomialError> {
     if q < 0.0 || 1.0 < q || q.is_nan() {
@@ -131,10 +136,13 @@ fn check_q(q: f64) -> Result<(), NegativeBinomialError> {
     Ok(())
 }
 
-// cdflib.f90:5418-5437 (status -6). Rust also rejects NaN and pr = 0. OMPR =
-// 1 - PR is derived from pr, so the F90 checks on ompr (status -7,
-// cdflib.f90:5438-5457) and on pr + ompr (status 4, cdflib.f90:5470-5481)
-// cannot fail.
+// Unless PR is to be computed, make sure it is legal.
+// cdflib.f90:5419-5437 (status -6). Rust also rejects NaN and pr = 0.
+//
+// Unless OMPR is to be computed, make sure it is legal. Check that
+// PR + OMPR = 1. Rust only: OMPR = 1 - PR is derived from pr, so these F90
+// checks (status -7, cdflib.f90:5439-5457, and status 4,
+// cdflib.f90:5471-5481) cannot fail.
 #[inline]
 fn check_pr(pr: f64) -> Result<(), NegativeBinomialError> {
     if pr <= 0.0 || 1.0 < pr || pr.is_nan() {
@@ -143,7 +151,8 @@ fn check_pr(pr: f64) -> Result<(), NegativeBinomialError> {
     Ok(())
 }
 
-// cdflib.f90:5458-5469 (status 3).
+// Check that P + Q = 1.
+// cdflib.f90:5459-5469 (status 3).
 #[inline]
 fn check_pq(p: f64, q: f64) -> Result<(), NegativeBinomialError> {
     if 3.0 * f64::EPSILON < ((p + q) - 1.0).abs() {
@@ -217,14 +226,16 @@ impl NegativeBinomial {
     pub fn search_r(p: f64, q: f64, pr: f64, s: u64) -> Result<f64, NegativeBinomialError> {
         check_p(p)?;
         check_q(q)?;
-        // Rust only: the test f < 0 (cdflib.f90:5395-5404, status -4) is
-        // dropped, since s is a u64.
+        // Unless F is to be computed, make sure it is legal. Rust only: the
+        // test f < 0 (cdflib.f90:5395-5404, status -4) is dropped, since s
+        // is a u64.
         check_pr(pr)?;
         let ompr = 1.0 - pr;
         check_pq(p, q)?;
         // F90 F, the number of failures.
         let f = s as f64;
 
+        // Calculate S.
         // cdflib.f90:5538-5576
         let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -261,7 +272,7 @@ impl NegativeBinomial {
     /// reported as [`PrOutOfRange`]. Where the answer is 0 or 1, as at
     /// *p* = 0 and *p* = 1, the result is only within the search tolerance
     /// of it (see [`SearchError`]): `search_pr(0.0, 1.0, 3, 3)` returns
-    /// 5 · 10⁻¹¹.
+    /// 5·10⁻¹¹.
     ///
     /// [`SearchError`]: crate::SearchError
     /// [`RNotPositive`]: NegativeBinomialError::RNotPositive
@@ -270,10 +281,12 @@ impl NegativeBinomial {
     pub fn search_pr(p: f64, q: f64, r: u64, s: u64) -> Result<f64, NegativeBinomialError> {
         check_p(p)?;
         check_q(q)?;
-        // Rust only: the tests f < 0 (cdflib.f90:5395-5404, status -4) and
-        // s < 0 (cdflib.f90:5408-5417, status -5) are dropped, since s and r
-        // are u64. Rust rejects r = 0, as try_new does, where the F90 accepts
-        // s = 0 and returns a meaningless pr.
+        // Unless F is to be computed, make sure it is legal. Unless S is to
+        // be computed, make sure it is legal. Rust only: the tests f < 0
+        // (cdflib.f90:5395-5404, status -4) and s < 0 (cdflib.f90:5408-5417,
+        // status -5) are dropped, since s and r are u64. Rust rejects r = 0,
+        // as try_new does, where the F90 accepts s = 0 and returns a
+        // meaningless pr.
         if r == 0 {
             return Err(NegativeBinomialError::RNotPositive);
         }
@@ -282,6 +295,7 @@ impl NegativeBinomial {
         let f = s as f64;
         let s = r as f64;
 
+        // Calculate PR and OMPR.
         // cdflib.f90:5582-5634
         let search = dstzr(0.0, 1.0, ATOL, TOL);
         let (pr, z) = if p <= q {
@@ -344,6 +358,7 @@ impl NegativeBinomial {
         let pr = self.pr;
         let ompr = 1.0 - pr;
 
+        // Calculate F.
         // cdflib.f90:5494-5532
         let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -372,6 +387,7 @@ impl DiscreteCdf for NegativeBinomial {
     fn cdf(&self, s: u64) -> f64 {
         // Rust only: the tests f < 0 and s < 0 (cdflib.f90:5395-5417) are
         // vacuous for u64 arguments.
+        // Calculate P and Q.
         // cdflib.f90:5487
         cumnbn(s as f64, self.r as f64, self.pr, 1.0 - self.pr).0
     }
@@ -381,6 +397,7 @@ impl DiscreteCdf for NegativeBinomial {
     fn ccdf(&self, s: u64) -> f64 {
         // Rust only: the tests f < 0 and s < 0 (cdflib.f90:5395-5417) are
         // vacuous for u64 arguments.
+        // Calculate P and Q.
         // cdflib.f90:5487
         cumnbn(s as f64, self.r as f64, self.pr, 1.0 - self.pr).1
     }
@@ -488,7 +505,7 @@ mod tests {
     #[cfg(not(miri))]
     #[test]
     fn ln_pmf_at_a_large_mode() {
-        // The three ln Γ terms of ln C(s+r-1, s) are about 2.6 · 10¹³.
+        // The three ln Γ terms of ln C(s+r-1, s) are about 2.6·10¹³.
         let d = NegativeBinomial::new(100, 1e-10);
         assert!((d.ln_pmf(999_999_999_899) / -26.24820788664381 - 1.0).abs() < 1e-12);
         // C(s+r-1, s) = 1 for r = 1 and for s = 0.

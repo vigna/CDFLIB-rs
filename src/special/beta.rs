@@ -113,7 +113,7 @@ pub fn beta_log(a0: f64, b0: f64) -> f64 {
     let mut a = a0.min(b0);
     let mut b = a0.max(b0);
 
-    // 8 <= A.
+    // 8 < A.
     if 8.0 <= a {
         let w = bcorr(a, b);
         let h = a / b;
@@ -347,7 +347,7 @@ pub fn fpser(a: f64, b: f64, x: f64, eps: f64) -> f64 {
     fpser * (1.0 + a * s)
 }
 
-/// Computes the incomplete Β ratio *I*₁₋ₓ(*b*, *a*) (cdflib.f90:188).
+/// Computes the incomplete Β ratio *I*₁ ₋ *ₓ*(*b*, *a*) (cdflib.f90:188).
 ///
 /// `apser` is used only for cases where *a* ≤ min(*eps*, *eps*·*b*),
 /// *b*·*x* ≤ 1, and *x* ≤ 0.5.
@@ -839,7 +839,7 @@ pub fn beta_up(a: f64, b: f64, x: f64, y: f64, n: i32, eps: f64) -> f64 {
 /// (*p*, *q*), the values of *P*(*a*, *x*) and *Q*(*a*, *x*).
 ///
 /// Except at *a*·*x* = 0 and *a* = 1/2, returns (NaN, NaN) where *a* or *x*
-/// is NaN or infinite, *eps* is NaN, or *x* is above about 1.3 · 10¹⁵⁴; in
+/// is NaN or infinite, *eps* is NaN, or *x* is above about 1.3·10¹⁵⁴; in
 /// all these cases the F90 never terminates or gives NaN.
 #[inline]
 pub fn gamma_rat1(a: f64, x: f64, r: f64, eps: f64) -> (f64, f64) {
@@ -1328,8 +1328,8 @@ pub enum BetaIncError {
 /// F90 never returns, as for some NaN or infinite arguments and rare finite
 /// ones such as (1 + *ε*, [`f64::MAX`], 10⁻³¹⁰, 1), the result is
 /// (NaN, NaN). As in the F90, the result can be wrong for a subnormal *x*
-/// or *y*: `beta_inc(1e-10, 0.5, 5e-324, 1.0)` gives *w*₁ = 4.96 · 10⁻¹⁰
-/// instead of 7.46 · 10⁻⁸.
+/// or *y*: `beta_inc(1e-10, 0.5, 5e-324, 1.0)` gives *w*₁ = 4.96·10⁻¹⁰
+/// instead of 7.46·10⁻⁸.
 ///
 /// # Panics
 ///

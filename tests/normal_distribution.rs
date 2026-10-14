@@ -25,9 +25,8 @@ fn inverse_cdf_matches_cdfnor_reference() {
     // Each row supplies (p, q) with full precision in both tails (one
     // generated as cum, the other as ccum, neither via 1 - other). The
     // trait single-arg API can only carry one of them with full
-    // precision, so we route each row to its accurate branch:
-    //   - p ≤ 0.5 → inverse_cdf(p) is the accurate call
-    //   - q ≤ 0.5 → inverse_ccdf(q) is the accurate call
+    // precision, so each row goes to its accurate branch: inverse_cdf(p)
+    // when p <= 0.5, inverse_ccdf(q) when q <= 0.5.
     for row in read_csv("tests/data/normal_inverse_cdf.csv") {
         let [mean, sd, p, q, expected_x] = row[..] else {
             panic!("width");

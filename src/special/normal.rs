@@ -196,7 +196,9 @@ pub fn cumnor(arg: f64) -> (f64, f64) {
 /// The rational function on page 95 of Kennedy and Gentle ([`stvaln`]) is
 /// used as a starting value for the Newton method of finding roots. If the
 /// Newton method does not converge in 100 iterations, the starting value is
-/// returned.
+/// returned. This happens only when the smaller of *p* and *q* is below
+/// [`f64::MIN_POSITIVE`], where [`cumnor`] flushes its result to 0; the
+/// starting value then has a relative error of about 10⁻⁵.
 ///
 /// This is CDFLIB's `dinvnr` (cdflib.f90:8041).
 ///
@@ -220,6 +222,7 @@ pub fn cumnor(arg: f64) -> (f64, f64) {
 ///
 /// [`cumnor`]: crate::special::cumnor
 /// [`stvaln`]: crate::special::internal::stvaln
+/// [`f64::MIN_POSITIVE`]: f64::MIN_POSITIVE
 #[inline]
 pub fn dinvnr(p: f64, q: f64) -> f64 {
     const EPS: f64 = 1.0e-13;
@@ -359,7 +362,7 @@ pub fn dlanor(x: f64) -> f64 {
     if x.abs() < 5.0 {
         // Rust only: panic where the F90 prints a fatal-error message and
         // continues (cdflib.f90:8641-8645).
-        panic!("dlanor: argument |x| must be ≥ 5 (got {x:?})");
+        panic!("dlanor: the argument x is too small (|x| < 5, got {x:?})");
     }
 
     let approx = -DLSQPI - 0.5 * x * x - x.abs().ln();
@@ -412,7 +415,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "argument |x| must be ≥ 5")]
+    #[should_panic(expected = "the argument x is too small")]
     fn dlanor_panics_below_threshold() {
         let _ = dlanor(4.99);
     }

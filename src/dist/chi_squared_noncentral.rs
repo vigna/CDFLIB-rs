@@ -121,7 +121,7 @@ fn cumchi_or_panic(x: f64, df: f64) -> (f64, f64) {
 /// The series is summed backwards and forwards from the central term, the
 /// one with the greatest Poisson weight; each sum stops when the sum is
 /// less than 10⁻²⁰, when a term is less than `EPS` times the sum, or after
-/// `NTIRED` terms.
+/// `NTIRED` + 1 terms; the backward sum also stops at the zero term.
 #[allow(clippy::assign_op_pattern)]
 pub(crate) fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
     const EPS: f64 = 0.00001;
@@ -134,8 +134,8 @@ pub(crate) fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
     if x <= 0.0 {
         return (0.0, 1.0);
     }
-    // When the noncentrality parameter is (essentially) zero, use the
-    // cumulative χ² distribution.
+    // When the noncentrality parameter is (essentially) zero, use
+    // cumulative chi-square distribution
     if pnonc <= 1.0e-10 {
         return cumchi_or_panic(x, df);
     }
@@ -147,10 +147,11 @@ pub(crate) fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
     if xnonc.is_nan() || f64::from(i32::MAX) <= xnonc {
         panic!("cumchn: integer overflow for pnonc = {pnonc:?}");
     }
-    // Weight, χ² and adjustment term of the central term of the series,
-    // the one in which the Poisson weight is greatest. The adjustment term
-    // is the amount that must be subtracted from the χ² to move up two
-    // degrees of freedom.
+    // The following code calculates the weight, chi-square, and adjustment
+    // term for the central term in the infinite series. The central term
+    // is the one in which the poisson weight is greatest. The adjustment
+    // term is the amount that must be subtracted from the chi-square to
+    // move up two degrees of freedom.
     let mut icent = xnonc as i32;
     if icent == 0 {
         icent = 1;
@@ -168,13 +169,13 @@ pub(crate) fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
         x
     };
     let chid2 = x / 2.0;
-    // Central weight term.
+    // Calculate central weight term.
     let lfact = gamma_log((icent + 1) as f64);
     let lcntwt = -xnonc + icent as f64 * xnonc.ln() - lfact;
     let centwt = lcntwt.exp();
-    // Central χ².
+    // Calculate central chi-square.
     let (pcent, _ccum) = cumchi_or_panic(x, dg(icent));
-    // Central adjustment term.
+    // Calculate central adjustment term.
     let dfd2 = dg(icent) / 2.0;
     let lfact = gamma_log(1.0 + dfd2);
     let lcntaj = dfd2 * chid2.ln() - chid2 - lfact;
@@ -182,8 +183,8 @@ pub(crate) fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
     let mut sum1 = centwt * pcent;
 
     // Sum backwards from the central term towards zero. Quit whenever
-    // either the zero term is reached, or the term gets small relative to
-    // the sum, or more than NTIRED terms are totaled.
+    // either (1) the zero term is reached, or (2) the term gets small
+    // relative to the sum, or (3) More than NTIRED terms are totaled.
     let mut iterb = 0;
     let mut sumadj = 0.0;
     let mut adj = centaj;
@@ -194,12 +195,12 @@ pub(crate) fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
 
     loop {
         let dfd2 = dg(i) / 2.0;
-        // Adjust the χ² for two fewer degrees of freedom; the adjusted
-        // value ends up in pterm.
+        // Adjust chi-square for two fewer degrees of freedom. The adjusted
+        // value ends up in PTERM.
         adj = adj * dfd2 / chid2;
         sumadj = sumadj + adj;
         let pterm = pcent + sumadj;
-        // Adjust the Poisson weight for j decreased by one.
+        // Adjust Poisson weight for J decreased by one.
         wt = wt * (i as f64 / xnonc);
         term = wt * pterm;
         sum1 = sum1 + term;
@@ -213,13 +214,13 @@ pub(crate) fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
 
     let mut iterf = 0;
     // Now sum forward from the central term towards infinity. Quit when
-    // either the term gets small relative to the sum, or more than NTIRED
-    // terms are totaled.
+    // either (1) the term gets small relative to the sum, or (2) More than
+    // NTIRED terms are totaled.
     let mut sumadj = centaj;
     let mut adj = centaj;
     let mut wt = centwt;
     let mut i = icent;
-    // Update weights for the next higher j.
+    // Update weights for next higher J.
     loop {
         // Rust only: i + 1 overflows the default integer, which is
         // undefined in Fortran.
@@ -227,11 +228,11 @@ pub(crate) fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
             panic!("cumchn: integer overflow for pnonc = {pnonc:?}");
         }
         wt = wt * (xnonc / (i + 1) as f64);
-        // Calculate pterm and add the term to the sum.
+        // Calculate PTERM and add term to sum.
         let pterm = pcent - sumadj;
         term = wt * pterm;
         sum1 = sum1 + term;
-        // Update the adjustment term for df for the next iteration.
+        // Update adjustment term for DF for next iteration.
         i = i + 1;
         let dfd2 = dg(i) / 2.0;
         adj = adj * chid2 / dfd2;
@@ -248,7 +249,11 @@ pub(crate) fn cumchn(x: f64, df: f64, pnonc: f64) -> (f64, f64) {
     (cum, ccum)
 }
 
-// cdflib.f90:3843-3862 (status -2). Rust also rejects NaN.
+// Check the arguments. The F90 test of which (cdflib.f90:3822-3842,
+// status -1) has no counterpart, since each which is a separate method.
+
+// Unless P is to be computed, make sure it is legal.
+// cdflib.f90:3844-3862 (status -2). Rust also rejects NaN.
 #[inline]
 fn check_p(p: f64) -> Result<(), ChiSquaredNoncentralError> {
     if p < 0.0 || 1.0 < p || p.is_nan() {
@@ -257,7 +262,8 @@ fn check_p(p: f64) -> Result<(), ChiSquaredNoncentralError> {
     Ok(())
 }
 
-// cdflib.f90:3863-3875 (status -4). Rust also rejects x = 0 and a
+// Unless X is to be computed, make sure it is legal.
+// cdflib.f90:3864-3875 (status -4). Rust also rejects x = 0 and a
 // non-finite x.
 #[inline]
 fn check_x(x: f64) -> Result<(), ChiSquaredNoncentralError> {
@@ -270,7 +276,8 @@ fn check_x(x: f64) -> Result<(), ChiSquaredNoncentralError> {
     Ok(())
 }
 
-// cdflib.f90:3876-3888 (status -5). Rust also rejects a non-finite df.
+// Unless DF is to be computed, make sure it is legal.
+// cdflib.f90:3877-3888 (status -5). Rust also rejects a non-finite df.
 #[inline]
 fn check_df(df: f64) -> Result<(), ChiSquaredNoncentralError> {
     if df <= 0.0 {
@@ -282,7 +289,8 @@ fn check_df(df: f64) -> Result<(), ChiSquaredNoncentralError> {
     Ok(())
 }
 
-// cdflib.f90:3889-3901 (status -6). Rust also rejects a non-finite pnonc.
+// Unless PNONC is to be computed, make sure it is legal.
+// cdflib.f90:3890-3901 (status -6). Rust also rejects a non-finite pnonc.
 #[inline]
 fn check_pnonc(pnonc: f64) -> Result<(), ChiSquaredNoncentralError> {
     if pnonc < 0.0 {
@@ -363,6 +371,7 @@ impl ChiSquaredNoncentral {
         check_pnonc(ncp)?;
         let pnonc = ncp;
 
+        // Calculate DF.
         // cdflib.f90:3952-3984
         let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -399,16 +408,18 @@ impl ChiSquaredNoncentral {
     ///
     /// # Panics
     ///
-    /// Panics where `gamma_inc` fails inside `cumchn`, which needs *df*
-    /// beyond about 1.3 · 10²⁹ and *x* within a few ulps of it.
+    /// Panics where [`gamma_inc`] fails inside `cumchn`, which needs *df*
+    /// beyond about 1.3·10²⁹ and *x* within a few ulps of it.
     ///
     /// [`cdf`]: ContinuousCdf::cdf
+    /// [`gamma_inc`]: crate::special::gamma_inc
     #[inline]
     pub fn search_ncp(p: f64, x: f64, df: f64) -> Result<f64, ChiSquaredNoncentralError> {
         check_p(p)?;
         check_x(x)?;
         check_df(df)?;
 
+        // Calculate PNONC.
         // cdflib.f90:3990-4022
         let mut d = dstinv(0.0, TENT4, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {
@@ -442,20 +453,21 @@ impl ContinuousCdf for ChiSquaredNoncentral {
     /// for *λ* = 10⁸. In the left tail, where the terms around the central
     /// one sum to less than 10⁻²⁰, the low-index terms that carry the
     /// probability are never added: with *df* = 0.5 and *λ* = 10,
-    /// cdf(5 · 10⁻⁵) is 1.4 · 10⁻²² instead of 5.26 · 10⁻⁴. For *df*
+    /// cdf(5·10⁻⁵) is 1.4·10⁻²² instead of 5.26·10⁻⁴. For *df*
     /// beyond about 10¹⁵ the result can fall outside [0 . . 1] or be NaN.
     /// For a small *λ* it can exceed 1 by a few ulps in the right tail,
-    /// making [`ccdf`] slightly negative (1 + 4.4 · 10⁻¹⁶ at 100 for
+    /// making [`ccdf`] slightly negative (1 + 4.4·10⁻¹⁶ at 100 for
     /// *df* = 3 and *λ* = 10⁻⁹).
     ///
     /// # Panics
     ///
-    /// Panics where `gamma_inc` fails inside `cumchn`, which needs *df*
-    /// beyond about 1.3 · 10²⁹ and *x* within a few ulps of it, and may
+    /// Panics where [`gamma_inc`] fails inside `cumchn`, which needs *df*
+    /// beyond about 1.3·10²⁹ and *x* within a few ulps of it, and may
     /// panic for *λ*/2 ≥ 2³¹ − 1001, where CDFLIB's default integers can
     /// overflow.
     ///
     /// [`ccdf`]: ContinuousCdf::ccdf
+    /// [`gamma_inc`]: crate::special::gamma_inc
     #[inline]
     fn cdf(&self, x: f64) -> f64 {
         // Rust only: NaN for a NaN x.
@@ -468,6 +480,7 @@ impl ContinuousCdf for ChiSquaredNoncentral {
         }
         // Rust only: no status -4 for x < 0 (cdflib.f90:3866-3875); cumchn
         // returns (0, 1) there.
+        // Calculate P and Q.
         // cdflib.f90:3907
         cumchn(x, self.df, self.ncp).0
     }
@@ -494,6 +507,7 @@ impl ContinuousCdf for ChiSquaredNoncentral {
         }
         // Rust only: no status -4 for x < 0 (cdflib.f90:3866-3875); cumchn
         // returns (0, 1) there.
+        // Calculate P and Q.
         // cdflib.f90:3907
         cumchn(x, self.df, self.ncp).1
     }
@@ -503,7 +517,7 @@ impl ContinuousCdf for ChiSquaredNoncentral {
     /// The precision limits of [`cdf`] apply: with *df* = 1 and *λ* ≥ 10⁷
     /// the search for the median fails with [`AnswerAboveUpperBound`], and
     /// in the left tail the search returns a wrong answer without an error
-    /// (about 1.37 · 10⁻⁴ instead of 6.5 · 10⁻⁸ for *df* = 0.5, *λ* = 10
+    /// (about 1.37·10⁻⁴ instead of 6.5·10⁻⁸ for *df* = 0.5, *λ* = 10
     /// and *p* = 10⁻⁴).
     ///
     /// # Panics
@@ -526,6 +540,7 @@ impl ContinuousCdf for ChiSquaredNoncentral {
         let df = self.df;
         let pnonc = self.ncp;
 
+        // Calculate X.
         // cdflib.f90:3914-3946
         let mut d = dstinv(0.0, INF, 0.5, 0.5, 5.0, ATOL, TOL).dinvr(5.0)?;
         while d.status() == 1 {

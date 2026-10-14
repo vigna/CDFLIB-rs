@@ -48,6 +48,13 @@ program gen_noncentral_distributions
       end do
     end do
   end do
+  ! A large noncentrality, where the backward sum stops after ntired terms.
+  call cumchn(1.0e6_rk, 10.0_rk, 1.0e6_rk, cum, ccum)
+  call putval(unit, 10.0_rk, .false.)
+  call putval(unit, 1.0e6_rk, .false.)
+  call putval(unit, 1.0e6_rk, .false.)
+  call putval(unit, cum, .false.)
+  call putval(unit, ccum, .true.)
   close(unit)
 
   ! noncentral F CDF
