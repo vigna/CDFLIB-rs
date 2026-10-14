@@ -1,0 +1,235 @@
+# Branch sides of the ported Rust code that the tests comparing with the
+# reference tables never take, with the reason. Checked by
+# rust_branch_coverage.sh, which fails on any other untaken side and on
+# any entry for a side that the tests take. Format:
+# <file> <function> [<condition>] <true|false>: <reason>, where the
+# condition is its source text with whitespace collapsed; an entry stands
+# for every branch with the same file, function, condition and side.
+#
+# An out-of-range which has no Rust branch: there is one method per value
+# of which (unreachable.txt lists the F90 lines).
+#
+# The Taylor series for P/R in gamma_inc (taylor_series_for_p_over_r,
+# cdflib.f90:10827) never runs all 20 terms of its first loop: that needs
+# the product of x/(a + k) for k = 1, ..., 20 above 1e-3, where the series
+# has x <= max(a, 2.30) with a < 20 (big for iop = 1; it is smaller for the
+# other accuracies) or x < 0.6 a; the largest value, at x = a near 20, is
+# 3.1e-4. A sweep of 4.2 million (a, x) points, a from 0.5 to 2e4 in steps
+# of 0.2 percent and x = a k/200 for k = 1, ..., 799, at the three
+# accuracies, never ran all 20 terms. The end of a for loop is not a
+# branch, so there is no entry for it.
+
+# Rust-only guards, marked "Rust only" or "Rust also" in the source:
+# input checks, NaN and infinite arguments, exact endpoints, parameters
+# that a search computes but try_new rejects, and NaN returns where the
+# F90 never returns. The F90 has no counterpart, so no reference table can
+# reach them.
+src/dist/beta.rs ccdf [x.is_nan()] true: Rust only: NaN for a NaN argument.
+src/dist/beta.rs cdf [x.is_nan()] true: Rust only: NaN for a NaN argument.
+src/dist/beta.rs check_a [!a.is_finite()] true: Rust also rejects an infinite or NaN a.
+src/dist/beta.rs check_b [!b.is_finite()] true: Rust also rejects an infinite or NaN b.
+src/dist/beta.rs check_p [p.is_nan()] true: Rust also rejects a NaN p.
+src/dist/beta.rs check_q [q.is_nan()] true: Rust also rejects a NaN q.
+src/dist/beta.rs check_x [x.is_nan()] true: Rust also rejects a NaN x.
+src/dist/beta.rs inverse_ccdf [q == 0.0] true: Rust only: exact endpoint of the support.
+src/dist/beta.rs inverse_ccdf [q == 1.0] true: Rust only: exact endpoint of the support.
+src/dist/beta.rs inverse_cdf [p == 0.0] true: Rust only: exact endpoint of the support.
+src/dist/beta.rs inverse_cdf [p == 1.0] true: Rust only: exact endpoint of the support.
+src/dist/binomial.rs check_p [p.is_nan()] true: Rust also rejects a NaN p.
+src/dist/binomial.rs check_pr [pr.is_nan()] true: Rust also rejects a NaN pr.
+src/dist/binomial.rs check_q [q.is_nan()] true: Rust also rejects a NaN q.
+src/dist/chi_squared.rs ccdf [x == f64::INFINITY] true: Rust only: exact value at +inf.
+src/dist/chi_squared.rs ccdf [x.is_nan()] true: Rust only: NaN for a NaN argument.
+src/dist/chi_squared.rs cdf [x == f64::INFINITY] true: Rust only: exact value at +inf.
+src/dist/chi_squared.rs cdf [x.is_nan()] true: Rust only: NaN for a NaN argument.
+src/dist/chi_squared.rs check_df [!df.is_finite()] true: Rust also rejects an infinite or NaN df.
+src/dist/chi_squared.rs check_p [p.is_nan()] true: Rust also rejects a NaN p.
+src/dist/chi_squared.rs check_q [q.is_nan()] true: Rust also rejects a NaN q.
+src/dist/chi_squared.rs check_x [!x.is_finite()] true: Rust also rejects an infinite or NaN x.
+src/dist/chi_squared.rs inverse_ccdf [q == 0.0] true: Rust only: exact endpoint of the support.
+src/dist/chi_squared.rs inverse_ccdf [q == 1.0] true: Rust only: exact endpoint of the support.
+src/dist/chi_squared.rs inverse_cdf [p == 0.0] true: Rust only: exact endpoint of the support.
+src/dist/chi_squared.rs inverse_cdf [p == 1.0] true: Rust only: exact endpoint of the support.
+src/dist/chi_squared_noncentral.rs ccdf [x == f64::INFINITY] true: Rust only: exact value at +inf.
+src/dist/chi_squared_noncentral.rs ccdf [x.is_nan()] true: Rust only: NaN for a NaN argument.
+src/dist/chi_squared_noncentral.rs cdf [x == f64::INFINITY] true: Rust only: exact value at +inf.
+src/dist/chi_squared_noncentral.rs cdf [x.is_nan()] true: Rust only: NaN for a NaN argument.
+src/dist/chi_squared_noncentral.rs check_df [!df.is_finite()] true: Rust also rejects an infinite or NaN df.
+src/dist/chi_squared_noncentral.rs check_p [p.is_nan()] true: Rust also rejects a NaN p.
+src/dist/chi_squared_noncentral.rs check_pnonc [!pnonc.is_finite()] true: Rust also rejects an infinite or NaN pnonc.
+src/dist/chi_squared_noncentral.rs check_x [!x.is_finite()] true: Rust also rejects an infinite or NaN x.
+src/dist/chi_squared_noncentral.rs cumchn [x / 2.0 == 0.0] true: Rust only: the smallest subnormal x, whose half is 0.
+src/dist/chi_squared_noncentral.rs inverse_cdf [p == 0.0] true: Rust only: exact endpoint of the support.
+src/dist/chi_squared_noncentral.rs inverse_cdf [p == 1.0] true: Rust only: exact endpoint of the support.
+src/dist/fisher_snedecor.rs ccdf [f.is_nan()] true: Rust only: NaN for a NaN argument.
+src/dist/fisher_snedecor.rs cdf [f.is_nan()] true: Rust only: NaN for a NaN argument.
+src/dist/fisher_snedecor.rs check_dfd [!dfd.is_finite()] true: Rust also rejects an infinite or NaN dfd.
+src/dist/fisher_snedecor.rs check_dfd [0.5 * dfd == 0.0] true: Rust also rejects a dfd that halves to 0, where beta_inc fails in cumf.
+src/dist/fisher_snedecor.rs check_dfn [!dfn.is_finite()] true: Rust also rejects an infinite or NaN dfn.
+src/dist/fisher_snedecor.rs check_dfn [0.5 * dfn == 0.0] true: Rust also rejects a dfn that halves to 0, where beta_inc fails in cumf.
+src/dist/fisher_snedecor.rs check_f [!f.is_finite()] true: Rust also rejects an infinite or NaN f.
+src/dist/fisher_snedecor.rs check_p [p.is_nan()] true: Rust also rejects a NaN p.
+src/dist/fisher_snedecor.rs check_q [q.is_nan()] true: Rust also rejects a NaN q.
+src/dist/fisher_snedecor.rs inverse_ccdf [q == 0.0] true: Rust only: exact endpoint of the support.
+src/dist/fisher_snedecor.rs inverse_ccdf [q == 1.0] true: Rust only: exact endpoint of the support.
+src/dist/fisher_snedecor.rs inverse_cdf [p == 1.0] true: Rust only: exact endpoint of the support.
+src/dist/fisher_snedecor_noncentral.rs ccdf [f == f64::INFINITY] true: Rust only: exact value at +inf.
+src/dist/fisher_snedecor_noncentral.rs ccdf [f.is_nan()] true: Rust only: NaN for a NaN argument.
+src/dist/fisher_snedecor_noncentral.rs cdf [f == f64::INFINITY] true: Rust only: exact value at +inf.
+src/dist/fisher_snedecor_noncentral.rs cdf [f.is_nan()] true: Rust only: NaN for a NaN argument.
+src/dist/fisher_snedecor_noncentral.rs check_dfd [!dfd.is_finite()] true: Rust also rejects an infinite or NaN dfd.
+src/dist/fisher_snedecor_noncentral.rs check_dfn [!dfn.is_finite()] true: Rust also rejects an infinite or NaN dfn.
+src/dist/fisher_snedecor_noncentral.rs check_f [!f.is_finite()] true: Rust also rejects an infinite or NaN f.
+src/dist/fisher_snedecor_noncentral.rs check_p [p.is_nan()] true: Rust also rejects a NaN p.
+src/dist/fisher_snedecor_noncentral.rs check_pnonc [!pnonc.is_finite()] true: Rust also rejects an infinite or NaN pnonc.
+src/dist/fisher_snedecor_noncentral.rs inverse_cdf [p == 0.0] true: Rust only: exact endpoint of the support.
+src/dist/fisher_snedecor_noncentral.rs inverse_cdf [p == 1.0] true: Rust only: exact endpoint of the support.
+src/dist/gamma.rs ccdf [x.is_nan()] true: Rust only: NaN for a NaN argument.
+src/dist/gamma.rs ccdf [xscale == f64::INFINITY] true: Rust only: exact value where x * rate is +inf.
+src/dist/gamma.rs cdf [x.is_nan()] true: Rust only: NaN for a NaN argument.
+src/dist/gamma.rs cdf [xscale == f64::INFINITY] true: Rust only: exact value where x * rate is +inf.
+src/dist/gamma.rs check_p [p.is_nan()] true: Rust also rejects a NaN p.
+src/dist/gamma.rs check_q [q.is_nan()] true: Rust also rejects a NaN q.
+src/dist/gamma.rs check_rate [!rate.is_finite()] true: Rust also rejects an infinite or NaN rate.
+src/dist/gamma.rs check_shape [!shape.is_finite()] true: Rust also rejects an infinite or NaN shape.
+src/dist/gamma.rs check_x [!x.is_finite()] true: Rust also rejects an infinite or NaN x.
+src/dist/gamma.rs inverse_ccdf [q == 0.0] true: Rust only: exact endpoint of the support.
+src/dist/gamma.rs inverse_ccdf [q == 1.0] true: Rust only: exact endpoint of the support.
+src/dist/gamma.rs inverse_cdf [p == 1.0] true: Rust only: exact endpoint of the support.
+src/dist/gamma.rs search_rate [!scale.is_finite()] true: Rust only: a rate that try_new rejects is an error.
+src/dist/gamma.rs search_rate [scale <= 0.0] true: Rust only: a rate that try_new rejects is an error.
+src/dist/gamma.rs search_shape [p < 1.0] false: Rust only: x * scale is +inf, where the F90 gamma_inc does not return.
+src/dist/gamma.rs search_shape [p < 1.0] true: Rust only: x * scale is +inf, where the F90 gamma_inc does not return.
+src/dist/gamma.rs search_shape [xscale == f64::INFINITY] true: Rust only: x * scale is +inf, where the F90 gamma_inc does not return.
+src/dist/negative_binomial.rs check_p [p.is_nan()] true: Rust also rejects a NaN p.
+src/dist/negative_binomial.rs check_pr [pr.is_nan()] true: Rust also rejects a NaN pr.
+src/dist/negative_binomial.rs check_q [q.is_nan()] true: Rust also rejects a NaN q.
+src/dist/negative_binomial.rs inverse_ccdf [q == 0.0] true: Rust only: exact endpoint of the support.
+src/dist/negative_binomial.rs try_new [r == 0] true: Rust only: CDFLIB accepts r = 0 successes.
+src/dist/normal.rs ccdf [(z * 16.0).is_infinite()] true: Rust only: exact value where z * 16 overflows in cumnor.
+src/dist/normal.rs ccdf [x.is_nan()] true: Rust only: NaN for a NaN argument.
+src/dist/normal.rs ccdf [z < 0.0] false: Rust only: the sign of z at those exact values.
+src/dist/normal.rs ccdf [z < 0.0] true: Rust only: the sign of z at those exact values.
+src/dist/normal.rs cdf [(z * 16.0).is_infinite()] true: Rust only: exact value where z * 16 overflows in cumnor.
+src/dist/normal.rs cdf [x.is_nan()] true: Rust only: NaN for a NaN argument.
+src/dist/normal.rs cdf [z < 0.0] false: Rust only: the sign of z at those exact values.
+src/dist/normal.rs cdf [z < 0.0] true: Rust only: the sign of z at those exact values.
+src/dist/normal.rs check_mean [!mean.is_finite()] true: Rust also rejects an infinite or NaN mean.
+src/dist/normal.rs check_p [p.is_nan()] true: Rust also rejects a NaN p.
+src/dist/normal.rs check_q [q.is_nan()] true: Rust also rejects a NaN q.
+src/dist/normal.rs check_sd [!sd.is_finite()] true: Rust also rejects an infinite or NaN sd.
+src/dist/normal.rs check_x [!x.is_finite()] true: Rust also rejects an infinite or NaN x.
+src/dist/normal.rs inverse_ccdf [q == 0.0] true: Rust only: exact endpoint of the support.
+src/dist/normal.rs inverse_ccdf [q == 1.0] true: Rust only: exact endpoint of the support.
+src/dist/normal.rs inverse_cdf [p == 0.0] true: Rust only: exact endpoint of the support.
+src/dist/normal.rs inverse_cdf [p == 1.0] true: Rust only: exact endpoint of the support.
+src/dist/normal.rs search_mean [!mean.is_finite()] true: Rust only: an infinite mean is an error.
+src/dist/normal.rs search_mean [p == 0.0] true: Rust only: p or q = 0, where dinvnr gives NaN.
+src/dist/normal.rs search_mean [q == 0.0] true: Rust only: p or q = 0, where dinvnr gives NaN.
+src/dist/normal.rs search_sd [!sd.is_finite()] true: Rust only: an sd that try_new rejects is an error.
+src/dist/normal.rs search_sd [p == 0.0] true: Rust only: p or q = 0, where dinvnr gives NaN.
+src/dist/normal.rs search_sd [q == 0.0] true: Rust only: p or q = 0, where dinvnr gives NaN.
+src/dist/normal.rs search_sd [sd.is_nan()] true: Rust only: an sd that try_new rejects is an error.
+src/dist/normal.rs standardize [diff.is_infinite()] true: Rust only: x - mean overflows.
+src/dist/poisson.rs check_p [p.is_nan()] true: Rust also rejects a NaN p.
+src/dist/poisson.rs check_q [q.is_nan()] true: Rust also rejects a NaN q.
+src/dist/poisson.rs check_xlam [!(2.0 * xlam).is_finite()] true: Rust also rejects a lambda with 2 lambda not finite, where cumpoi gives NaN.
+src/dist/poisson.rs inverse_ccdf [q == 0.0] true: Rust only: exact endpoint of the support.
+src/dist/students_t.rs ccdf [t.is_nan()] true: Rust only: NaN for a NaN argument.
+src/dist/students_t.rs cdf [t.is_nan()] true: Rust only: NaN for a NaN argument.
+src/dist/students_t.rs check_df [!df.is_finite()] true: Rust also rejects an infinite or NaN df.
+src/dist/students_t.rs check_p [p.is_nan()] true: Rust also rejects a NaN p.
+src/dist/students_t.rs check_q [q.is_nan()] true: Rust also rejects a NaN q.
+src/dist/students_t.rs inverse_ccdf [q == 0.0] true: Rust only: exact endpoint of the support.
+src/dist/students_t.rs inverse_ccdf [q == 1.0] true: Rust only: exact endpoint of the support.
+src/dist/students_t.rs inverse_cdf [p == 0.0] true: Rust only: exact endpoint of the support.
+src/dist/students_t.rs inverse_cdf [p == 1.0] true: Rust only: exact endpoint of the support.
+src/dist/students_t.rs search_df [!t.is_finite()] true: Rust only: t must be finite.
+src/special/beta.rs apser [!aj.is_finite()] true: Rust only: NaN where the F90 loop never ends.
+src/special/beta.rs apser [tol < 0.0] true: Rust only: NaN where the F90 loop never ends.
+src/special/beta.rs apser [tol.is_nan()] true: Rust only: NaN where the F90 loop never ends.
+src/special/beta.rs beta_frac [eps.is_nan()] true: Rust only: NaN where the F90 loop never ends.
+src/special/beta.rs beta_frac [r.is_nan()] true: Rust only: NaN where the F90 loop never ends.
+src/special/beta.rs beta_pser [!c.is_finite()] true: Rust only: NaN where the F90 loop never ends.
+src/special/beta.rs beta_pser [tol < 0.0] true: Rust only: NaN where the F90 loop never ends.
+src/special/beta.rs beta_pser [tol.is_nan()] true: Rust only: NaN where the F90 loop never ends.
+src/special/beta.rs fpser [!t.is_finite()] true: Rust only: NaN where the F90 loop never ends.
+src/special/beta.rs fpser [tol < 0.0] true: Rust only: NaN where the F90 loop never ends.
+src/special/beta.rs fpser [tol.is_nan()] true: Rust only: NaN where the F90 loop never ends.
+src/special/beta.rs gamma_rat1 [!a.is_finite()] true: Rust only: NaN where the F90 loop never ends.
+src/special/beta.rs gamma_rat1 [!x.is_finite()] true: Rust only: NaN where the F90 loop never ends.
+src/special/beta.rs gamma_rat1 [an0.is_nan()] true: Rust only: NaN where the F90 loop never ends.
+src/special/beta.rs gamma_rat1 [eps.is_nan()] true: Rust only: NaN where the F90 loop never ends.
+src/special/gamma.rs schroder_p [Ok((pn, qn))] false: Rust only: gamma_inc cannot fail here; it fails only for a above amax with |1 - xn/a| <= e2, which returns earlier.
+src/special/gamma.rs schroder_q [Ok((pn, qn))] false: Rust only: gamma_inc cannot fail here; it fails only for a above amax with |1 - xn/a| <= e2, which returns earlier.
+src/special/gamma.rs try_gamma_inc_inv [!xn.is_finite()] true: Rust only: NaN where the F90 loop never ends.
+src/special/gamma.rs try_gamma_inc_inv [p < 0.0] true: Rust only: InconsistentPq for a NaN or negative p or q.
+src/special/gamma.rs try_gamma_inc_inv [q < 0.0] true: Rust only: InconsistentPq for a NaN or negative p or q.
+src/special/gamma.rs try_gamma_inc_inv [t.is_nan()] true: Rust only: InconsistentPq for a NaN or negative p or q.
+src/special/gamma.rs try_gamma_inc_with_acc [a == f64::INFINITY] true: Rust only: NaN where the F90 loop never ends.
+src/special/gamma.rs try_gamma_inc_with_acc [a.is_nan()] true: Rust only: NaN where the F90 loop never ends.
+src/special/gamma.rs try_gamma_inc_with_acc [x == f64::INFINITY] false: Rust only: NaN where the F90 loop never ends.
+src/special/gamma.rs try_gamma_inc_with_acc [x == f64::INFINITY] true: Rust only: NaN where the F90 loop never ends.
+src/special/gamma.rs try_gamma_inc_with_acc [x.is_nan()] true: Rust only: NaN where the F90 loop never ends.
+
+# Accepted panics, documented in the # Panics sections: dlanor and dstrem
+# preconditions, and the noncentral sums where the default integer of the
+# F90 would overflow or the sum is NaN.
+src/dist/chi_squared_noncentral.rs cumchn [f64::from(i32::MAX) <= xnonc] true: panics where int(xnonc) overflows the default integer, undefined in Fortran.
+src/dist/chi_squared_noncentral.rs cumchn [i == i32::MAX] true: panics where i + 1 overflows the default integer.
+src/dist/chi_squared_noncentral.rs cumchn [xnonc.is_nan()] true: panics for a NaN pnonc, which every entry point rejects first.
+src/dist/fisher_snedecor_noncentral.rs cumfnc [f64::from(i32::MAX) <= xnonc] true: panics where int(xnonc) overflows the default integer, undefined in Fortran.
+src/dist/fisher_snedecor_noncentral.rs cumfnc [i == i32::MAX] true: panics where i + 1 overflows the default integer.
+src/dist/fisher_snedecor_noncentral.rs cumfnc [sum1.is_nan()] true: panics where the sum is NaN, where the F90 never returns.
+src/dist/fisher_snedecor_noncentral.rs cumfnc [xnonc.is_nan()] true: panics for a NaN pnonc, which every entry point rejects first.
+src/special/gamma.rs dstrem [z <= 0.0] true: dstrem panics for z <= 0, where the F90 stops (unreachable.txt 8723).
+src/special/normal.rs dlanor [x.abs() < 5.0] true: dlanor panics for |x| < 5, where the F90 prints a message and goes on.
+
+# F90 fatal stops, which end the generator, so no reference table can
+# record them. Rust returns an error or rejects the input first.
+src/dist/fisher_snedecor_noncentral.rs check_cumfnc_dfd [dfd < 1.0] true: DfdTooSmall where cumfnc stops (unreachable.txt 7328).
+src/dist/fisher_snedecor_noncentral.rs check_cumfnc_dfn [dfn < 1.0] true: DfnTooSmall where cumfnc stops (unreachable.txt 7321).
+src/dist/fisher_snedecor_noncentral.rs cumfnc [dfd < 1.0] true: F90 stop (unreachable.txt 7328); every entry point rejects dfd < 1 first.
+src/dist/fisher_snedecor_noncentral.rs cumfnc [dfn < 1.0] true: F90 stop (unreachable.txt 7321); every entry point rejects dfn < 1 first.
+src/search/dinvr.rs step [self.small <= self.x] false: F90 stop for SMALL, X, BIG not monotone (unreachable.txt 8262); Dstinv::dinvr returns StartOutOfRange before this panic.
+src/search/dinvr.rs step [self.x <= self.big] false: as above.
+src/search/mod.rs dinvr [self.small <= x] false: StartOutOfRange where dinvr stops (unreachable.txt 8262); tested in tests/dispatcher_calls.rs.
+src/search/mod.rs dinvr [x <= self.big] false: as above.
+
+# NaN-only branches: else branches of the F90 that no other value
+# reaches.
+src/special/beta.rs beta_pser [8.0 <= b0] false: only a NaN b0 fails b0 < 8 and 8 <= b0 (cdflib.f90:1760).
+src/special/beta.rs beta_rcomp [8.0 <= b0] false: only a NaN b0 fails b0 < 8 and 8 <= b0 (cdflib.f90:1948).
+src/special/beta.rs esum [0.0 < x] false: only a NaN x fails x <= 0 and 0 < x (cdflib.f90:9694).
+src/special/gamma.rs gam1 [t < 0.0] false: only a NaN t fails every test (cdflib.f90:10274); Rust returns NaN.
+src/special/gamma.rs rlog [1.57 <= x] false: only a NaN x fails every test (cdflib.f90:14039); Rust returns NaN.
+
+# Lines listed in unreachable.txt, with the same reasons, and the dzror
+# failures that only those lines would reach.
+src/dist/beta.rs search_x_y [z.qleft()] false: unreachable.txt 2779-2788: as above.
+src/dist/beta.rs search_x_y [z.qleft()] true: unreachable.txt 2779-2788: evaluated only after a failure.
+src/dist/beta.rs search_x_y [z.status() == -1] true: unreachable.txt 2779-2788: cumbet spans [0..1], so dzror fails only at label 240, where the F90 reads an unassigned qleft.
+src/dist/binomial.rs search_pr [z.qleft()] true: unreachable.txt 3320-3321: status 1 needs a failure at label 240.
+src/dist/fisher_snedecor_noncentral.rs cumfnc [(aup - 1.0 + b) == 0.0] true: unreachable.txt 7413: aup - 1 + b >= 1.
+src/dist/fisher_snedecor_noncentral.rs inverse_cdf [d.qleft()] true: unreachable.txt 4716-4722: the objective is -p <= 0 at f = 0.
+src/dist/negative_binomial.rs search_pr [z.qleft()] false: unreachable.txt 5618-5627: as above.
+src/dist/negative_binomial.rs search_pr [z.qleft()] true: unreachable.txt 5618-5627: evaluated only after a failure.
+src/dist/negative_binomial.rs search_pr [z.status() == -1] true: unreachable.txt 5618-5627: cumnbn spans [0..1], so dzror fails only at label 240.
+src/dist/poisson.rs search_lambda [d.qleft()] false: unreachable.txt 6168-6177: as above.
+src/dist/poisson.rs search_lambda [d.qleft()] true: unreachable.txt 6168-6177: evaluated only after a failure.
+src/dist/poisson.rs search_lambda [d.status() == -1] true: unreachable.txt 6168-6177: the search fails only for s beyond about 1e300.
+src/special/beta.rs beta_up [k < mu] true: unreachable.txt 2277: k = int(exparg(0)) = 709 and mu = 708.
+src/special/beta.rs gamma_rat1 [q < 0.0] true: unreachable.txt 12367-12368: q is 1 - P computed with an error far smaller than itself.
+src/special/gamma.rs schroder_p [r == 0.0] true: unreachable.txt 11759-11761: rcomp underflows while P and Q are both nonzero.
+src/special/gamma.rs schroder_p [x <= 0.0] true: unreachable.txt 11787-11788: |t| <= 0.1 and |w t| <= 0.1 give 1 - h > 0.
+src/special/gamma.rs schroder_q [r == 0.0] true: unreachable.txt 11855-11857: as in schroder_p.
+src/special/gamma.rs schroder_q [x <= 0.0] true: unreachable.txt 11883-11884: as in schroder_p.
+src/special/gamma.rs taylor_series_for_p_over_x_pow_a [qans < 0.0] true: unreachable.txt 10966-10968: as for gamma_rat1.
+src/special/gamma.rs try_gamma_inc_inv [1.0e-10 < e] true: unreachable.txt 11478: epsilon is below 1e-10.
+src/special/gamma.rs try_gamma_inc_inv [b == 0.0] true: unreachable.txt 11523-11525: b = qg / a with a < 1 is at least qg > 0.
+src/special/gamma.rs try_gamma_inc_inv [qg == 0.0] true: unreachable.txt 11500-11502: q > 0 times gamma(a + 1) >= 0.88 does not round to 0.
+src/special/mod.rs exparg [b == 16] false: unreachable.txt 9821-9826: as above.
+src/special/mod.rs exparg [b == 16] true: unreachable.txt 9821-9826: as above.
+src/special/mod.rs exparg [b == 2] false: unreachable.txt 9821-9826: the base of the arithmetic is 2.
+src/special/mod.rs exparg [b == 8] false: unreachable.txt 9821-9826: as above.
+src/special/mod.rs exparg [b == 8] true: unreachable.txt 9821-9826: as above.
